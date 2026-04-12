@@ -13,7 +13,7 @@ if env_mode == "development":
     PROJECT_ROOT = os.path.normpath(os.path.join(PROJECT_DES, "backend/projects"))
     SOURCE_BACKEND = os.path.normpath(os.path.join(PROJECT_DES, "backend"))
     SOURCE_FRONTEND = os.path.normpath(os.path.join(PROJECT_DES, "frontend/src"))
-    DELFT_PATH = os.path.normpath(os.path.join(PROJECT_DES, "backend/x64"))
+    DELFT_PATH = os.path.normpath(os.path.join(PROJECT_DES, "backend/softs/x64"))
     REDIS_URL = "redis://localhost:6379/0"
 # else:
 #     PROJECT_DES = os.getenv("/app")
