@@ -1,0 +1,67 @@
+body {
+    background-color: #262635;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: rgb(241, 239, 239);
+}
+
+.dashboard-header {
+    border-radius: 16px; padding: 12px 20px; z-index: 1;
+    box-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
+    overflow: visible; display: flex; align-items: center;
+    background: linear-gradient(90deg, #2c5364, #203a43, #0f2027);
+}
+
+.header-left {
+    display: flex; align-items: center; gap: 5px;
+    flex-direction: column; justify-content: center;
+}
+.header-left img {
+    width: 80px; height: 80px;
+}
+
+.header-middle {
+    flex: 1; justify-content: center; text-align: center;
+}
+.header-middle h1 {
+    margin: 0; font-size: 38px; 
+    background: linear-gradient(90deg, #ff7300, #bbff00);
+    background-clip: text; -webkit-text-fill-color: transparent;
+}
+
+.header-right { position: relative; }
+
+.header-right img {
+    width: 60px; height: 60px; cursor: pointer;
+}
+
+h3 {
+    font-size: 20px; margin: 0; text-align: center;
+    background: linear-gradient(90deg, #0072ff, #00c6ff);
+    background-clip: text; -webkit-text-fill-color: transparent;
+}
+
+.submenu {
+    position: absolute; top: 60px; right: 0; z-index: 1000;
+    border: 1px solid #ddd; display: none;
+    flex-direction: column; align-items: center;
+    border-radius: 8px; padding: 10px 14px; min-width: 120px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    background: linear-gradient(90deg, #3142df, #0699c2);
+}
+
+.submenu-item {
+    width: 100%; padding: 10px 14px;
+    cursor: pointer; border-radius: 6px;
+    transition: background 0.2s;
+}
+
+.submenu-item:hover {
+    background: #3a3939;
+}
+
+#github-last-update {
+    position: fixed; bottom: 10px; right: 10px; font-size: 12px;
+    color: #111111; background: rgba(223, 217, 217, 0.85); padding: 4px 8px;
+    border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); z-index: 9999;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; pointer-events: none;
+}
