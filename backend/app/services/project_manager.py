@@ -1,5 +1,8 @@
+import traceback, asyncio
+
 from fastapi import APIRouter, Request, Depends
-from uuid import uuid4
+from fastapi.responses import JSONResponse
+
 from services import functions
 
 
@@ -10,8 +13,31 @@ async def auth_check(user=Depends(functions.basic_auth)):
     output = 'ok' if user == 'admin' else 'error'
     return {"user": user, "output": output}
 
-# def project_definer(old_name, username='admin'):
-#     new_name = f'{username}/{old_name}' if username!='admin' else 'demo'
-#     name_id = f'{new_name}/{uuid4()}'
-#     if old_name == '': new_name = new_name.rstrip('/')
-#     return new_name, name_id
+# Set up the database depending on the project
+@router.post("/setup_database")
+async def setup_database(request: Request, user=Depends(functions.basic_auth)):
+    try:
+        body = await request.json()
+        project_name, _ = functions.project_definer(body.get('projectName'), user)
+        redis, params = request.app.state.redis, body.get('params')
+        extend_task, lock = None, redis.lock(f"{project_name}:setup_database", timeout=600)
+        print(project_name)
+
+
+
+
+
+    except Exception as e:
+        print('/setup_database:\n==============')
+        traceback.print_exc()
+        return JSONResponse({"status": 'error', "message": f"Error: {str(e)}"})
+    finally:
+        if extend_task:
+            extend_task.cancel()
+            try: await extend_task
+            except asyncio.CancelledError: pass
+
+
+
+
+

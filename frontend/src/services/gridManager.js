@@ -7,7 +7,8 @@ await loadLakes(); updateManager();
 
 async function loadLakes(){
     startLoading("Initializing Database for entire Norway's Lakes. Please wait...");
-    const response = await jsonLoader('init_lakes', {projectName: getState().currentProject});
+    // console.log('OK2',getState().currentProject);
+    // const response = await jsonLoader('init_lakes', {projectName: getState().currentProject});
     // if (response.status === "error") { alert(response.message); return; }
     // stopLoading();
     // lakesData = response.content; 

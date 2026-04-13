@@ -21,9 +21,9 @@ export function initGrid() {
     const element = document.getElementById('grid-stack');
     if (!element) return;
     gridInstance = GridStack.init({
-        cellHeight: 80, column: 12, margin: "10px 1px",
+        cellHeight: 80, column: 12,
         draggable: { handle: '.widget-header' },
-        resizable: { handles: 'all' }
+        resizable: { handles: 'se' }
     }, element);
     gridInstance.on('change', saveWidget); 
     gridInstance.on('added', saveWidget);

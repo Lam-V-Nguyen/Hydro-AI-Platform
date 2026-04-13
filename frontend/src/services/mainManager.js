@@ -9,7 +9,7 @@ const widgetMenu = document.getElementById("widgetMenu");
 const submenu = document.getElementById("submenu");
 
 
-let isLoaded = false, userName = '';
+let isLoaded = false, userName = null;
 
 await login(); projectChecker();
 updateComponent(); widgetMenuManager(); loadWidget();
@@ -17,18 +17,14 @@ showGitHubLastUpdate('Lam-V-Nguyen', 'Hydro-AI-Platform', 'dev');
 
 async function login() {
     const data = await jsonLoader('auth_check', {});
-    if (data.user==='admin') { userName = ''; } else { userName = `${data.user}/`; }
+    if (data.user==='admin') { userName = ''; } else { userName = `${data.user}`; }
 }
 
-async function projectChecker(name=null, params=null) {
-    if (name === null) return;
+async function projectChecker() {
+    if (userName === 'admin' || userName === null) return;
     startLoading('Setting up Database.\nThis takes a while (especially the first time). Please wait...');
-
-
-
-
-    const data = await jsonLoader('project_check', {name: name, params: params});
-    setState({ currentProject: userName }); 
+    const data = await jsonLoader('setup_database', {projectName: name, params: params});
+     
 
 
     stopLoading();
@@ -63,9 +59,9 @@ function widgetMenuManager() {
         if (!item) return;
         const id = item.id, title = item.textContent.trim(), url = item.dataset.url;
         if (hasWidget(id)) { alert('Widget already exists.'); return; }
-        let w = 5, h = 3;
-        if (id === 'map') { w = 12; h = 6; }
-        else if (id === 'grid-generation') { w = 17; h = 3; }
+        let w = 5, h = 3; console.log(id);
+        if (id === 'map') { w = 12; h = 3; }
+        else if (id === 'grid-generation') { w = 8; h = 3; }
         else if (id === 'about') { w = 11; h = 10; }
         addWidget( w, h, title, id, url);
         submenu.style.display = 'none'; saveWidget();

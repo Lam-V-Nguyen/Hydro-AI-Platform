@@ -2,6 +2,7 @@ import os, json, chardet
 from config import PROJECT_ROOT, ALLOWED_USERS
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi import Depends, HTTPException, status
+from uuid import uuid4
 
 
 
@@ -26,3 +27,8 @@ def basic_auth(credentials: HTTPBasicCredentials=Depends(HTTPBasic())):
         )
     return username
 
+def project_definer(old_name, username='admin'):
+    new_name = f'{username}/{old_name}' if username!='admin' else 'demo'
+    name_id = f'{new_name}/{uuid4()}'
+    if old_name == '': new_name = new_name.rstrip('/')
+    return new_name, name_id

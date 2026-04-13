@@ -1,15 +1,16 @@
 import traceback
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
 from fastapi.responses import JSONResponse
-
+from services import functions
 
 
 router, processes = APIRouter(), {}
 
 @router.post("/init_lakes")
-async def init_lakes(request: Request):
+async def init_lakes(request: Request, user=Depends(functions.basic_auth)):
     try:
         body = await request.json()
+        print(body)
         # project_name, _ = functions.project_definer(body.get('projectName'), user)
         # project_cache = request.app.state.project_cache.setdefault(project_name, None)
         # if not project_cache:
