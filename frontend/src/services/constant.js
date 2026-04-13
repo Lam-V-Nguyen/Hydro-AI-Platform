@@ -7,12 +7,13 @@ export const superscriptMap = {
 };
 
 const defaultState = {
+    layoutGrids: null, currentProject: ''
     // hydLayer: null, waqLayer: null, sourceLayer: null, crosssectionLayer: null, isHYD: false, projectName: '',
     // mapLayer: null, isPathQuery: false, isMultiLayer: false, isClickedInsideLayer: false, isThemocline: false,
     // lastFeatureColors: {}, featureMap: {}, polygonCentroids: [], wqObsLayer: null, wqLoadsLayer: null, gisLayers: {},
     // globalChartData: {data: null, chartTitle: "", titleX: "", titleY: "", validColumns: []}, sigma: null,
     // isPlaying: null, vectorSelected: '', layerSelected: '', sigmaSelected: '', scalerValue: null, showedQuery: '',
-    // currentProject: 'demo', currentParams: ['FlowFM_his.zarr', 'FlowFM_map.zarr', 'Coliform_his.zarr', 'Coliform_map.zarr']
+    // , currentParams: ['FlowFM_his.zarr', 'FlowFM_map.zarr', 'Coliform_his.zarr', 'Coliform_map.zarr']
 }
 let state = structuredClone(defaultState);
 export const getState = () => state;

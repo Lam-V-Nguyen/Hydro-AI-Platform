@@ -6,7 +6,7 @@ body {
 
 .dashboard-header {
     border-radius: 16px; padding: 12px 20px; z-index: 1;
-    box-shadow: 0 2px 8px rgba(255, 255, 255, 0.1);
+    box-shadow: 0 2px 8px rgba(255, 255, 255, 0.1); height: 90px;
     overflow: visible; display: flex; align-items: center;
     background: linear-gradient(90deg, #2c5364, #203a43, #0f2027);
 }
@@ -59,9 +59,31 @@ h3 {
     background: #3a3939;
 }
 
-#github-last-update {
+.github-last-update {
     position: fixed; bottom: 10px; right: 10px; font-size: 12px;
     color: #111111; background: rgba(223, 217, 217, 0.85); padding: 4px 8px;
     border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); z-index: 9999;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; pointer-events: none;
+}
+
+.loading-container {
+    position: fixed; top: 130px; left: 0; right: 0; bottom: 0;
+    display: none; align-items: center; justify-content: center;
+    background: rgb(255, 255, 255); z-index: 9999; 
+    flex-direction: column;
+}
+.loading-text {
+    margin-top: 20px; font-size: 24px;
+    font-family: Arial, sans-serif; white-space: pre-line;
+    color: #333; z-index: 9999; text-align: center;
+}
+.spinner {
+    border: 8px solid #f3f3f3; z-index: 9999;
+    border-top: 8px solid #3498db;
+    border-radius: 50%; width: 60px; height: 60px;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+0%   { transform: rotate(0deg); }
+100% { transform: rotate(360deg); }
 }

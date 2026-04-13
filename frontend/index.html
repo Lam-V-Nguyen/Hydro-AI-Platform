@@ -10,8 +10,8 @@
 
 
     <!-- My styles -->
-    <link rel="stylesheet" href="/src_frontend/styles/main.css?v=000">
-    <link rel="stylesheet" href="/src_frontend/styles/grid.css?v=000">
+    <link rel="stylesheet" href="/src_frontend/styles/index.css?v=002">
+    <link rel="stylesheet" href="/src_frontend/styles/gridLayout.css?v=002">
   </head>
   <body>
     <!-- Header -->
@@ -33,7 +33,11 @@
     </header>
     <!-- Gridstack container -->
     <div class="grid-stack" id="grid-stack"></div>
-    <div id="github-last-update">Loading last update...</div>
+    <div class="loading-container">
+      <div class="spinner"></div>
+      <div class="loading-text">Processing Data. Please wait...</div>
+    </div>
+    <div class="github-last-update">Loading last update...</div>
 
     <script src="https://cdn.jsdelivr.net/npm/gridstack@10.2.0/dist/gridstack-all.js"></script>
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>

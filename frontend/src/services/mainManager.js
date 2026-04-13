@@ -1,5 +1,6 @@
-import { jsonLoader, htmlLoader, initGrid, addWidget,
-    getGrid, loadWidget, saveWidget, exitWidget
+import { setState } from "./constant.js";
+import { startLoading, stopLoading, jsonLoader, htmlLoader, initGrid, addWidget,
+    loadWidget, saveWidget, hasWidget
 } from "./utils.js";
 
 
@@ -8,11 +9,37 @@ const widgetMenu = document.getElementById("widgetMenu");
 const submenu = document.getElementById("submenu");
 
 
-let isLoaded = false;
+let isLoaded = false, userName = '';
 
-
-initGrid(); updateComponent(); widgetMenuManager(); loadWidget();
+await login(); projectChecker();
+updateComponent(); widgetMenuManager(); loadWidget();
 showGitHubLastUpdate('Lam-V-Nguyen', 'Hydro-AI-Platform', 'dev');
+
+async function login() {
+    const data = await jsonLoader('auth_check', {});
+    if (data.user==='admin') { userName = ''; } else { userName = `${data.user}/`; }
+}
+
+async function projectChecker(name=null, params=null) {
+    if (name === null) return;
+    startLoading('Setting up Database.\nThis takes a while (especially the first time). Please wait...');
+
+
+
+
+    const data = await jsonLoader('project_check', {name: name, params: params});
+    setState({ currentProject: userName }); 
+
+
+    stopLoading();
+}
+
+
+
+
+
+
+
 
 
 function widgetMenuManager() {
@@ -35,9 +62,10 @@ function widgetMenuManager() {
         const item = e.target.closest(".submenu-item");
         if (!item) return;
         const id = item.id, title = item.textContent.trim(), url = item.dataset.url;
-        if (exitWidget(id)) { alert('Widget already exists.'); return; }
-        let w = 5, h = 2;
+        if (hasWidget(id)) { alert('Widget already exists.'); return; }
+        let w = 5, h = 3;
         if (id === 'map') { w = 12; h = 6; }
+        else if (id === 'grid-generation') { w = 17; h = 3; }
         else if (id === 'about') { w = 11; h = 10; }
         addWidget( w, h, title, id, url);
         submenu.style.display = 'none'; saveWidget();
@@ -46,7 +74,7 @@ function widgetMenuManager() {
         // Close button handler
         if (e.target.classList.contains("remove-btn")) {
             const widget = e.target.closest(".grid-stack-item");
-            if (widget) { getGrid().removeWidget(widget); }
+            if (widget) initGrid().removeWidget(widget); 
         }
         // Edit title handler
         if (e.target.classList.contains("widget-title")) {
@@ -58,12 +86,18 @@ function widgetMenuManager() {
 }
 
 function updateComponent() {
+    // Listen for state change
+    window.addEventListener('message', (event) => {
+        if (event.data.type === 'addMapWidget') addWidget(12, 6, 'Map', 'map', '');
+    });
+
+
 
 }
 
 async function showGitHubLastUpdate(username, repo, branch='main') {
     const url = `https://api.github.com/repos/${username}/${repo}/commits?sha=${branch}&per_page=1`;
-    const displayDiv = document.getElementById('github-last-update');
+    const displayDiv = document.querySelector('.github-last-update');
     try {
         const response = await fetch(url);
         if (!response.ok) throw new Error('GitHub API error');

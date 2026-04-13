@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+        <link rel="stylesheet" href="/src_frontend/styles/gridGeneration.css?v=000">
+    </head>
+    <body>
+        <div class="data-source">
+            <input type="radio" id="new-database" name="project" checked=true>
+            <label for="new-database">Use database</label>
+            <input type="radio" id="new-map" name="project" style="margin-left: 100px;">
+            <label for="new-map">Draw on the map</label>
+        </div>
+        <div class="data-source" id="select-container">
+            <label style="font-weight: normal;">Municipality</label>
+            <div class="project-name-container">
+                <input type="text" id="project-name" style="width: 200px;"
+                    placeholder="Choose from the list"/>
+                <ul id="project-list"></ul>
+            </div>
+            <label id="lake-name-label" style="font-weight: normal;">Lake</label>
+            <select id="lake-name"><option value="">-- No selected --</option></select>
+            <div class="search-box">
+                <label><i class="fas fa-search"></i></label>
+                <div class="search-input-wrapper">
+                    <input type="text" id="lake-search" placeholder="Search lake..."/>
+                    <div id="lake-suggestions" style="display:none;"></div>
+                </div>
+            </div>
+
+
+        </div>
+
+
+
+
+        <script type="module" src="/src_frontend/services/gridManager.js"></script>
+    </body>
+</html>
