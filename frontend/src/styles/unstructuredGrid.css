@@ -77,11 +77,21 @@ body {
 .button-grid { 
     background-color: #184bd6; color: #fff; 
 } 
-.group-container { 
-    background: linear-gradient(90deg, #2c5364, #335968, #214855); 
-    border: 1px solid #1f2a44; padding: 10px; margin: 5px; 
-    border-radius: 20px; backdrop-filter: blur(6px); gap: 15px;
-    box-shadow: 0 20px 60px rgba(13, 71, 161, 0.35); display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); 
-} 
-.group-container h3 { margin: 0 0 5px 0; font-size: 18px; color: #184bd6;}
+
+.attributes-table { 
+    margin-top: 5px; font-size: 16px; width: 100%; border-collapse: collapse;
+}
+.attributes-table th { 
+    font-size: 16px; font-weight: 600; background: rgba(255,255,255,0.05);
+}
+.attributes-table th, .attributes-table td {
+  border: 1px solid var(--border); padding: 6px 8px; text-align: center;
+  color: var(--text); font-weight: 500; font-size: 17px;
+}
+.attributes-table tbody td { font-size: 20px }
+.attributes-table td input {
+  width: 100%; padding: 6px 8px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--card);
+  color: var(--text); outline: none; font-size: 16px;
+  text-align: center; box-sizing: border-box; 
+}

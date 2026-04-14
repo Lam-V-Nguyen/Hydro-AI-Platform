@@ -87,3 +87,20 @@ h3 {
 0%   { transform: rotate(0deg); }
 100% { transform: rotate(360deg); }
 }
+
+.group-container, .group-container-grid { 
+    background: linear-gradient(90deg, #2c5364, #203a43, #235164);
+    border: 1px solid #1f2a44; padding: 10px; margin: 5px; 
+    border-radius: 20px; backdrop-filter: blur(6px);
+    box-shadow: 0 20px 60px rgba(13, 71, 161, 0.35); display: grid;
+} 
+.group-container-grid { 
+    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+}
+.group-container h3 { margin: 0 0 5px 0; font-size: 18px; color: #184bd6;}
+
+
+
+
+

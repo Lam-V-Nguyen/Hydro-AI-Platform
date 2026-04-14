@@ -1,7 +1,8 @@
-import os, json, chardet
+import os, json, chardet, asyncio
 from config import PROJECT_ROOT, ALLOWED_USERS
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi import Depends, HTTPException, status
+from redis.asyncio.lock import Lock
 from uuid import uuid4
 
 
@@ -32,3 +33,23 @@ def project_definer(old_name, username='admin'):
     name_id = f'{new_name}/{uuid4()}'
     if old_name == '': new_name = new_name.rstrip('/')
     return new_name, name_id
+
+async def auto_extend(lock: Lock, interval: int = 10):
+    """
+    Auto-extend Redis lock every `interval` seconds, only if still owned.
+    """
+    try:
+        while True:
+            await asyncio.sleep(interval)
+            try:
+                if not await lock.locked(): break
+            except Exception: break
+            try: await lock.extend()
+            except Exception: break
+    except asyncio.CancelledError: pass
+
+
+
+
+
+

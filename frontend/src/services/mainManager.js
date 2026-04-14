@@ -12,9 +12,10 @@ let isLoaded = false, userName = null;
 
 
 
-await login(); projectChecker(); 
+await login(); await projectChecker(); 
 updateComponent(); widgetMenuManager(); 
-loadWidget(); showGitHubLastUpdate('Lam-V-Nguyen', 'Hydro-AI-Platform', 'main'); 
+loadWidget(); 
+// showGitHubLastUpdate('Lam-V-Nguyen', 'Hydro-AI-Platform', 'dev'); 
 
 
 
@@ -26,6 +27,7 @@ async function login() {
 async function projectChecker() { 
     if (userName === 'admin' || userName === null) return; 
     startLoading('Setting up Database.\nThis takes a while (especially the first time). Please wait...'); 
+    // await new Promise(requestAnimationFrame);
     const data = await jsonLoader('setup_database', { 
         projectName: getState().currentProject, params: getState().currentParams 
     }); 
@@ -53,7 +55,7 @@ function widgetMenuManager() {
         const id = item.id, title = item.textContent.trim(), url = item.dataset.url; 
         if (hasWidget(id)) { alert('Widget already exists.'); return; } 
         let w = 5, h = 3; 
-        if (id === 'map') { w = 12; h = 3; } 
+        if (id === 'map') { w = 12; h = 5; } 
         else if (id === 'grid-generation') { w = 11; h = 5; } 
         else if (id === 'about') { w = 11; h = 10; } 
         addWidget( w, h, title, id, url); 
@@ -65,11 +67,11 @@ function widgetMenuManager() {
         if (e.target.classList.contains("remove-btn")) { 
             const widget = e.target.closest(".grid-stack-item"); 
             if (widget) { 
-                const mapWidget = widget.getAttribute("gs-id"); 
-                if (mapWidget === 'map') { 
-                    const isConfirmed = confirm( "Closing the map widget will prevent you from interacting with the map.\nAre you sure you want to continue?" ); 
-                    if (!isConfirmed) return; 
-                } 
+                // const mapWidget = widget.getAttribute("gs-id"); 
+                // if (mapWidget === 'map') { 
+                //     const isConfirmed = confirm( "Closing the map widget will prevent you from interacting with the map.\nAre you sure you want to continue?" ); 
+                //     if (!isConfirmed) return; 
+                // } 
                 initGrid().removeWidget(widget); 
             } 
         } 

@@ -207,3 +207,6 @@ marimo/_lsp/
 __marimo__/
 
 /backend/softs
+/backend/projects
+backend/src/lakes_database
+backend/src/allowed_users.json

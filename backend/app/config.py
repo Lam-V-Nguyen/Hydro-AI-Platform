@@ -11,7 +11,7 @@ if env_mode == "development":
     PROJECT_DES = os.getenv("PROJECT_DES")
     ALLOWED_USERS = os.path.normpath(os.path.join(PROJECT_DES, "backend/src/allowed_users.json"))
     PROJECT_ROOT = os.path.normpath(os.path.join(PROJECT_DES, "backend/projects"))
-    SOURCE_BACKEND = os.path.normpath(os.path.join(PROJECT_DES, "backend"))
+    SOURCE_BACKEND = os.path.normpath(os.path.join(PROJECT_DES, "backend/src"))
     SOURCE_FRONTEND = os.path.normpath(os.path.join(PROJECT_DES, "frontend/src"))
     DELFT_PATH = os.path.normpath(os.path.join(PROJECT_DES, "backend/softs/x64"))
     REDIS_URL = "redis://localhost:6379/0"

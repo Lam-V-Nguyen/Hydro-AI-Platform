@@ -9,9 +9,9 @@ if backend_dir not in sys.path:
 
 # Import internally backend modules
 from config import SOURCE_BACKEND, SOURCE_FRONTEND, PROJECT_ROOT, lifespan
-from services import route_page, project_manager
+from services import route_page, project_manager, grid_preparation
 # process_manager, wq_process, \
-#     run_simulation, grid_preparation, data_preparation, flow_preparation
+#     run_simulation, data_preparation, flow_preparation
 
 app = FastAPI(lifespan=lifespan)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
@@ -28,10 +28,11 @@ app.mount("/src_frontend", StaticFiles(directory=SOURCE_FRONTEND), name="src_fro
 # Mount routes
 app.include_router(route_page.router)
 app.include_router(project_manager.router)
+app.include_router(grid_preparation.router)
 # app.include_router(process_manager.router)
 # app.include_router(wq_process.router)
 # app.include_router(run_simulation.router)
-# app.include_router(grid_preparation.router)
+
 # app.include_router(data_preparation.router)
 # app.include_router(flow_preparation.router)
 
