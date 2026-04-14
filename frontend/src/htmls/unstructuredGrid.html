@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+        <link rel="stylesheet" href="/src_frontend/styles/index.css?v=000">
+        <link rel="stylesheet" href="/src_frontend/styles/unstructuredGrid.css?v=000">
+    </head>
+    <body>
+        <div class="data-source">
+            <input type="radio" id="new-database" name="project" checked=true>
+            <label for="new-database">Use database</label>
+            <input type="radio" id="new-map" name="project" style="margin-left: 100px;">
+            <label for="new-map">Draw on the map</label>
+        </div>
+        <div class="data-source" id="select-container">
+            <label style="font-weight: normal;">Municipality</label>
+            <div class="project-name-container">
+                <input type="text" id="project-name" style="width: 200px;"
+                    placeholder="Choose from the list"/>
+                <ul id="project-list"></ul>
+            </div>
+            <label id="lake-name-label" style="font-weight: normal;">Lake</label>
+            <select id="lake-name"><option value="">-- No selected --</option></select>
+            <div class="search-box">
+                <label><i class="fas fa-search"></i></label>
+                <div class="search-input-wrapper">
+                    <input type="text" id="lake-search" placeholder="Search lake..."/>
+                    <div id="lake-suggestions" style="display:none;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="group-container" id="menu-container">
+            <div class="control-tab"> 
+                <label class="checkbox-right">
+                    <input type="checkbox" id="polygon-checkbox">Show Polygon
+                </label>
+                <label class="checkbox-right">
+                    <input type="checkbox" id="depth-checkbox">Show Depth
+                </label> 
+            </div> 
+            <div class="control-tab"> 
+                <button class="button-grid" id="vertexes-btn">
+                    Get/Reset Vertexes<span class="ink"></span>
+                </button> 
+                <label class="checkbox-right">
+                    <input type="checkbox" id="refinement-checkbox">Refine Vertexes
+                </label> 
+                <div class="content-line" id ="refinement-container"> 
+                    <input type="text" id="refinement-value" placeholder="Enter refinement value" value="20.0"> 
+                    <label style="width: 5px;">(m)</label> 
+                </div> 
+            </div> 
+            <div class="control-tab"> 
+                <button class="button-grid" id="generate-grid">Generate Grid<span class="ink"></span></button> 
+                <label class="checkbox-right">
+                    <input type="checkbox" id="orthogonality-checkbox">Orthogonality
+                </label> 
+                <label class="checkbox-right">
+                    <input type="checkbox" id="optimization-checkbox">Grid Optimization
+                </label> 
+            </div> 
+            <div class="control-tab" id="grid-optimization-container"> 
+                <div class="control-tab-inline"> 
+                    <label for="iterations">Iterations</label> 
+                    <input type="text" id="iterations" value="500" style="width: 100px; text-align: center;"> 
+                </div> 
+                <div class="control-tab-inline"> 
+                    <label>Detailed Level</label> 
+                    <input type="text" id="detail-level-from" value="0" style="width: 20px; text-align: center;"> 
+                    <label style="width: 22px;"> --> </label> 
+                    <input type="text" id="detail-level-to" value="500" style="width: 30px; text-align: center;"> 
+                </div> 
+                <button class="button-grid" id="optimize-grid">Optimize Orthogonality<span class="ink"></span></button> 
+            </div> 
+            <div class="control-right"> 
+                <div class="content-line"> 
+                    <label for="grid-name">Grid Name (*.nc)</label> 
+                    <input type="text" id="grid-name" style="width: 100px; text-align: center;" value="Grid"> 
+                </div> 
+                <button class="save-grid" id="save-grid" style="padding: 10px 0 10px 0;">Save Grid<span class="ink"></span></button> 
+            </div> 
+        </div>
+
+        <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+        <script type="module" src="/src_frontend/services/unstructuredGridManager.js"></script>
+    </body>
+</html>

@@ -49,3 +49,39 @@ body {
 #lake-suggestions div:hover {
     background-color: rgba(10, 103, 184, 0.692);
 }
+
+.control-tab { 
+    margin-left: 10px; display: flex; flex-direction: column; 
+    gap: 10px; padding-right: 5px; margin-right: 40px; 
+} 
+
+.control-tab label { 
+    width: 165px; display: flex; 
+    align-items: center; justify-content: space-between; 
+} 
+.control-tab-inline { 
+    flex-direction: row; align-items: center; 
+    gap: 10px; display: flex; flex-wrap: nowrap; 
+}
+.control-tab-inline label { 
+    width: 140px; display: inline-block; 
+} 
+.checkbox-right { 
+    display: flex; align-items: center; gap: 8px; 
+} 
+.button-grid, .save-grid { 
+    padding: 4px; border-radius: 10px; cursor: pointer; 
+    font-weight: bold; text-align: center; display: flex; 
+    align-items: center; justify-content: center; width: 100%; 
+} 
+.button-grid { 
+    background-color: #184bd6; color: #fff; 
+} 
+.group-container { 
+    background: linear-gradient(90deg, #2c5364, #335968, #214855); 
+    border: 1px solid #1f2a44; padding: 10px; margin: 5px; 
+    border-radius: 20px; backdrop-filter: blur(6px); gap: 15px;
+    box-shadow: 0 20px 60px rgba(13, 71, 161, 0.35); display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); 
+} 
+.group-container h3 { margin: 0 0 5px 0; font-size: 18px; color: #184bd6;}
