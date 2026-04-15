@@ -6,20 +6,24 @@ export const superscriptMap = {
     '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹'
 };
 
-const defaultState = {
-    layoutGrids: null, currentProject: 'demo', currentParams: [],
-    // hydLayer: null, waqLayer: null, sourceLayer: null, crosssectionLayer: null, isHYD: false, projectName: '',
-    // mapLayer: null, isPathQuery: false, isMultiLayer: false, isClickedInsideLayer: false, isThemocline: false,
-    // lastFeatureColors: {}, featureMap: {}, polygonCentroids: [], wqObsLayer: null, wqLoadsLayer: null, gisLayers: {},
-    // globalChartData: {data: null, chartTitle: "", titleX: "", titleY: "", validColumns: []}, sigma: null,
-    // isPlaying: null, vectorSelected: '', layerSelected: '', sigmaSelected: '', scalerValue: null, showedQuery: '',
-    // , currentParams: ['FlowFM_his.zarr', 'FlowFM_map.zarr', 'Coliform_his.zarr', 'Coliform_map.zarr']
-}
-let state = structuredClone(defaultState);
-export const getState = () => state;
-export const setState = (newState) => { state = { ...state, ...newState }; };
-// Reset state
-export const resetState = () => { state = structuredClone(defaultState); };
+
+// const defaultState = {
+//     layoutGrids: null, currentProject: 'demo', currentParams: [], temp: '',
+//     // hydLayer: null, waqLayer: null, sourceLayer: null, crosssectionLayer: null, isHYD: false, projectName: '',
+//     // mapLayer: null, isPathQuery: false, isMultiLayer: false, isClickedInsideLayer: false, isThemocline: false,
+//     // lastFeatureColors: {}, featureMap: {}, polygonCentroids: [], wqObsLayer: null, wqLoadsLayer: null, gisLayers: {},
+//     // globalChartData: {data: null, chartTitle: "", titleX: "", titleY: "", validColumns: []}, sigma: null,
+//     // isPlaying: null, vectorSelected: '', layerSelected: '', sigmaSelected: '', scalerValue: null, showedQuery: '',
+//     // , currentParams: ['FlowFM_his.zarr', 'FlowFM_map.zarr', 'Coliform_his.zarr', 'Coliform_map.zarr']
+// }
+
+// let state = structuredClone(defaultState);
+// export const getState = () => state;
+// export const setState = (newState) => { 
+//     state = { ...state, ...newState }; 
+// };
+// // Reset state
+// export const resetState = () => { state = structuredClone(defaultState); };
 
 export const arrowShape = new Path2D();
 arrowShape.moveTo(0, 0);          // Origin

@@ -1,20 +1,20 @@
-import { getState, setState } from "./constant.js";
+import { projectMaker, projectLoader } from "./projectManager.js";
 import { 
     initGrid, addWidget, loadWidget, saveWidget, hasWidget 
 } from "./widgetFunctions.js"; 
 import { startLoading, stopLoading, jsonLoader, htmlLoader } from "./commonFunctions.js"; 
 
-
 const widgetMenu = document.getElementById("widgetMenu"); 
 const submenu = document.getElementById("submenu"); 
 
+const githubCache = {}, currentProject = 'demo', currentParams = [];
 let isLoaded = false, userName = null; 
 
 
 
-await login(); await projectChecker(); 
-updateComponent(); widgetMenuManager(); 
-loadWidget(); 
+await login(); await projectChecker(); showNotes();
+updateComponent(); widgetMenuManager(); loadWidget();
+
 // showGitHubLastUpdate('Lam-V-Nguyen', 'Hydro-AI-Platform', 'dev'); 
 
 
@@ -29,10 +29,10 @@ async function projectChecker() {
     startLoading('Setting up Database.\nThis takes a while (especially the first time). Please wait...'); 
     // await new Promise(requestAnimationFrame);
     const data = await jsonLoader('setup_database', { 
-        projectName: getState().currentProject, params: getState().currentParams 
-    }); 
-    if (data.status === "error") { alert(data.message); location.reload(); return; } 
-    stopLoading(); 
+        projectName: currentProject, params: currentParams
+    }); stopLoading();
+    if (data.status === "error") { alert(data.message); return; } 
+    userName = data.user;
 } 
 
 function widgetMenuManager() {
@@ -54,9 +54,12 @@ function widgetMenuManager() {
         if (!item) return; 
         const id = item.id, title = item.textContent.trim(), url = item.dataset.url; 
         if (hasWidget(id)) { alert('Widget already exists.'); return; } 
-        let w = 5, h = 3; 
-        if (id === 'map') { w = 12; h = 5; } 
-        else if (id === 'grid-generation') { w = 11; h = 5; } 
+        let w = 5, h = 3;
+        // Create a new project
+        if (id === 'new-project') { projectMaker(); return; }
+        else if (id === 'open-project') { projectLoader(userName); return; }
+        else if (id === 'map') { w = 12; h = 5; } 
+        else if (id === 'grid-generation') { w = 12; h = 9; } 
         else if (id === 'about') { w = 11; h = 10; } 
         addWidget( w, h, title, id, url); 
         submenu.style.display = 'none'; 
@@ -96,7 +99,13 @@ function updateComponent() {
 
 async function showGitHubLastUpdate(username, repo, branch = 'main') {
     const url = `https://api.github.com/repos/${username}/${repo}/commits?sha=${branch}&per_page=1`;
+    const key = `${username}/${repo}/${branch}`;
+    if (githubCache[key]) {
+        document.querySelector('.github-last-update').textContent = githubCache[key];
+        return;
+    }
     const displayDiv = document.querySelector('.github-last-update');
+    if (!displayDiv) return;
     try {
         const header = {
             "Accept": "application/vnd.github+json",
@@ -106,12 +115,18 @@ async function showGitHubLastUpdate(username, repo, branch = 'main') {
         if (!response.ok) throw new Error('GitHub API error');
         const data = await response.json();
         if (data.length > 0) {
-            const lastCommit = data[0].commit;
-            const date = new Date(lastCommit.committer.date);
+            const date = new Date(data[0].commit.committer.date);
             const formatted = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
-            displayDiv.textContent = `Branch: ${branch} | Last update: ${formatted}`;
+            const text = `Branch: ${branch} | Last update: ${formatted}`;
+            githubCache[key] = text; displayDiv.textContent = text;
         } else {
             displayDiv.textContent = 'Last update: unknown';
         }
     } catch (err) { console.error(err); displayDiv.textContent = 'Last update: error'; }
+}
+
+function showNotes() {
+    const noteDiv = document.querySelector('.project-note');
+    if (!noteDiv || !userName) return;
+    noteDiv.textContent = `Project: ${userName}`;
 }

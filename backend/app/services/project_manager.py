@@ -13,6 +13,37 @@ async def auth_check(user=Depends(functions.basic_auth)):
     output = 'ok' if user == 'admin' else 'error'
     return {"user": user, "output": output}
 
+# Create a new project with necessary folders
+@router.post("/setup_new_project")
+async def setup_new_project(request: Request, user=Depends(functions.basic_auth)):
+    try:
+        body = await request.json()
+        project_name, _ = functions.project_definer(body.get('projectName'), user)
+        project_dir = os.path.normpath(os.path.join(PROJECT_ROOT, project_name))
+        folders = ['input', 'GIS', 'output', 'output/config', 'output/HYD', 'output/WAQ', 'flows']
+        for folder in folders:
+            folder_path = os.path.normpath(os.path.join(project_dir, folder))
+            if not os.path.exists(folder_path): os.makedirs(folder_path, exist_ok=True)
+        status, message = project_name, f"Scenario '{body.get('projectName')}' created successfully!"
+    except Exception as e:
+        print('/setup_new_project:\n==============')
+        traceback.print_exc()
+        status, message = 'error', f"Error: {str(e)}"
+    return JSONResponse({"status": status, "message": message})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Set up the database depending on the project
 @router.post("/setup_database")
 async def setup_database(request: Request, user=Depends(functions.basic_auth)):
@@ -24,13 +55,13 @@ async def setup_database(request: Request, user=Depends(functions.basic_auth)):
         async with lock:
             extend_task = asyncio.create_task(functions.auto_extend(lock, interval=10))
             project_dir = os.path.normpath(os.path.join(PROJECT_ROOT, project_name))
-            folders = ['input', 'GIS', 'output', 'output/config', 'output/HYD', 'output/WAQ']
-            for folder in folders:
-                folder_path = os.path.normpath(os.path.join(project_dir, folder))
-                if not os.path.exists(folder_path): os.makedirs(folder_path, exist_ok=True)
-            config_dir = os.path.normpath(os.path.join(project_dir, folder[3]))
-            hyd_dir = os.path.normpath(os.path.join(project_dir, folder[4]))
-            waq_dir = os.path.normpath(os.path.join(project_dir, folder[5]))
+            # folders = ['input', 'GIS', 'output', 'output/config', 'output/HYD', 'output/WAQ']
+            # for folder in folders:
+            #     folder_path = os.path.normpath(os.path.join(project_dir, folder))
+            #     if not os.path.exists(folder_path): os.makedirs(folder_path, exist_ok=True)
+            # config_dir = os.path.normpath(os.path.join(project_dir, folder[3]))
+            # hyd_dir = os.path.normpath(os.path.join(project_dir, folder[4]))
+            # waq_dir = os.path.normpath(os.path.join(project_dir, folder[5]))
             # demo_dir = os.path.normpath(os.path.join(PROJECT_ROOT, 'demo'))
             # if user != 'admin':
             #     print(f"Copying project 'demo' folder to '{project_dir}'")
@@ -133,7 +164,7 @@ async def setup_database(request: Request, user=Depends(functions.basic_auth)):
         #     await redis.delete(project_name)
         #     await redis.hset(project_name, mapping=redis_mapping)
             print('Configuration loaded successfully.')
-            return JSONResponse({"status": 'ok', "content": {}})
+            return JSONResponse({"user": project_name, "content": {}})
     except Exception as e:
         print('/setup_database:\n==============')
         traceback.print_exc()

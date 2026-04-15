@@ -6,7 +6,7 @@ from shapely.geometry import Polygon, MultiPolygon
 
 
 
-def loadLakes(lake_path=None, depth_path=None):
+def initLakes(lake_path=None, depth_path=None):
     # Load lake database
     lake_dir = os.path.join(SOURCE_BACKEND, 'lakes_database')
     if lake_path is not None:

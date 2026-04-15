@@ -4,8 +4,8 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-        <link rel="stylesheet" href="/src_frontend/styles/index.css?v=000">
-        <link rel="stylesheet" href="/src_frontend/styles/unstructuredGrid.css?v=000">
+        <link rel="stylesheet" href="/src_frontend/styles/index.css?v=004">
+        <link rel="stylesheet" href="/src_frontend/styles/unstructuredGrid.css?v=004">
     </head>
     <body>
         <div class="data-source">
@@ -16,18 +16,18 @@
         </div>
         <div class="data-source" id="select-container">
             <label style="font-weight: normal;">Municipality</label>
-            <div class="project-name-container">
-                <input type="text" id="project-name" style="width: 200px;"
+            <div class="municipality-container">
+                <input type="text" id="municipality-name"
                     placeholder="Choose from the list"/>
-                <ul id="project-list"></ul>
+                <ul id="municipality-list"></ul>
             </div>
-            <label id="lake-name-label" style="font-weight: normal;">Lake</label>
+            <label id="lake-name-label" style="font-weight: normal; margin-left: 50px;">Lake</label>
             <select id="lake-name"><option value="">-- No selected --</option></select>
             <div class="search-box">
                 <label><i class="fas fa-search"></i></label>
                 <div class="search-input-wrapper">
                     <input type="text" id="lake-search" placeholder="Search lake..."/>
-                    <div id="lake-suggestions" style="display:none;"></div>
+                    <div id="lake-suggestions"></div>
                 </div>
             </div>
         </div>
@@ -43,13 +43,6 @@
                 <tbody></tbody>
             </table>
         </div>
-
-
-
-
-
-
-
         <div class="group-container-grid" id="menu-container">
             <div class="control-tab"> 
                 <label class="checkbox-right">
@@ -67,7 +60,8 @@
                     <input type="checkbox" id="refinement-checkbox">Refine Vertexes
                 </label> 
                 <div class="content-line" id ="refinement-container"> 
-                    <input type="text" id="refinement-value" placeholder="Enter refinement value" value="20.0"> 
+                    <input type="text" id="refinement-value" style="width: 100px;"
+                        placeholder="Enter refinement value" value="20.0"> 
                     <label style="width: 5px;">(m)</label> 
                 </div> 
             </div> 
@@ -82,23 +76,23 @@
             </div> 
             <div class="control-tab" id="grid-optimization-container"> 
                 <div class="control-tab-inline"> 
-                    <label for="iterations">Iterations</label> 
-                    <input type="text" id="iterations" value="500" style="width: 100px; text-align: center;"> 
+                    <label>Iterations</label>
+                    <input type="text" id="iterations" value="500" style="width: 100%;"> 
                 </div> 
                 <div class="control-tab-inline"> 
-                    <label>Detailed Level</label> 
-                    <input type="text" id="detail-level-from" value="0" style="width: 20px; text-align: center;"> 
-                    <label style="width: 22px;"> --> </label> 
-                    <input type="text" id="detail-level-to" value="500" style="width: 30px; text-align: center;"> 
+                    <label>Level</label>
+                    <div class="content-line">
+                        <input type="text" id="detail-level-from" value="0" style="width: 20px;"> 
+                        <label style="width: 22px;"> --> </label> 
+                        <input type="text" id="detail-level-to" value="500" style="width: 40px;"> 
+                    </div>
                 </div> 
                 <button class="button-grid" id="optimize-grid">Optimize Orthogonality<span class="ink"></span></button> 
             </div> 
-            <div class="control-right"> 
-                <div class="content-line"> 
-                    <label for="grid-name">Grid Name (*.nc)</label> 
-                    <input type="text" id="grid-name" style="width: 100px; text-align: center;" value="Grid"> 
-                </div> 
-                <button class="save-grid" id="save-grid" style="padding: 10px 0 10px 0;">Save Grid<span class="ink"></span></button> 
+            <div class="control-tab"> 
+                <label for="grid-name" style="justify-content: center; width: 100%;">Grid Name (*.nc)</label> 
+                <input type="text" id="grid-name" placeholder="Enter grid name" style="text-align: center;" value="Grid">
+                <button class="save-grid" id="save-grid">Save Grid<span class="ink"></span></button> 
             </div> 
         </div>
 

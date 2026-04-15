@@ -50,20 +50,13 @@ h3 {
 }
 
 .submenu-item {
-    width: 100%; padding: 10px 14px;
+    width: 100%; padding: 8px 15px;
     cursor: pointer; border-radius: 6px;
     transition: background 0.2s;
 }
 
 .submenu-item:hover {
     background: #3a3939;
-}
-
-.github-last-update {
-    position: fixed; bottom: 10px; right: 10px; font-size: 12px;
-    color: #111111; background: rgba(223, 217, 217, 0.85); padding: 4px 8px;
-    border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); z-index: 9999;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; pointer-events: none;
 }
 
 .loading-container {
@@ -90,17 +83,53 @@ h3 {
 
 .group-container, .group-container-grid { 
     background: linear-gradient(90deg, #2c5364, #203a43, #235164);
-    border: 1px solid #1f2a44; padding: 10px; margin: 5px; 
+    border: 1px solid #1f2a44; padding: 10px; margin: 10px; 
     border-radius: 20px; backdrop-filter: blur(6px);
     box-shadow: 0 20px 60px rgba(13, 71, 161, 0.35); display: grid;
 } 
 .group-container-grid { 
-    gap: 10px;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+    gap: 5px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
 }
 .group-container h3 { margin: 0 0 5px 0; font-size: 18px; color: #184bd6;}
 
+.github-last-update, .project-note {
+    position: fixed; font-size: 12px; bottom: 10px; padding: 4px 8px; 
+    color: #111111; background: rgba(223, 217, 217, 0.85); z-index: 9999;
+    border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); pointer-events: none;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+.github-last-update { right: 10px; }
+.project-note { left: 10px; }
 
+.pm-overlay {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex; align-items: center;
+    justify-content: center; z-index: 9999;
+}
+.pm-modal {
+    background: linear-gradient(90deg, #2c5364, #203a43, #4998b9);
+    padding: 20px; font-family: sans-serif;
+    border-radius: 10px; min-width: 300px; 
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+.pm-modal input {
+    width: 100%; padding: 8px; font-size: 14px;
+    box-sizing: border-box; margin: 20px 0;
+}
+.pm-row {
+    display: flex; align-items: center;
+    gap: 10px; margin: 12px 0px;
+}
+.pm-row label {
+    display: block; font-size: 16px; width: 120px;
+}
+.pm-row select {
+    flex: 1; padding: 3px;
+}
 
-
-
+.button-grid {
+    padding: 10px 20px; font-size: 14px;
+    border-radius: 8px; cursor: pointer;
+}
