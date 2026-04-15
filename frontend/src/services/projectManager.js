@@ -55,15 +55,28 @@ export async function projectLoader(userName=null) {
     `;
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
+    // Get the list of projects
+    const projectList = modal.querySelector("#projectList");
+    if (!projectList) return;
+    const user = userName.split('/').shift();
+    const contents = { 
+        filename: user, key: 'getProjects', folder_check: '' 
+    };
+    const data = await jsonLoader('select_project', contents);
+    if (data.status === "error") { alert(data.message); return; }
+    data.content.forEach(project => {
+        const option = document.createElement("option");
+        option.value = project;
+        option.textContent = project;
+        projectList.appendChild(option);
+    });
+    projectList.selectedIndex = 1;
     modal.querySelector("#openBtn").onclick = async () => {
-        const project = userName.split('/').shift();
-        // if (!projectName) { alert("Please enter a project name."); return; }
-        // const data = await jsonLoader('open_project', { project });
-        // alert(data.message); overlay.remove();
-        // if (data.status !== "error") { 
-        //     const project = document.querySelector(".project-note");
-        //     if (project) project.textContent = `Project: ${data.status}`;
-        // }
+        const value = projectList.value.trim();
+        if (value === "") { alert("Please select a project from the list."); return; }
+        const project = document.querySelector(".project-note");
+        if (project) project.textContent = `Project: ${user}/${value}`;
+        overlay.remove();
     };
     modal.querySelector("#closeBtn").onclick = () => { overlay.remove(); };
 }

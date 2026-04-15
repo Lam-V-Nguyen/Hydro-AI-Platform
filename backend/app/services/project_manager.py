@@ -20,6 +20,7 @@ async def setup_new_project(request: Request, user=Depends(functions.basic_auth)
         body = await request.json()
         project_name, _ = functions.project_definer(body.get('projectName'), user)
         project_dir = os.path.normpath(os.path.join(PROJECT_ROOT, project_name))
+        os.makedirs(project_dir, exist_ok=True)
         folders = ['input', 'GIS', 'output', 'output/config', 'output/HYD', 'output/WAQ', 'flows']
         for folder in folders:
             folder_path = os.path.normpath(os.path.join(project_dir, folder))
@@ -31,7 +32,46 @@ async def setup_new_project(request: Request, user=Depends(functions.basic_auth)
         status, message = 'error', f"Error: {str(e)}"
     return JSONResponse({"status": status, "message": message})
 
-
+@router.post("/select_project")
+async def select_project(request: Request, user=Depends(functions.basic_auth)):
+    try:
+        body = await request.json()
+        key, folder_check = body.get('key'), body.get('folder_check')
+        # project_name, _ = functions.project_definer(body.get('filename'), user)
+        project_dir = os.path.normpath(os.path.join(PROJECT_ROOT, body.get('filename')))
+        if key == 'getProjects':
+            project = [p.name for p in os.scandir(project_dir) if p.is_dir()]
+            data = sorted(project)
+        # elif key == 'getProjects':
+        #     project = [p.name for p in os.scandir(project_dir) if p.is_dir()]
+        #     # project = [p for p in project if os.path.exists(os.path.normpath(os.path.join(PROJECT_ROOT, project_name, p, folder_check)))]
+        #     data = sorted(project)
+        # elif key == 'getWAQs': # List the scenarios for water quality
+        #     project = [p.name for p in os.scandir(os.path.normpath(os.path.join(PROJECT_STATIC_ROOT, project_name, 'output', 'scenarios')))]
+        #     project = [p.replace('.json', '') for p in project if os.path.exists(os.path.normpath(os.path.join(PROJECT_STATIC_ROOT, project_name, 'output', 'scenarios', p)))]
+        #     data = sorted(project)
+        # elif key == 'getFiles': # List the files
+        #     project_folder = os.path.normpath(os.path.join(PROJECT_STATIC_ROOT, project_name))
+        #     hyd_folder = os.path.normpath(os.path.join(project_folder, "output", 'HYD'))
+        #     waq_folder = os.path.normpath(os.path.join(project_folder, "output", 'WAQ'))
+        #     hyd_files, waq_files = [], []
+        #     if os.path.exists(hyd_folder):
+        #         hyd_files = [f for f in os.listdir(hyd_folder) if f.endswith(".zarr")]
+        #         hyd_files = set([f.replace('_his.zarr', '').replace('_map.zarr', '') for f in hyd_files])
+        #     if os.path.exists(waq_folder):
+        #         waq_files = [
+        #             (entry.name, entry.stat().st_ctime)
+        #             for entry in os.scandir(waq_folder)
+        #             if entry.is_file() and entry.name.endswith(".json")
+        #         ]
+        #         waq_files.sort(key=lambda x: x[1], reverse=True)
+        #         waq_files = [name.replace('.json', '') for name, _ in waq_files]
+        #     data = {'hyd': list(hyd_files), 'waq': waq_files}
+        return JSONResponse({"content": data})
+    except Exception as e:
+        print('/select_project:\n==============')
+        traceback.print_exc()
+        return JSONResponse({"status": 'error', "message": f"Error: {str(e)}"})
 
 
 
