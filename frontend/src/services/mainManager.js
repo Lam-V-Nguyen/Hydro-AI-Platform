@@ -9,7 +9,6 @@ const menuContainer = document.getElementById('menu-container');
 const githubCache = {}, currentProject = 'demo', currentParams = [];
 let isLoaded = false, userName = null, hideTimeout = null; 
 
-
 await login(); await projectChecker(); showNotes();
 updateComponent(); widgetMenuManager(); loadWidget();
 // showGitHubLastUpdate('Lam-V-Nguyen', 'Hydro-AI-Platform', 'dev'); 

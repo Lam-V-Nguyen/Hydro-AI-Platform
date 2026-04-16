@@ -1,5 +1,3 @@
-
-
 export function setupTabs(root) {
     const buttonPanels = root.querySelectorAll('#main-tabs button');
     const panels = root.querySelectorAll('.main-panel');

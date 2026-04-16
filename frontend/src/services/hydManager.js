@@ -120,14 +120,12 @@ const projectSaver = () => document.getElementById('save-btn');
 // const rtsStart = () => document.getElementById('restart-output-start');
 // const rtsStop = () => document.getElementById('restart-output-end');
 
-let userName = null, BCChecked = 0;
+let userName = null, BCChecked = 0, listProjects = [];
 
 
 
 
-// await initializeProject();
-// setupTabs(document); 
-updateComponent();
+setupTabs(document); updateComponent();
 
 async function getProjectList(){
     if (userName === null) return;
@@ -146,39 +144,39 @@ async function projectOptions(){
         if (name.includes('/')) { project = name.split('/').pop(); } else { project = name; }
         const data = await jsonLoader('setup_new_project', { projectName: project });
         controlTab().style.display = "block"; descriptionTab().style.display = "none"; // Show tabs
-        // await loadScenario(name);
+        alert(data.message); // await loadScenario(name);
     });
     // Copy project
-//     projectCloner().addEventListener('click', async () => {
-//         const name = projectName().value.trim();
-//         if (!name || name === '') { alert('Please select scenario first.'); return; }
-//         // Ask for a new name
-//         const newName = prompt('Please enter a name for the new scenario.\nCloning a scenario will take some time. Please be patient.');
-//         if (!newName || newName === '') { alert('Please define clone scenario name.'); return; }
-//         if (nameChecker(newName)) { alert('Name of clone scenario is invalid.'); return;}
-//         projectCloner().innerHTML = 'Cloning...';
-//         const data = await sendQuery('copy_project', {oldName: name, newName: newName});
-//         alert(data.message); projectList = []; projectName().value = ''; 
-//         await getProjectList(); projectCloner().innerHTML = 'Clone Scenario';
-//     });
+    projectCloner().addEventListener('click', async () => {
+        const name = projectName().value.trim();
+        if (!name || name === '') { alert('Please select scenario first.'); return; }
+        // Ask for a new name
+        const newName = prompt('Please enter a name for the new scenario.\nCloning a scenario will take some time. Please be patient.');
+        if (!newName || newName === '') { alert('Please define clone scenario name.'); return; }
+        if (nameChecker(newName)) { alert('Name of clone scenario is invalid.'); return;}
+        projectCloner().innerHTML = 'Cloning...';
+        const data = await jsonLoader('copy_project', {oldName: name, newName: newName});
+        alert(data.message); listProjects = []; projectName().value = ''; 
+        await getProjectList(); projectCloner().innerHTML = 'Clone Scenario';
+    });
     // Delete project
-//     projectRemover().addEventListener('click', async () => {
-//         const name = projectName().value.trim();
-//         if (!name || name.trim() === '') { alert('Please define scenario.'); return; }
-//         // Ask for confirmation
-//         if (!confirm('Are you sure you want to delete this scenario?')) { return; }
-//         projectRemover().innerHTML = 'Deleting...';
-//         const data = await sendQuery('delete_project', {projectName: name});
-//         alert(data.message); projectList = []; projectName().value = ''; 
-//         await getProjectList(); projectRemover().innerHTML = 'Delete Scenario';
-//     });
+    projectRemover().addEventListener('click', async () => {
+        const name = projectName().value.trim();
+        if (!name || name.trim() === '') { alert('Please define scenario.'); return; }
+        // Ask for confirmation
+        if (!confirm('Are you sure you want to delete this scenario?')) { return; }
+        projectRemover().innerHTML = 'Deleting...';
+        const data = await jsonLoader('delete_project', {projectName: name});
+        alert(data.message); listProjects = []; projectName().value = ''; 
+        await getProjectList(); projectRemover().innerHTML = 'Delete Scenario';
+    });
 }
 
 
 async function updateComponent(){
     const user = await getUser(); userName = user;
     projectName().style.pointerEvents = "auto";
-    const listProjects = await getProjectList();
+    listProjects = await getProjectList();
     await projectRender(projectName(), projectList(), listProjects);
     // Show/Hide tabs
     projectName().addEventListener('input', (e) => { 
