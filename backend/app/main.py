@@ -9,8 +9,9 @@ if backend_dir not in sys.path:
 
 # Import internally backend modules
 from config import SOURCE_BACKEND, SOURCE_FRONTEND, PROJECT_ROOT, lifespan
-from services import route_page, project_manager, grid_preparation
-# process_manager, wq_process, \
+from services import route_page, project_manager, grid_preparation, \
+    process_manager
+# , wq_process, \
 #     run_simulation, data_preparation, flow_preparation
 
 app = FastAPI(lifespan=lifespan)
@@ -20,16 +21,17 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 # app.mount("/assets/images", StaticFiles(directory=os.path.join(STATIC_DIR_FRONTEND, "assets/images")), name="mobirise_images")
 # app.mount("/assets", StaticFiles(directory=os.path.join(STATIC_DIR_FRONTEND, "assets")), name="assets")
 app.mount("/src_frontend", StaticFiles(directory=SOURCE_FRONTEND), name="src_frontend")
+app.mount("/src_backend", StaticFiles(directory=SOURCE_BACKEND), name="src_backend")
 # # My images
 # app.mount("/images", StaticFiles(directory=os.path.join(STATIC_DIR_BACKEND, "images")), name="my_images")
-# app.mount("/static_backend", StaticFiles(directory=STATIC_DIR_BACKEND), name="static_backend")
+
 # app.mount("/projects_static", StaticFiles(directory=PROJECT_STATIC_ROOT), name="projects_static")
 
 # Mount routes
 app.include_router(route_page.router)
 app.include_router(project_manager.router)
 app.include_router(grid_preparation.router)
-# app.include_router(process_manager.router)
+app.include_router(process_manager.router)
 # app.include_router(wq_process.router)
 # app.include_router(run_simulation.router)
 

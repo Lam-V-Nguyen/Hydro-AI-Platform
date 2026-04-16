@@ -65,7 +65,8 @@ export function loadWidget() {
     // Init map 
     setTimeout(() => { 
         layout.forEach(item => { 
-            const el = document.querySelector(`[gs-id=${item.id}]`); 
+            const el = document.querySelector(`[gs-id=${item.id}]`);
+            if (!el) return;
             // Restore title 
             el.querySelector('.widget-title').textContent = item.title; 
             // Restore iframe 
@@ -110,7 +111,7 @@ export function addWidget(w, h, title, id, iframeUrl) {
         x: 0, y: 0, w: w, h: h, id: id, minW:2, minH:2,
         content: createWidgetHTML(title, id, iframeUrl) 
     }); 
-    if (id === 'map') { setTimeout(() => initMap(id), 50); } 
+    // if (id === 'map') { setTimeout(() => initMap(id), 50); } 
     saveWidget(); 
 }
 

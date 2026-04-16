@@ -1,3 +1,7 @@
+:root {
+    --bg: linear-gradient(90deg, #3142df, #0699c2);
+    
+}
 body {
     background-color: #262635;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -40,24 +44,31 @@ h3 {
     background-clip: text; -webkit-text-fill-color: transparent;
 }
 
-.submenu {
+.menu-container {
     position: absolute; top: 60px; right: 0; z-index: 1000;
-    border: 1px solid #ddd; display: none;
-    flex-direction: column; align-items: center;
-    border-radius: 8px; padding: 10px 14px; min-width: 120px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    background: linear-gradient(90deg, #3142df, #0699c2);
+    border: 1px solid #ddd; display: none; font-size: 19px;
+    flex-direction: column; align-items: left; cursor: pointer;
+    border-radius: 8px; padding: 10px 14px; width: 240px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15); background: var(--bg);
 }
-
+.menu-item { position: relative; }
+.menu-link {
+    display: flex; border-radius: 6px; cursor: pointer;
+    align-items: center; padding: 10px 14px;
+}
+.submenu {
+    position: absolute; top: 0; right: 100%;
+    margin-right: 20px; display: none;
+    flex-direction: column;
+    width: 200px; background: var(--bg);
+    border-radius: 8px; padding: 8px;
+}
+.menu-item.active > .submenu { display: flex; }
 .submenu-item {
-    width: 100%; padding: 8px 15px;
-    cursor: pointer; border-radius: 6px;
+    padding: 8px; cursor: pointer; border-radius: 6px;
     transition: background 0.2s;
 }
-
-.submenu-item:hover {
-    background: #3a3939;
-}
+.submenu-item:hover, .menu-link:hover { background: #0a6397; }
 
 .loading-container {
     position: fixed; top: 130px; left: 0; right: 0; bottom: 0;

@@ -19,7 +19,7 @@ def home(request: Request):
 @router.get("/getWidgetMenu")
 def load_widgetMenu(request: Request):
     try:
-        return htmls.TemplateResponse("widgetMenu.html", {"request": request})
+        return htmls.TemplateResponse("mainMenu.html", {"request": request})
     except Exception as e:
         print('/getWidgetMenu:\n==============')
         traceback.print_exc()
@@ -37,10 +37,7 @@ def load_widgetMenu(request: Request):
 #             {"request": request, "message": "File not found."})
 #     return templates.TemplateResponse(template_file, {"request": request})
 
-# # Load contact page
-# @router.get("/load_contact")
-# def load_contact(request: Request):
-#     return templates.TemplateResponse("contact.html", {"request": request})
+
 
 # # Load popup menu
 # @router.get("/load_popupMenu", response_class=HTMLResponse)

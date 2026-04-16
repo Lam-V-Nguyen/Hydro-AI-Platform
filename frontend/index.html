@@ -7,11 +7,9 @@
     <!-- Third-party libraries -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridstack@10.2.0/dist/gridstack.min.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-
-
     <!-- My styles -->
-    <link rel="stylesheet" href="/src_frontend/styles/index.css?v=001">
-    <link rel="stylesheet" href="/src_frontend/styles/gridLayout.css?v=001">
+    <link rel="stylesheet" href="/src_frontend/styles/index.css?v=002">
+    <link rel="stylesheet" href="/src_frontend/styles/gridLayout.css?v=002">
   </head>
   <body>
     <!-- Header -->
@@ -28,7 +26,7 @@
       <!-- Right side -->
       <div class="header-right">
         <img id="widgetMenu" src="/src_frontend/images/addWidget.png" title="Add Component"/>
-        <div id="submenu" class="submenu hidden"></div>
+        <div id="menu-container" class="menu-container hidden"></div>
       </div>
     </header>
     <!-- Gridstack container -->
@@ -37,13 +35,10 @@
       <div class="spinner"></div>
       <div class="loading-text">Processing Data. Please wait...</div>
     </div>
-
     <div class="github-last-update">Loading last update...</div>
     <div class="project-note"></div>
-
     <script src="https://cdn.jsdelivr.net/npm/gridstack@10.2.0/dist/gridstack-all.js"></script>
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-
     <script type="module" src="/src_frontend/services/mainManager.js"></script>
   </body>
 </html>

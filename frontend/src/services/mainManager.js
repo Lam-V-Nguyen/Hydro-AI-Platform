@@ -1,22 +1,18 @@
-import { projectMaker, projectLoader } from "./projectManager.js";
-import { 
-    initGrid, addWidget, loadWidget, saveWidget, hasWidget 
-} from "./widgetFunctions.js"; 
+import { menuManager } from "./menuManager.js";
+import { projectMaker, projectModifier, pdfOpener } from "./projectManager.js";
+import { initGrid, addWidget, loadWidget, saveWidget, hasWidget } from "./widgetFunctions.js"; 
 import { startLoading, stopLoading, jsonLoader, htmlLoader } from "./commonFunctions.js"; 
 
 const widgetMenu = document.getElementById("widgetMenu"); 
-const submenu = document.getElementById("submenu"); 
+const menuContainer = document.getElementById('menu-container');
 
 const githubCache = {}, currentProject = 'demo', currentParams = [];
-let isLoaded = false, userName = null; 
-
+let isLoaded = false, userName = null, hideTimeout = null; 
 
 
 await login(); await projectChecker(); showNotes();
 updateComponent(); widgetMenuManager(); loadWidget();
-
 // showGitHubLastUpdate('Lam-V-Nguyen', 'Hydro-AI-Platform', 'dev'); 
-
 
 
 async function login() { 
@@ -36,47 +32,40 @@ async function projectChecker() {
 } 
 
 function widgetMenuManager() {
+    widgetMenu.addEventListener("mouseenter", (e) => {
+        e.target.dispatchEvent(new Event('click'));
+    })
     widgetMenu.addEventListener("click", async () => { 
         if (!isLoaded) { 
             const res = await htmlLoader('getWidgetMenu'); 
-            if (!res) { alert('Could not load menu.'); return; } 
-            submenu.innerHTML = res; isLoaded = true;
+            if (!res) { alert('Could not load menu.'); return; }
+            menuManager(menuContainer, res); isLoaded = true;
         } 
-        submenu.style.display = 'flex'; 
+        menuContainer.style.display = 'flex'; 
     }); 
-    // Click outside to close 
-    document.addEventListener("click", (e) => { 
-        if (!widgetMenu.contains(e.target) && !submenu.contains(e.target)) { submenu.style.display = 'none'; } 
-    }); 
-    // Submenu click handler 
-    submenu.addEventListener("click", (e) => { 
-        const item = e.target.closest(".submenu-item"); 
-        if (!item) return; 
-        const id = item.id, title = item.textContent.trim(), url = item.dataset.url; 
-        if (hasWidget(id)) { alert('Widget already exists.'); return; } 
-        let w = 5, h = 3;
-        // Create a new project
-        if (id === 'new-project') { projectMaker(); return; }
-        else if (id === 'open-project') { projectLoader(userName); return; }
-        else if (id === 'map') { w = 12; h = 5; } 
-        else if (id === 'grid-generation') { w = 12; h = 9; } 
-        else if (id === 'about') { w = 11; h = 10; } 
-        addWidget( w, h, title, id, url); 
-        submenu.style.display = 'none'; 
-        saveWidget(); 
-    }); 
+    // Menu click handler 
+    menuContainer.addEventListener("click", (e) => { 
+        const item = e.target.closest(".submenu-item") || e.target.closest(".menu-link"); 
+        if (!item) return;
+        const id = item.id; if (!id) return;
+        const title = item.textContent.replace(/▸|◂/g, '').trim();
+        const url = item.dataset?.url;
+        let w = 11, h = 7;
+        const closeMenu = () => { menuContainer.style.display = 'none'; saveWidget(); };
+        if (hasWidget(id)) { alert('Widget already exists.'); closeMenu(); return; }
+        if (id === 'new-project') { projectMaker(); closeMenu(); return; }
+        else if (id === 'open-project') { projectModifier(userName, 'open'); closeMenu(); return; }
+        else if (id === 'delete-project') { projectModifier(userName, 'delete'); closeMenu(); return; }
+        else if (id === 'help-docs') { pdfOpener(url); closeMenu(); return; }
+        else if (id === 'visualization') { w = 12; h = 9; }
+        else if (id === 'about') { w = 8; h = 5; }
+        addWidget( w, h, title, id, url); closeMenu();
+    });
     document.addEventListener("click", (e) => { 
         // Close button handler 
         if (e.target.classList.contains("remove-btn")) { 
             const widget = e.target.closest(".grid-stack-item"); 
-            if (widget) { 
-                // const mapWidget = widget.getAttribute("gs-id"); 
-                // if (mapWidget === 'map') { 
-                //     const isConfirmed = confirm( "Closing the map widget will prevent you from interacting with the map.\nAre you sure you want to continue?" ); 
-                //     if (!isConfirmed) return; 
-                // } 
-                initGrid().removeWidget(widget); 
-            } 
+            if (widget) initGrid().removeWidget(widget); 
         } 
         // Edit title handler 
         if (e.target.classList.contains("widget-title")) { 
@@ -90,7 +79,13 @@ function widgetMenuManager() {
 function updateComponent() {
     // Listen for state change
     window.addEventListener('message', (event) => {
-        if (event.data.type === 'addMapWidget') addWidget(12, 6, 'Map', 'map', '');
+        // Get project destination
+        if (event.data.type === 'GET_USER') {
+            const project = document.querySelector(".project-note");
+            if (!project) return;
+            const content = project.textContent.split(':').pop().split('/').shift().trim();
+            event.source.postMessage({ type: 'USER', content: content }, '*');
+        }
     });
 
 

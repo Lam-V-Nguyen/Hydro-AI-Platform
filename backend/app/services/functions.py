@@ -1,4 +1,4 @@
-import os, json, chardet, asyncio
+import os, json, chardet, asyncio, stat
 from config import PROJECT_ROOT, ALLOWED_USERS
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi import Depends, HTTPException, status
@@ -48,7 +48,10 @@ async def auto_extend(lock: Lock, interval: int = 10):
             except Exception: break
     except asyncio.CancelledError: pass
 
-
+def remove_readonly(func, path, excinfo):
+    # Change the readonly bit, but not the file contents
+    os.chmod(path, stat.S_IWRITE)
+    func(path)
 
 
 

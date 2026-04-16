@@ -1,16 +1,20 @@
-export function renderProjects(objectList, objectInput, fullList, filter) {
-    objectList.innerHTML = "";
-    const filtered = fullList.filter(p => p.toLowerCase().includes(filter.toLowerCase()));
-    filtered.forEach(p => {
-        const li = document.createElement("li");
-        li.textContent = p;
-        li.addEventListener('mousedown', () => { 
-            objectInput.value = p; objectList.style.display = "none";
-        });
-        objectList.appendChild(li);
+export function getUser(){
+    return new Promise((resolve) => {
+        function handler(event) {
+            if (event.data.type === 'USER') {
+                window.removeEventListener('message', handler);
+                resolve(event.data.content);
+            }
+        }
+        window.addEventListener('message', handler);
+        window.parent.postMessage({type: "GET_USER"}, "*");
     });
-    objectList.style.display = filter ? "block" : "none";
 }
+
+export function nameChecker(name) {
+    return !/^[A-Za-z0-9_-]+$/.test(name);
+}
+
 
 export function fillTable(data2D, table, clear=true){
     let tbody = table.querySelector("tbody");

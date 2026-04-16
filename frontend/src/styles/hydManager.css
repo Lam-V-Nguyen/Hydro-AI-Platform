@@ -1,0 +1,42 @@
+:root {
+  --bg: #10192c; --text: #e6eefc; --card: #0f1b30;
+}
+
+* { box-sizing: border-box; }
+html, body { 
+  margin: 0; padding: 0; height: 100%; overflow: auto;
+  font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, "Noto Sans", sans-serif; }
+body {
+  color: var(--text);
+  background: radial-gradient(1200px 600px at 10% -10%, rgba(30,136,229,0.25), transparent),
+    radial-gradient(800px 600px at 100% 0%, rgba(21,101,192,0.25), transparent), var(--bg);
+}
+
+.wrapper { 
+  max-width: 100%; margin: 20px auto; padding: 10px; 
+}
+.page-title { 
+  display: flex; align-items: center; gap: 14px; font-size: 20px;
+  justify-content: center; flex-wrap: wrap; font-weight: bold;
+}
+#project-name { text-align: center; width: 300px; pointer-events: none;}
+#project-name-wrapper {
+  display: flex; align-items: center; position: relative;
+}
+#project-name-wrapper input { font-size: 16px; }
+#project-list {
+  position: absolute; top: 100%; left: 0; width: 100%;
+  margin: 0; list-style: none; padding: 8px 6px; 
+  font-size: 16px; font-weight: normal;
+  align-items: center; justify-content: center;
+  background: var(--card); border-radius: 8px; display: none;
+  box-shadow: 0 6px 18px rgba(30,136,229,0.2);
+}
+#project-list li:hover { 
+  background: rgb(9, 48, 155); border-radius: 8px;
+  padding: 8px 6px; cursor: pointer;
+}
+
+p { font-weight: bold; font-size: 22px; text-align: center; margin: 35px 0; }
+ul { line-height: 1.4; margin-left: 80px; font-size: 17px; }
+ul li { margin-top: 15px; }
