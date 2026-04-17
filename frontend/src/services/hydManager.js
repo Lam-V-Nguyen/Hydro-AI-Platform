@@ -5,7 +5,6 @@ import { jsonLoader, getUser, nameChecker, fillTable, updateTable, iframeConnect
 import { projectRender } from "./projectManager.js";
 
 
-
 const $ = (id) => document.getElementById(id);
 const obj = {
     descriptionTab: $('desription-tab'), controlTab: $('control-tab'),
@@ -27,24 +26,16 @@ const obj = {
     crossSectionRemove: $('cross-section-remove'), crossSectionTable: $('cross-section-table'),    
     boundaryName: $('boundary-name'), boundaryPicker: $('boundary-picker'), 
     boundaryRemove: $('boundary-remove'), boundaryTable: $('boundary-table'),
-
-   
-    
-    
-
-    
-
-   
-boundarySelector: $('option-boundary-edit'),
-    boundaryUploadFile: $('boundary-picker-file'), boundaryUploadText: $('boundary-picker-text'),
-    boundaryCSV: $('boundary-upload-csv'), boundaryAddRow: $('boundary-add-row'),
-    boundaryEditTable: $('boundary-edit-table'), boundaryEditUpdate: $('boundary-update'),
-    boundaryEditRemove: $('boundary-edit-remove'), boundarySelectorView: $('option-boundary-type-view'),
-    boundaryViewContainer: $('textarea-container'), boundaryText: $('data-view'),
+    boundarySelector: $('boundary-edit'), boundaryTypeSelector: $('boundary-type'),
+    boundaryUploadFile: $('boundary-picker-file'), boundaryUploadText: $('boundary-picker-text'),   
+    boundaryCSV: $('boundary-upload-csv'), boundaryAddRow: $('boundary-add-row'),    
+    boundaryEditTable: $('boundary-edit-table'), boundaryEditUpdate: $('boundary-update'),    
+    boundaryEditRemove: $('boundary-edit-remove'), boundarySelectorView: $('boundary-type-view'),
+    boundaryViewContainer: $('textarea-container'), boundaryText: $('data-view'),    
     sourceName: $('source-name'), sourceOptionNew: $('source-sink-new'),
-    sourceOptionExist: $('source-sink-exist'), sourceOptionPicker: $('source-picker'),
+    sourceOptionExist: $('source-sink-exist'), sourceOptionPicker: $('source-picker'),   
     sourceLatitude: $('source-latitude'), sourceLongitude: $('source-longitude'),
-    sourceTable: $('source-table'), sourceUploadFile: $('source-upload-file'),
+    sourceTable: $('source-table'), sourceUploadFile: $('source-csv-file'),
     sourceUploadText: $('source-csv-text'), sourceAddBtn: $('add-source-btn'),
     sourcePlotBtn: $('plot-source-btn'), sourceSaveBtn: $('save-source-btn'),
     sourceSelectorRemove: $('option-source-remove'), sourceRemoveBtn: $('source-remove'),
@@ -71,7 +62,7 @@ boundarySelector: $('option-boundary-edit'),
     outputRestart: $('write-restart-file'), rstStart: $('restart-start'), rstStop: $('restart-end'),
 }
 
-let userName = null, BCChecked = 0, listProjects = [];
+let userName = null, listProjects = [];
 
 
 setupTabs(document); projectOptions(); updateComponent();
@@ -171,7 +162,7 @@ async function updateComponent(){
         [obj.boundaryName, obj.boundaryTable], 'pickPath', 
         () => getDataFromTable(obj.boundaryTable, true), 'boundary'
     );
-//     mapPicker(sourceOptionPicker(), 'pickSource');
+    iframeConnector(obj.sourceOptionPicker, 'pickSource');
 //     // Event when user uploads CSV file
 //     obsPointUploadText().addEventListener('click', () => { obsPointUploadFile().click(); });
 //     obsPointUploadFile().addEventListener('change', async (event) => { 

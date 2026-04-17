@@ -25,7 +25,7 @@ export function iframeConnector(objBtn, objtarget, type, content = null, lineTyp
             window.addEventListener('message', listener);
             const contents = {
                 id: 'hyd', requestId: type, 
-                content: freshData.rows, lineType: lineType
+                content: freshData.rows, lineType
             }
             window.parent.postMessage( contents, '*');
         });
@@ -40,10 +40,8 @@ export function iframeConnector(objBtn, objtarget, type, content = null, lineTyp
             }
         } else if (type === 'pickPath') {
             const name = objtarget[0].value.trim();
-            const lineName = lineType==='crossSection' ? lineType : 'boundary';
-            if (name === '') {
-                const crossName = lineName==='crossSection' ? lineName : 'Boundary';
-            }
+            let crossName = 'Cross-Section';
+            if (name === 'Boundary') crossName = 'Boundary';
             const table = objtarget[1], arr = []; deleteTable(table);
             for (let i = 0; i < result.length; i++) {
                 const lat = Number(result[i].lat).toFixed(12);

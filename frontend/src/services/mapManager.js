@@ -3,15 +3,18 @@ import { getPendingRequest, clearPendingRequest } from "./constant.js";
 
 
 export let currentMap; 
-let currentTileLayer = null, timeCounter = null, html='', markersPoints = [],
-    pathLine = null, curentPoints = [];
+let currentTileLayer = null, timeCounter = null, html='', markersObs = [], markerCrossSection = [], curentPoints = [],
+    markerBoundary = [], pathCrossSection = null, pathBoundary = null, currentPointsCross = [], currentPointsBoundary = [];
+const configCrossSectionPoint = {color: 'blue', fillColor: 'yellow', radius: 4, fill: true, fillOpacity: 1},
+    configBoundaryPoint = {color: 'red', fillColor: 'green', radius: 4, fill: true, fillOpacity: 1},
+    configCrossSectionPath = {color: 'blue', weight: 2, dashArray: '5,5'},
+    configBoundaryPath = {color: 'red', weight: 2};
 const hoverTooltip = L.tooltip({
     permanent: false, direction: 'bottom',
     sticky: true, offset: [0, 10], className: 'custom-tooltip'
 });
 
-function iconAdd(iconUrl, markersPoints, map, pointList) {
-    markersPoints.forEach(marker => map.removeLayer(marker)); markersPoints = [];
+function iconAdd(iconUrl, markers, map, pointList) {
     const customIcon = L.icon({
         iconUrl: iconUrl, iconSize: [20, 20], popupAnchor: [1, -34],
     });
@@ -22,38 +25,34 @@ function iconAdd(iconUrl, markersPoints, map, pointList) {
         const marker = L.marker(
             [parseFloat(lat), parseFloat(lon)], { icon: customIcon }
         ).addTo(map);
-        marker.bindPopup(name); markersPoints.push(marker);
+        marker.bindPopup(name); markers.push(marker);
     })
 }
 
 function lineAdd(pointContainer, map, lineType) {
     const latlngs = pointContainer
         .map(p => {
-            const lat = parseFloat(p[1]);
-            const lon = parseFloat(p[2]);
+            const lat = parseFloat(p[1]), lon = parseFloat(p[2]);
             if (isNaN(lat) || isNaN(lon)) return null;
             return [lat, lon];
         })
         .filter(Boolean);
     if (latlngs.length < 2) return;
-    let config = {color: 'orange', weight: 2, dashArray: '5,5'};
-    if (lineType === 'Boundary') config = {color: 'red', weight: 2};
-    if (pathLine) { pathLine.setLatLngs(latlngs);
-    } else { pathLine = L.polyline(latlngs, config).addTo(map); }
-    currentMap.fitBounds(pathLine.getBounds());
+    if (lineType === 'crossSection') { 
+        pathCrossSection = L.polyline(latlngs, configCrossSectionPath).addTo(map);
+        currentMap.fitBounds(pathCrossSection.getBounds());
+    } else if (lineType === 'boundary') { 
+        pathBoundary = L.polyline(latlngs, configBoundaryPath).addTo(map); 
+        currentMap.fitBounds(pathBoundary.getBounds());
+    }
 }
 
 export function renderPreview(request=null) {
-    if (markersPoints.length > 0) {
-        markersPoints.forEach(marker => currentMap.removeLayer(marker));
-        markersPoints = [];
-    }
-    if (curentPoints.length > 0) curentPoints = [];
-    if (!request) return;
+    curentPoints.length = 0; if (!request) return;
     const id = request.requestId;
     if (id === 'pickPoint') { 
         const iconUrl = `/src_frontend/images/station.png?v=${Date.now()}`;
-        iconAdd(iconUrl, markersPoints, currentMap, request.content);
+        iconAdd(iconUrl, markersObs, currentMap, request.content);
     } else if (id === 'pickPath') {
         const pointList = request.content, lineType = request.lineType;
         if (!pointList || pointList.length === 0) return;
@@ -119,23 +118,37 @@ export function initMap(mapId='map') {
         const req = getPendingRequest(); if (!req) return;
         if (req.requestId === 'pickLocation') { 
             result = Number(e.latlng.lat).toFixed(2);
-        } else if (req.requestId === 'pickPoint') { result = e.latlng; 
+        } else if (req.requestId === 'pickPoint') { result = e.latlng;
         } else if (req.requestId === 'pickPath') {
-            let defaultMarker = {radius: 5, color: 'blue', fillColor: 'cyan', fillOpacity: 0.9};
-            if (req.lineType === 'Boundary') { defaultMarker = {radius: 5, color: 'red', fillColor: 'blue', fillOpacity: 0.9}; }
-            // Add marker
-            const marker = L.circleMarker(e.latlng, defaultMarker).addTo(currentMap);
-            markersPoints.push(marker);
+            const isCross = req.lineType === 'crossSection';
+            const points = isCross ? currentPointsCross : currentPointsBoundary;
+            const markerList = isCross ? markerCrossSection : markerBoundary;
+            const configPoint = isCross ? configCrossSectionPoint : configBoundaryPoint;
+            const configPath = isCross ? configCrossSectionPath : configBoundaryPath;
+            let line = isCross ? pathCrossSection : pathBoundary;
             // Add point
             curentPoints.push({ lat: e.latlng.lat, lng: e.latlng.lng });
-            // Plot line
-            const latlngs = curentPoints.map(p => [p.lat, p.lng]);
-            if (pathLine) { pathLine.setLatLngs(latlngs);
+            points.push({ lat: e.latlng.lat, lng: e.latlng.lng });
+            // Add marker
+            const marker = L.circleMarker(e.latlng, configPoint).addTo(currentMap);
+            markerList.push(marker);
+            if (points.length < 2) return;
+            const latlngs = points.map(p => [p.lat, p.lng]); 
+            // Draw/update line
+            if (line) {
+                line.setLatLngs(latlngs); line.setStyle(configPath);
             } else {
-                pathLine = L.polyline(latlngs, {
-                    color: 'orange', weight: 2, dashArray: '5,5'
-                }).addTo(currentMap);
+                line = L.polyline(latlngs, configPath).addTo(currentMap);
+                if (isCross) { pathCrossSection = line; } else { pathBoundary = line; }
             }
+
+
+
+
+
+
+            
+            
 
 
             
@@ -145,6 +158,7 @@ export function initMap(mapId='map') {
             clearPendingRequest();
             mapContainer.style.cursor = 'grab'; currentMap.closeTooltip(hoverTooltip);
         }
+        console.log(curentPoints);
     });
     currentMap.on('contextmenu', (e) => { 
         e.originalEvent.preventDefault();
@@ -155,8 +169,8 @@ export function initMap(mapId='map') {
                 alert(`Not enough points selected.\nPlease select at least 02 points.`); return;
             }
             req.source.postMessage({ requestId: req.requestId, result: curentPoints }, '*');
-            clearPendingRequest(); curentPoints = [];
-            currentMap.closeTooltip(hoverTooltip); mapContainer.style.cursor = 'grab';
+            clearPendingRequest(); curentPoints.length = 0;
+            mapContainer.style.cursor = 'grab'; currentMap.closeTooltip(hoverTooltip); 
         }
 
 

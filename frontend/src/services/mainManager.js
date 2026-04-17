@@ -91,7 +91,8 @@ function updateComponent() {
             const content = project.textContent.split(':').pop().split('/').shift().trim();
             event.source.postMessage({ type: 'USER', content: content }, '*');
         } else if (event.data.id === 'hyd') {
-            const req = { source: event.source,
+            const req = { 
+                source: event.source, lineType: event.data.lineType,
                 requestId: event.data.requestId, content: event.data.content
             };
             setPendingRequest(req); renderPreview(req);
