@@ -23,11 +23,11 @@ body {
 #project-name-wrapper {
   display: flex; align-items: center; position: relative;
 }
-#project-name-wrapper input { font-size: 16px; }
+#project-name-wrapper input { font-size: 16px; width: 200px; }
 #project-list {
   position: absolute; top: 100%; left: 0; width: 100%;
   margin: 0; list-style: none; padding: 8px 6px; 
-  font-size: 16px; font-weight: normal;
+  font-size: 16px; font-weight: normal; z-index: 10000;
   align-items: center; justify-content: center;
   background: var(--card); border-radius: 8px; display: none;
   box-shadow: 0 6px 18px rgba(30,136,229,0.2);

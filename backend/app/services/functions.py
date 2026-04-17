@@ -53,6 +53,19 @@ def remove_readonly(func, path, excinfo):
     os.chmod(path, stat.S_IWRITE)
     func(path)
 
+def seconds_datetime(seconds: int) -> tuple:
+    days = seconds // 86400
+    seconds %= 86400
+    hours = seconds // 3600
+    seconds %= 3600
+    minutes = seconds // 60
+    seconds = seconds % 60
+    return days, f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
+
+
+
 
 
 

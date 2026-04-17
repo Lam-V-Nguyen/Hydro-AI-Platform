@@ -25,6 +25,21 @@ export const superscriptMap = {
 // // Reset state
 // export const resetState = () => { state = structuredClone(defaultState); };
 
+let pendingRequest = null;
+
+export function setPendingRequest(req) {
+    pendingRequest = req;
+}
+
+export function getPendingRequest() {
+    return pendingRequest;
+}
+
+export function clearPendingRequest() {
+    pendingRequest = null;
+}
+
+
 export const arrowShape = new Path2D();
 arrowShape.moveTo(0, 0);          // Origin
 arrowShape.lineTo(1, 0);          // Main length

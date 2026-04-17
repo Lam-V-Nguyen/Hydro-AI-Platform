@@ -11,10 +11,57 @@ export function getUser(){
     });
 }
 
+export function iframeConnector(objBtn, objtarget, type, content = null, lineType='crossSection') {
+    if (objBtn.__handler) objBtn.removeEventListener('click', objBtn.__handler);
+    objBtn.__handler = async () => {
+        const freshData = typeof content === 'function' ? content() : content;
+        const result = await new Promise((resolve) => {
+            function listener(event) {
+                if (event.data?.requestId === type) {
+                    window.removeEventListener('message', listener);
+                    resolve(event.data.result);
+                }
+            }
+            window.addEventListener('message', listener);
+            const contents = {
+                id: 'hyd', requestId: type, 
+                content: freshData.rows, lineType: lineType
+            }
+            window.parent.postMessage( contents, '*');
+        });
+        if (type === 'pickLocation') { objtarget.value = result; 
+        } else if (type === 'pickPoint') {
+            const lat = Number(result.lat).toFixed(12);
+            const lon = Number(result.lng).toFixed(12);
+            objtarget[1].value = lat; objtarget[2].value = lon;
+            if (objtarget[0].value.trim() === '') {
+                const name = `${Number(lat).toFixed(2)}_${Number(lon).toFixed(2)}`;
+                objtarget[0].value = `Point_${name}`;
+            }
+        } else if (type === 'pickPath') {
+            const name = objtarget[0].value.trim();
+            const lineName = lineType==='crossSection' ? lineType : 'boundary';
+            if (name === '') {
+                const crossName = lineName==='crossSection' ? lineName : 'Boundary';
+            }
+            const table = objtarget[1], arr = []; deleteTable(table);
+            for (let i = 0; i < result.length; i++) {
+                const lat = Number(result[i].lat).toFixed(12);
+                const lon = Number(result[i].lng).toFixed(12);
+                arr.push([crossName, lat, lon]);
+            }
+            fillTable(arr, table, true);
+        }   
+        
+        
+        return result;
+    };
+    objBtn.addEventListener('click', objBtn.__handler);
+}
+
 export function nameChecker(name) {
     return !/^[A-Za-z0-9_-]+$/.test(name);
 }
-
 
 export function fillTable(data2D, table, clear=true){
     let tbody = table.querySelector("tbody");
@@ -47,6 +94,52 @@ export function fillTable(data2D, table, clear=true){
         }
         tbody.appendChild(row);
     }
+}
+
+export function getDataFromTable(table, isZeroIndexString=false){
+    const columns = Array.from(table.querySelectorAll("thead th")).map(th => th.textContent.trim());
+    const rows = Array.from(table.querySelectorAll("tbody tr")).map(tr => {
+        return Array.from(tr.querySelectorAll("td input")).map((input, idx) => {
+            const val = input.value.trim();
+            if (isZeroIndexString) return val; // Keep as string
+            // Convert to number if possible
+            if (idx === 0 && val) {
+                const isoString = val.replace(/\//g, "-").replace("T", " ");
+                return toUTC(isoString);
+            }
+            if (!isNaN(val) && val !== "") return parseFloat(val);
+            return val;
+        });
+    })
+    // Remove empty rows
+    .filter(row => row.some(cell => cell !== "" && cell !== null && cell !== undefined));
+    return {columns, rows};
+}
+
+export async function updateTable(table, comboBox, projectName, key='') {
+    const data = await jsonLoader('init_source', {projectName: projectName, key: key});
+    if (data.status === "ok") {
+        comboBox.innerHTML = '';
+        // Add hint to the velocity object
+        const hint = document.createElement('option');
+        hint.value = ''; hint.selected = true;
+        hint.text = '- No Selection -'; 
+        comboBox.add(hint);
+        // Add options
+        const data_arr = [];
+        data.content.forEach((item, idx) => {
+            const option = document.createElement('option');
+            option.value = item; option.text = item;
+            comboBox.add(option);
+            data_arr.push([item, data.type[idx]]);
+        });
+        if (data_arr.length > 0) fillTable(data_arr, table);
+    }
+}
+export function deleteTable(table, name=null, type=''){
+    const tbody = table.querySelector("tbody");
+    tbody.innerHTML = ""; 
+    if (name != null) name.value = '';
 }
 
 export async function htmlLoader(functionName){

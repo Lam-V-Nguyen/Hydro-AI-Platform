@@ -2,12 +2,16 @@ import { menuManager } from "./menuManager.js";
 import { projectMaker, projectModifier, pdfOpener } from "./projectManager.js";
 import { initGrid, addWidget, loadWidget, saveWidget, hasWidget } from "./widgetFunctions.js"; 
 import { startLoading, stopLoading, jsonLoader, htmlLoader } from "./commonFunctions.js"; 
+import { setPendingRequest, clearPendingRequest } from "./constant.js";
+import { renderPreview } from "./mapManager.js";
+
 
 const widgetMenu = document.getElementById("widgetMenu"); 
 const menuContainer = document.getElementById('menu-container');
 
 const githubCache = {}, currentProject = 'demo', currentParams = [];
-let isLoaded = false, userName = null, hideTimeout = null; 
+let pickerState = { location: false, point: false, crosssection: false, boundary: false, source: false },
+    isLoaded = false, userName = null, hideTimeout = null; 
 
 await login(); await projectChecker(); showNotes();
 updateComponent(); widgetMenuManager(); loadWidget();
@@ -49,7 +53,7 @@ function widgetMenuManager() {
         const id = item.id; if (!id) return;
         const title = item.textContent.replace(/▸|◂/g, '').trim();
         const url = item.dataset?.url;
-        let w = 11, h = 7;
+        let w = 5, h = 7;
         const closeMenu = () => { menuContainer.style.display = 'none'; saveWidget(); };
         if (hasWidget(id)) { alert('Widget already exists.'); closeMenu(); return; }
         if (id === 'new-project') { projectMaker(); closeMenu(); return; }
@@ -78,12 +82,19 @@ function widgetMenuManager() {
 function updateComponent() {
     // Listen for state change
     window.addEventListener('message', (event) => {
-        // Get project destination
-        if (event.data.type === 'GET_USER') {
+        if (event.data.type === 'addMapWidget') { // Add map
+            const id = event.data.content.id;
+            if (!hasWidget(id)) addWidget(12, 6, event.data.content.title, id, '');
+        } else if (event.data.type === 'GET_USER') { // Get project destination
             const project = document.querySelector(".project-note");
             if (!project) return;
             const content = project.textContent.split(':').pop().split('/').shift().trim();
             event.source.postMessage({ type: 'USER', content: content }, '*');
+        } else if (event.data.id === 'hyd') {
+            const req = { source: event.source,
+                requestId: event.data.requestId, content: event.data.content
+            };
+            setPendingRequest(req); renderPreview(req);
         }
     });
 

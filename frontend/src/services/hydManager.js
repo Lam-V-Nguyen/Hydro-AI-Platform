@@ -1,131 +1,80 @@
 import { setupTabs } from "./tabManager.js";
-import { jsonLoader, getUser, nameChecker } from "./commonFunctions.js";
+import { jsonLoader, getUser, nameChecker, fillTable, updateTable, iframeConnector,
+    getDataFromTable
+} from "./commonFunctions.js";
 import { projectRender } from "./projectManager.js";
 
-// import { fillTable, getDataFromTable, addRowToTable, removeRowFromTable,
-//     deleteTable, copyPaste, csvUploader, mapPicker, renderProjects, 
-//     pointUpdate, updateTable, plotTable, sendQuery } from "./tableManager.js";
-// import { saveProject, timeStepCalculator } from "./projectSaver.js";
-// import { getState } from "./constants.js";
-// import { loadList, fileUploader, nameChecker } from "./utils.js";
 
-const descriptionTab = () => document.getElementById('desription-tab');
-const controlTab = () => document.getElementById('control-tab');
-const projectList = () => document.getElementById("project-list");
-const projectName = () => document.getElementById("project-name");
-const projectCreator = () => document.getElementById('create-btn');
-const projectCloner = () => document.getElementById('duplicate-btn');
-const projectRemover = () => document.getElementById('remove-btn');
-const projectSaver = () => document.getElementById('save-btn');
-// const getLocation = () => document.getElementById('location-picker');
-// const userTimestepDate = () => document.getElementById('user-time-step-date');
-// const userTimestepTime = () => document.getElementById('user-time-step-time');
-// const nodalTimestepDate = () => document.getElementById('nodal-update-interval-date');
-// const nodalTimestepTime = () => document.getElementById('nodal-update-interval-time');
-// const obsPointName = () => document.getElementById('observation-point');
-// const obsPointLatitude = () => document.getElementById('observation-point-latitude');
-// const obsPointLongitude = () => document.getElementById('observation-point-longitude');
-// const obsPointPicker = () => document.getElementById('observation-point-picker');
-// const obsPointAddList = () => document.getElementById('observation-point-add-list');
-// const obsPointAddRow = () => document.getElementById('observation-point-add-row');
-// const obsPointRemove = () => document.getElementById('observation-point-remove');
-// const obsPointUploadFile = () => document.getElementById('observation-point-file');
-// const obsPointUploadText = () => document.getElementById('observation-point-text');
-// const obsPointUpdate = () => document.getElementById('observation-point-update');
-// const crossSectionPicker = () => document.getElementById('observation-cross-section-picker');
-// const crossSectionRemove = () => document.getElementById('observation-cross-section-remove');
-// const boundaryPicker = () => document.getElementById('boundary-picker');
-// const boundaryRemove = () => document.getElementById('boundary-remove');
-// const boundarySelector = () => document.getElementById('option-boundary-edit');
-// const boundaryTypeSelector = () => document.getElementById('option-boundary-type');
-// const boundaryUploadFile = () => document.getElementById('boundary-picker-file');
-// const boundaryUploadText = () => document.getElementById('boundary-picker-text');
-// const boundaryCSV = () => document.getElementById('boundary-upload-csv');
-// const boundaryAddRow = () => document.getElementById('boundary-add-row');
-// const boundaryEditTable = () => document.getElementById('boundary-edit-table');
-// const boundaryEditUpdate = () => document.getElementById('boundary-update');
-// const boundaryEditRemove = () => document.getElementById('boundary-edit-remove');
-// const boundarySelectorView = () => document.getElementById('option-boundary-type-view');
-// const boundaryViewContainer = () => document.getElementById('textarea-container');
-// const boundaryText = () => document.getElementById('data-view');
-// const sourceName = () => document.getElementById('source-name');
-// const sourceOptionNew = () => document.getElementById('source-sink-new');
-// const sourceOptionExist = () => document.getElementById('source-sink-exist');
-// const sourceOptionPicker = () => document.getElementById('source-picker');
-// const sourceLatitude = () => document.getElementById('source-latitude');
-// const sourceLongitude = () => document.getElementById('source-longitude');
-// const sourceTable = () => document.getElementById('source-table');
-// const sourceUploadFile = () => document.getElementById('source-csv-file');
-// const sourceUploadText = () => document.getElementById('source-csv-text');
-// const sourceAddBtn = () => document.getElementById('add-source-btn');
-// const sourcePlotBtn = () => document.getElementById('plot-source-btn');
-// const sourceSaveBtn = () => document.getElementById('save-source-btn');
-// const sourceSelectorRemove = () => document.getElementById('option-source-remove');
-// const sourceRemoveBtn = () => document.getElementById('source-remove');
-// const sourceRemoveTable = () => document.getElementById('source-remove-table');
-// const sourceDeleteTableBtn = () => document.getElementById('delete-source-btn');
-// const meteoAddBtn = () => document.getElementById('add-meteo-btn');
-// const meteoPlotBtn = () => document.getElementById('plot-meteo-btn');
-// const meteoDeleteBtn = () => document.getElementById('delete-meteo-btn');
-// const meteoSaveBtn = () => document.getElementById('save-meteo-btn');
-// const meteoTable = () => document.getElementById('edit-meteo-table');
-// const meteoUploadFile = () => document.getElementById('meteo-picker-file');
-// const meteoUploadText = () => document.getElementById('meteo-picker-text');
-// const weatherPanel = () => document.getElementById('weather-upload-panel');
-// const weatherSelector = () => document.getElementById('option-weather');
-// const weatherUpload = () => document.getElementById('weather-update');
-// const weatherAddRow = () => document.getElementById('weather-add-row');
-// const weatherRemove = () => document.getElementById('weather-remove');
-// const weatherCSVUploadFile = () => document.getElementById('weather-update-file');
-// const weatherCSVUploadText = () => document.getElementById('weather-update-text');
-// const weatherTable = () => document.getElementById('weather-edit-table');
-// const hisIntervalDate = () => document.getElementById('his-output-interval-date');
-// const hisIntervalTime = () => document.getElementById('his-output-interval-time');
-// const mapIntervalDate = () => document.getElementById('map-output-interval-date');
-// const mapIntervalTime = () => document.getElementById('map-output-interval-time');
-// const wqIntervalDate = () => document.getElementById('water-quality-output-interval-date');
-// const wqIntervalTime = () => document.getElementById('water-quality-output-interval-time');
-// const rstIntervalDate = () => document.getElementById('restart-interval-date');
-// const rstIntervalTime = () => document.getElementById('restart-interval-time');
-// const statisticDate = () => document.getElementById('statistic-output-interval-date');
-// const statisticTime = () => document.getElementById('statistic-output-interval-time');
-// const timingDate = () => document.getElementById('timing-statistic-output-interval-date');
-// const timingTime = () => document.getElementById('timing-statistic-output-interval-time');
-// const latitude = () => document.getElementById('latitude');
-// const nLayers = () => document.getElementById('n-layer');
-// const gridPathFile = () => document.getElementById('unstructured-grid-file');
-// const gridPathText = () => document.getElementById('unstructured-grid-text');
-// const startDate = () => document.getElementById('start-date');
-// const stopDate = () => document.getElementById('stop-date');
-// const obsPointTable = () => document.getElementById('observation-point-table');
-// const crossSectionTable = () => document.getElementById('observation-cross-section-table');
-// const crossSectionName = () => document.getElementById('observation-cross-section');
-// const boundaryName = () => document.getElementById('boundary-name');
-// const boundaryTable = () => document.getElementById('boundary-table');
-// const salinity = () => document.getElementById('use-salinity');
-// const temperature = () => document.getElementById('option-temperature');
-// const initWaterLevel = () => document.getElementById('initial-water-level');
-// const initSalinity = () => document.getElementById('initial-salinity');
-// const initTemperature = () => document.getElementById('initial-temperature');
-// const outputHis = () => document.getElementById('write-his-file');
-// const hisStart = () => document.getElementById('his-output-start');
-// const hisStop = () => document.getElementById('his-output-end');
-// const outputMap = () => document.getElementById('write-map-file');
-// const mapStart = () => document.getElementById('map-output-start');
-// const mapStop = () => document.getElementById('map-output-end');
-// const outputWQ = () => document.getElementById('write-water-quality-file');
-// const wqStart = () => document.getElementById('water-quality-output-start');
-// const wqStop = () => document.getElementById('water-quality-output-end');
-// const outputRestart = () => document.getElementById('write-restart-file');
-// const rtsStart = () => document.getElementById('restart-output-start');
-// const rtsStop = () => document.getElementById('restart-output-end');
+
+const $ = (id) => document.getElementById(id);
+const obj = {
+    descriptionTab: $('desription-tab'), controlTab: $('control-tab'),
+    projectList: $('project-list'), projectName: $('project-name'),
+    projectCreator: $('create-btn'), projectCloner: $('duplicate-btn'),
+    projectRemover: $('remove-btn'), projectSaver: $('save-btn'),
+    latitude: $('latitude'), getLocation: $('location'),
+    nLayers: $('n-layer'), gridPathText: $('grid-text'), 
+    gridPathFile: $('grid-file'), startDate: $('start-date'), 
+    stopDate: $('stop-date'),userTimestepDate: $('user-date'), 
+    userTimestepTime: $('user-time'), nodalTimestepDate: $('nodal-date'), 
+    nodalTimestepTime: $('nodal-time'), obsPointName: $('obs-point'),
+    obsPointLatitude: $('obs-latitude'), obsPointLongitude: $('obs-longitude'),
+    obsPointPicker: $('obs-picker'), obsPointAddList: $('obs-add-list'),
+    obsPointAddRow: $('obs-add-row'), obsPointRemove: $('obs-remove'),
+    obsPointTable: $('obs-table'), obsPointUploadFile: $('obs-file'),
+    obsPointUploadText: $('obs-text'), obsPointUpdate: $('obs-update'), 
+    crossSectionName: $('cross-section'), crossSectionPicker: $('cross-section-picker'), 
+    crossSectionRemove: $('cross-section-remove'), crossSectionTable: $('cross-section-table'),    
+    boundaryName: $('boundary-name'), boundaryPicker: $('boundary-picker'), 
+    boundaryRemove: $('boundary-remove'), boundaryTable: $('boundary-table'),
+
+   
+    
+    
+
+    
+
+   
+boundarySelector: $('option-boundary-edit'),
+    boundaryUploadFile: $('boundary-picker-file'), boundaryUploadText: $('boundary-picker-text'),
+    boundaryCSV: $('boundary-upload-csv'), boundaryAddRow: $('boundary-add-row'),
+    boundaryEditTable: $('boundary-edit-table'), boundaryEditUpdate: $('boundary-update'),
+    boundaryEditRemove: $('boundary-edit-remove'), boundarySelectorView: $('option-boundary-type-view'),
+    boundaryViewContainer: $('textarea-container'), boundaryText: $('data-view'),
+    sourceName: $('source-name'), sourceOptionNew: $('source-sink-new'),
+    sourceOptionExist: $('source-sink-exist'), sourceOptionPicker: $('source-picker'),
+    sourceLatitude: $('source-latitude'), sourceLongitude: $('source-longitude'),
+    sourceTable: $('source-table'), sourceUploadFile: $('source-upload-file'),
+    sourceUploadText: $('source-csv-text'), sourceAddBtn: $('add-source-btn'),
+    sourcePlotBtn: $('plot-source-btn'), sourceSaveBtn: $('save-source-btn'),
+    sourceSelectorRemove: $('option-source-remove'), sourceRemoveBtn: $('source-remove'),
+    sourceRemoveTable: $('source-remove-table'), sourceDeleteTableBtn: $('delete-source-btn'),
+    meteoAddBtn: $('add-meteo-btn'), meteoPlotBtn: $('plot-meteo-btn'),
+    meteoDeleteBtn: $('delete-meteo-btn'), meteoSaveBtn: $('save-meteo-btn'),
+    meteoTable: $('edit-meteo-table'), meteoUploadFile: $('meteo-picker-file'),
+    meteoUploadText: $('meteo-picker-text'), weatherPanel: $('weather-upload-panel'),
+    weatherSelector: $('option-weather'), weatherUpload: $('weather-update'),
+    weatherAddRow: $('weather-add-row'), weatherRemove: $('weather-remove'),
+    weatherCSVUploadFile: $('weather-update-file'), weatherCSVUploadText: $('weather-update-text'),
+    weatherTable: $('weather-edit-table'), hisIntervalDate: $('his-output-interval-date'),
+    hisIntervalTime: $('his-output-interval-time'), mapIntervalDate: $('map-output-interval-date'),
+    mapIntervalTime: $('map-output-interval-time'), wqIntervalDate: $('water-quality-output-interval-date'),
+    wqIntervalTime: $('water-quality-output-interval-time'), rstIntervalDate: $('restart-interval-date'),
+    rstIntervalTime: $('restart-interval-time'), statisticDate: $('statistic-output-interval-date'),
+    statisticTime: $('statistic-output-interval-time'), timingDate: $('timing-statistic-output-interval-date'),
+    timingTime: $('timing-statistic-output-interval-time'), salinity: $('use-salinity'),
+    temperature: $('option-temperature'), initWaterLevel: $('initial-water-level'),
+    initTemperature: $('initial-temperature'), initSalinity: $('initial-salinity'),
+    outputHis: $('write-his-file'), hisStart: $('his-output-start'), hisStop: $('his-output-end'),
+    outputMap: $('write-map-file'), mapStart: $('map-output-start'), mapStop: $('map-output-end'),
+    outputWQ: $('write-water-quality-file'), wqStart: $('water-quality-output-start'), wqStop: $('water-quality-output-end'),
+    outputRestart: $('write-restart-file'), rstStart: $('restart-start'), rstStop: $('restart-end'),
+}
 
 let userName = null, BCChecked = 0, listProjects = [];
 
 
-
-
-setupTabs(document); updateComponent();
+setupTabs(document); projectOptions(); updateComponent();
 
 async function getProjectList(){
     if (userName === null) return;
@@ -137,73 +86,91 @@ async function getProjectList(){
 
 async function projectOptions(){
     // Create new project
-    projectCreator().addEventListener('click', async () => {
-        const name = projectName().value.trim(); let project = '';
+    obj.projectCreator.addEventListener('click', async () => {
+        const name = obj.projectName.value.trim(); let project = '';
         if (!name || name.trim() === '') { alert('Please define scenario name.'); return; }
         if (nameChecker(name)) { alert('Scenario name contains invalid characters.'); return; }
         if (name.includes('/')) { project = name.split('/').pop(); } else { project = name; }
         const data = await jsonLoader('setup_new_project', { projectName: project });
-        controlTab().style.display = "block"; descriptionTab().style.display = "none"; // Show tabs
-        alert(data.message); // await loadScenario(name);
+        obj.controlTab.style.display = "block"; obj.descriptionTab.style.display = "none"; // Show tabs
+        // alert(data.message); 
+        await loadScenario(name);
     });
     // Copy project
-    projectCloner().addEventListener('click', async () => {
-        const name = projectName().value.trim();
+    obj.projectCloner.addEventListener('click', async () => {
+        const name = obj.projectName.value.trim();
         if (!name || name === '') { alert('Please select scenario first.'); return; }
         // Ask for a new name
         const newName = prompt('Please enter a name for the new scenario.\nCloning a scenario will take some time. Please be patient.');
         if (!newName || newName === '') { alert('Please define clone scenario name.'); return; }
         if (nameChecker(newName)) { alert('Name of clone scenario is invalid.'); return;}
-        projectCloner().innerHTML = 'Cloning...';
+        obj.projectCloner.innerHTML = 'Cloning...';
         const data = await jsonLoader('copy_project', {oldName: name, newName: newName});
-        alert(data.message); listProjects = []; projectName().value = ''; 
-        await getProjectList(); projectCloner().innerHTML = 'Clone Scenario';
+        alert(data.message); obj.projectName.value = '';
+        obj.projectCloner.innerHTML = 'Clone Scenario';
     });
     // Delete project
-    projectRemover().addEventListener('click', async () => {
-        const name = projectName().value.trim();
+    obj.projectRemover.addEventListener('click', async () => {
+        const name = obj.projectName.value.trim();
         if (!name || name.trim() === '') { alert('Please define scenario.'); return; }
         // Ask for confirmation
         if (!confirm('Are you sure you want to delete this scenario?')) { return; }
-        projectRemover().innerHTML = 'Deleting...';
+        obj.projectRemover.innerHTML = 'Deleting...';
         const data = await jsonLoader('delete_project', {projectName: name});
-        alert(data.message); listProjects = []; projectName().value = ''; 
-        await getProjectList(); projectRemover().innerHTML = 'Delete Scenario';
+        alert(data.message); obj.projectName.value = '';
+        obj.projectRemover.innerHTML = 'Delete Scenario';
     });
 }
 
+function sourceChange(target, table, lat, lon, sourceName, sourceText){
+    const check = target.checked;
+    if (!check) return;
+    lat.value = ''; lon.value = '';
+    // Clear table and name
+    const tbody = table.querySelector("tbody");
+    tbody.innerHTML = ""; sourceName.value = ''; sourceText.value = '';
+}
+
+function assignOutput(target, start, end, startDate, stopDate){
+    target.addEventListener('change', () => { 
+        if (!target.checked) { start.value = ''; end.value = ''; return; }
+        start.value = startDate.value !== '' ? startDate.value : '';
+        end.value = stopDate.value !== '' ? stopDate.value : '';
+    });
+}
 
 async function updateComponent(){
     const user = await getUser(); userName = user;
-    projectName().style.pointerEvents = "auto";
+    obj.projectName.style.pointerEvents = "auto";
     listProjects = await getProjectList();
-    await projectRender(projectName(), projectList(), listProjects);
+    await projectRender(obj.projectName, obj.projectList, listProjects);
+    // Check whether map widget exists
+    const layout = localStorage.getItem('grid-layout');
+    const hasMap = layout ? JSON.parse(layout).some(item => item.id === 'map'):false;
+    const content = { id: 'hyd-map', title: 'Hydrodynamic Scenario Map' };
+    if (!hasMap) window.parent.postMessage({ type: 'addMapWidget', content: content }, '*');
     // Show/Hide tabs
-    projectName().addEventListener('input', (e) => { 
+    obj.projectName.addEventListener('input', (e) => { 
         const value = e.target.value.trim();
         if (value === '') { 
-            controlTab().style.display = "none"; 
-            descriptionTab().style.display = "block"; 
+            obj.controlTab.style.display = "none"; 
+            obj.descriptionTab.style.display = "block"; 
         }
     });
-    await projectOptions();
-
-
-    
-
-
-
-    
-
-
-
-
-    // 
-//     // Update location
-//     mapPicker(getLocation(), 'pickLocation');
-//     mapPicker(obsPointPicker(), 'pickPoint', () => getDataFromTable(obsPointTable(), true), 'obsPoint');
-//     mapPicker(crossSectionPicker(), 'pickCrossSection', () => getDataFromTable(crossSectionTable(), true));
-//     mapPicker(boundaryPicker(), 'pickBoundary', () => {BCChecked = 1; getDataFromTable(boundaryTable(), true);});
+    // Update location
+    iframeConnector(obj.getLocation, obj.latitude, 'pickLocation');
+    iframeConnector(obj.obsPointPicker, 
+        [obj.obsPointName, obj.obsPointLatitude, obj.obsPointLongitude], 'pickPoint', 
+        () => getDataFromTable(obj.obsPointTable, true)
+    );
+    iframeConnector(obj.crossSectionPicker, 
+        [obj.crossSectionName, obj.crossSectionTable], 'pickPath',
+        () => getDataFromTable(obj.crossSectionTable, true), 'crossSection'
+    );
+    iframeConnector(obj.boundaryPicker,
+        [obj.boundaryName, obj.boundaryTable], 'pickPath', 
+        () => getDataFromTable(obj.boundaryTable, true), 'boundary'
+    );
 //     mapPicker(sourceOptionPicker(), 'pickSource');
 //     // Event when user uploads CSV file
 //     obsPointUploadText().addEventListener('click', () => { obsPointUploadFile().click(); });
@@ -390,11 +357,13 @@ async function updateComponent(){
 //     });
 //     // Working on source/sink option
 //     sourceOptionNew().addEventListener('change', () => {
-//         sourceChange(sourceOptionNew()); deleteTable(sourceTable()); sourceAddBtn().click();
+//         sourceChange(sourceOptionNew(), sourceTable(), sourceLat(), sourceLon(), sourceName(), sourceUploadText()); 
+// deleteTable(sourceTable()); sourceAddBtn().click();
 //         sourceOptionPicker().style.display = 'block';
 //     });
 //     sourceOptionExist().addEventListener('change', () => {
-//         sourceChange(sourceOptionExist()); deleteTable(sourceTable()); sourceAddBtn().click();
+//         sourceChange(sourceOptionExist(), sourceTable(), sourceLat(), sourceLon(), sourceName(), sourceUploadText()); 
+// deleteTable(sourceTable()); sourceAddBtn().click();
 //         sourceOptionPicker().style.display = 'none';
 //     });
 //     // Remove source from project
@@ -543,22 +512,7 @@ async function updateComponent(){
 
 
 
-// function sourceChange(target){
-//     const check = target.checked;
-//     if (!check) return;
-//     sourceLatitude().value = ''; sourceLongitude().value = '';
-//     // Clear table and name
-//     const tbody = sourceTable().querySelector("tbody");
-//     tbody.innerHTML = ""; sourceName().value = ''; sourceUploadText().value = '';
-// }
 
-// function assignOutput(target, start, end, startDate, stopDate){
-//     target.addEventListener('change', () => { 
-//         if (!target.checked) { start.value = ''; end.value = ''; return; }
-//         start.value = startDate.value !== '' ? startDate.value : '';
-//         end.value = stopDate.value !== '' ? stopDate.value : '';
-//     });
-// }
 
 
 async function loadScenario(scenarioName){
@@ -566,60 +520,60 @@ async function loadScenario(scenarioName){
     const data = await jsonLoader('get_scenario', {projectName: scenarioName});
     if (data.status === 'new') { return; }
     if (data.status === 'error') { alert(data.message); return; }
-    latitude().value = data.content.avgLat;
-    gridPathText().value = data.content.gridPath;
-    nLayers().value = data.content.nLayers;
-    startDate().value = data.content.startDate;
-    stopDate().value = data.content.stopDate;
-    userTimestepDate().value = data.content.userTimestepDate;
-    userTimestepTime().value = data.content.userTimestepTime;
-    nodalTimestepDate().value = data.content.nodalTimestepDate;
-    nodalTimestepTime().value = data.content.nodalTimestepTime;
+    obj.latitude.value = data.content.avgLat;
+    obj.nLayers.value = data.content.nLayers;
+    obj.gridPathText.value = data.content.gridPath;
+    obj.startDate.value = data.content.startDate;
+    obj.stopDate.value = data.content.stopDate;
+    obj.userTimestepDate.value = data.content.userTimestepDate;
+    obj.userTimestepTime.value = data.content.userTimestepTime;
+    obj.nodalTimestepDate.value = data.content.nodalTimestepDate;
+    obj.nodalTimestepTime.value = data.content.nodalTimestepTime;
     if (data.content.obsPointTable !== undefined && data.content.obsPointTable !== '') {
-        fillTable(data.content.obsPointTable, obsPointTable());
+        fillTable(data.content.obsPointTable, obj.obsPointTable);
     }
     if (data.content.crossSectionTable !== undefined && data.content.crossSectionTable !== '') {
-        fillTable(data.content.crossSectionTable, crossSectionTable()); 
+        fillTable(data.content.crossSectionTable, obj.crossSectionTable); 
     }
     let defaultOption = `<option value="" selected>--- No selected ---</option>`;
     if (data.content.boundaryTable !== undefined && data.content.boundaryTable !== '') {
-        fillTable(data.content.boundaryTable, boundaryTable());
+        fillTable(data.content.boundaryTable, obj.boundaryTable);
         // Update boundary option
         const options = data.content.boundaryTable.map(row => `<option value="${row[0]}">${row[0]}</option>`).join(' ');
         defaultOption = defaultOption + options;
     }
-    boundarySelector().innerHTML = defaultOption;
-    initWaterLevel().value = data.content.initWaterLevel;
-    initSalinity().value = data.content.initSalinity;
-    initTemperature().value = data.content.initTemperature;
+    obj.boundarySelector.innerHTML = defaultOption;
+    obj.initWaterLevel.value = data.content.initWaterLevel;
+    obj.initSalinity.value = data.content.initSalinity;
+    obj.initTemperature.value = data.content.initTemperature;
     // Get source data if exist
-    updateTable(sourceRemoveTable(), sourceSelectorRemove(), scenarioName);
+    updateTable(obj.sourceRemoveTable, obj.sourceSelectorRemove, scenarioName);
     if (data.content.meteoPath !== '' || data.content.meteoPath.length > 0) { 
-        meteoUploadText().value = data.content.meteoName;
-        fillTable(data.content.meteoPath, meteoTable());
+        obj.meteoUploadText.value = data.content.meteoName;
+        fillTable(data.content.meteoPath, obj.meteoTable);
     }
     if (data.content.weatherPath !== '' || data.content.weatherPath.length > 0) {
-        weatherSelector().value = data.content.weatherType;
-        weatherCSVUploadText().value = data.content.weatherName;
-        weatherPanel().style.display = 'block'; weatherTable().style.display = 'block';
-        weatherUpload().style.display = 'block'; weatherRemove().style.display = 'block';
-        fillTable(data.content.weatherPath, weatherTable());
+        obj.weatherSelector.value = data.content.weatherType;
+        obj.weatherCSVUploadText.value = data.content.weatherName;
+        obj.weatherPanel.style.display = 'block'; obj.weatherTable.style.display = 'block';
+        obj.weatherUpload.style.display = 'block'; obj.weatherRemove.style.display = 'block';
+        fillTable(data.content.weatherPath, obj.weatherTable);
     } else { 
-        weatherPanel().style.display = 'none'; weatherTable().style.display = 'none';
-        weatherUpload().style.display = 'none'; weatherRemove().style.display = 'none';
+        obj.weatherPanel.style.display = 'none'; obj.weatherTable.style.display = 'none';
+        obj.weatherUpload.style.display = 'none'; obj.weatherRemove.style.display = 'none';
     }
-    hisIntervalDate().value = data.content.hisIntervalDate;
-    hisIntervalTime().value = data.content.hisIntervalTime;
-    hisStart().value = data.content.hisStart; hisStop().value = data.content.hisStop;
-    if (hisStart().value !== '' || hisStop().value !== '') { outputHis().checked = true; }
-    mapIntervalDate().value = data.content.mapIntervalDate;
-    mapIntervalTime().value = data.content.mapIntervalTime;
-    mapStart().value = data.content.mapStart; mapStop().value = data.content.mapStop;
-    if (mapStart().value !== '' || mapStop().value !== '') { outputMap().checked = true; }
-    wqIntervalDate().value = data.content.wqIntervalDate;
-    wqIntervalTime().value = data.content.wqIntervalTime;
-    wqStart().value = data.content.wqStart; wqStop().value = data.content.wqStop;
-    if (wqStart().value !== '' || wqStop().value !== '') { outputWQ().checked = true; }
-    statisticDate().value = data.content.statisticDate; statisticTime().value = data.content.statisticTime;
-    timingDate().value = data.content.timingDate; timingTime().value = data.content.timingTime;
+    obj.hisIntervalDate.value = data.content.hisIntervalDate;
+    obj.hisIntervalTime.value = data.content.hisIntervalTime;
+    obj.hisStart.value = data.content.hisStart; obj.hisStop.value = data.content.hisStop;
+    if (obj.hisStart.value !== '' || obj.hisStop.value !== '') { obj.outputHis.checked = true; }
+    obj.mapIntervalDate.value = data.content.mapIntervalDate;
+    obj.mapIntervalTime.value = data.content.mapIntervalTime;
+    obj.mapStart.value = data.content.mapStart; obj.mapStop.value = data.content.mapStop;
+    if (obj.mapStart.value !== '' || obj.mapStop.value !== '') { obj.outputMap.checked = true; }
+    obj.wqIntervalDate.value = data.content.wqIntervalDate;
+    obj.wqIntervalTime.value = data.content.wqIntervalTime;
+    obj.wqStart.value = data.content.wqStart; obj.wqStop.value = data.content.wqStop;
+    if (obj.wqStart.value !== '' || obj.wqStop.value !== '') { obj.outputWQ.checked = true; }
+    obj.statisticDate.value = data.content.statisticDate; obj.statisticTime.value = data.content.statisticTime;
+    obj.timingDate.value = data.content.timingDate; obj.timingTime.value = data.content.timingTime;
 }

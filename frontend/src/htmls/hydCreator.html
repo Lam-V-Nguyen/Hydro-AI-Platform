@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=2" />
-    <link rel="stylesheet" href="/src_frontend/styles/tabControler.css?v=001">
-    <link rel="stylesheet" href="/src_frontend/styles/hydManager.css?v=001">
+    <link rel="stylesheet" href="/src_frontend/styles/tabControler.css?v=002">
+    <link rel="stylesheet" href="/src_frontend/styles/hydManager.css?v=002">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 </head>
 <body>
@@ -67,7 +67,7 @@
                                         <div class="row">
                                             <label for="latitude">Avg. latitude (°):</label>
                                             <input type="text" id="latitude" placeholder="Enter latitude">
-                                            <button id="location-picker">Pick from map</button>
+                                            <button id="location">Pick from map</button>
                                         </div>
                                     </div>
                                     <!-- Layer -->
@@ -80,9 +80,9 @@
                                     <!-- Unstructured grid -->
                                     <div class="tile"><h3>Unstructured Grid</h3>
                                         <div class="row">
-                                        <label for="unstructured-grid-file">Click to Upload Grid:</label>
-                                        <input type="text" id="unstructured-grid-text" placeholder="Click to Upload Grid" readonly>
-                                        <input type="file" id="unstructured-grid-file" accept=".nc" hidden>
+                                        <label for="grid-file">Click to Upload Grid:</label>
+                                        <input type="text" id="grid-text" placeholder="Click to Upload Grid" readonly>
+                                        <input type="file" id="grid-file" accept=".nc" hidden>
                                         </div>
                                     </div>
                                 </div>
@@ -98,20 +98,20 @@
                                         <div class="row">
                                             <label for="stop-date">Stop time:</label>
                                             <input type="text" class="datetime" id="stop-date" placeholder="YYYY-mm-dd HH:mm:ss">
-                                        </div>                                    
+                                        </div>
                                     </div>
                                     <div class="tile"><h3>Time interval</h3>
                                         <div class="row-block">
-                                            <label for="user-text">User time step:</label>
-                                            <input type="text" id="user-time-step-date" value="0">
-                                            <label for="user-time-step-date">days</label>
-                                            <input type="text" class="datetime-interval" id="user-time-step-time" value="12:00:00">
+                                            <label>User time step:</label>
+                                            <input type="text" id="user-date" value="0">
+                                            <label for="user-date">days</label>
+                                            <input type="text" class="datetime-interval" id="user-time" value="12:00:00">
                                         </div>
                                         <div class="row-block">
-                                            <label for="user-text">Nodal update interval:</label>
-                                            <input type="text" id="nodal-update-interval-date" value="0">
-                                            <label for="nodal-update-interval-date">days</label>
-                                            <input type="text" class="datetime-interval" id="nodal-update-interval-time" value="12:00:00">
+                                            <label>Nodal update interval:</label>
+                                            <input type="text" id="nodal-date" value="0">
+                                            <label>days</label>
+                                            <input type="text" class="datetime-interval" id="nodal-time" value="12:00:00">
                                         </div>
                                     </div>
                                 </div>
@@ -131,22 +131,22 @@
                                         <!-- Layer 1: "Create a new observation point" -->
                                         <div class="radio-panel" data-panel="observation-point-new" style="display: block;">
                                             <div class="row">
-                                                <label for="observation-point">Name:</label>
-                                                <input type="text" id="observation-point" placeholder="Enter name to add/remove">
+                                                <label for="obs-point">Name:</label>
+                                                <input type="text" id="obs-point" placeholder="Enter name to add/remove">
                                             </div>
                                             <div class="row">
-                                                <label for="observation-point-latitude">Latitude (°):</label>
-                                                <input type="text" id="observation-point-latitude" placeholder="Enter latitude">
+                                                <label for="obs-latitude">Latitude (°):</label>
+                                                <input type="text" id="obs-latitude" placeholder="Enter latitude">
                                             </div>
                                             <div class="row">
-                                                <label for="observation-point-longitude">Longitude (°):</label>
-                                                <input type="text" id="observation-point-longitude" placeholder="Enter longitude">
+                                                <label for="obs-longitude">Longitude (°):</label>
+                                                <input type="text" id="obs-longitude" placeholder="Enter longitude">
                                             </div>
                                             <div class="row">
-                                                <button type="button" id="observation-point-picker">Pick on map</button>
-                                                <button type="button" id="observation-point-add-list">Add to list</button>
-                                                <button type="button" id="observation-point-add-row">Add row</button>
-                                                <button type="button" id="observation-point-remove"
+                                                <button type="button" id="obs-picker">Pick on map</button>
+                                                <button type="button" id="obs-add-list">Add to list</button>
+                                                <button type="button" id="obs-add-row">Add row</button>
+                                                <button type="button" id="obs-remove"
                                                     style="color: crimson; background-color: aliceblue;">Remove Point
                                                 </button>
                                             </div>
@@ -154,12 +154,12 @@
                                         <!-- Layer 2: "Add observation points from a CSV file" -->
                                         <div class="radio-panel" data-panel="observation-point-exist">
                                             <div class="row">
-                                                <label for="observation-point-file">Click to Upload CSV:</label>
-                                                <input type="file" id="observation-point-file" accept=".csv" hidden>
-                                                <input type="text" id="observation-point-text" placeholder="Click to Upload Points">
+                                                <label for="obs-file">Click to Upload CSV:</label>
+                                                <input type="file" id="obs-file" accept=".csv" hidden>
+                                                <input type="text" id="obs-text" placeholder="Click to Upload Points">
                                             </div>
                                         </div>
-                                        <table class="attributes-table" id="observation-point-table">
+                                        <table class="attributes-table" id="obs-table">
                                             <thead><tr><th>Point</th><th>Latitude (°)</th><th>Longitude (°)</th></tr></thead>
                                             <tbody>
                                                 <tr>
@@ -170,23 +170,23 @@
                                             </tbody>
                                         </table>
                                         <div class="row">
-                                            <button type="button" id="observation-point-update" style="display: none;"
+                                            <button type="button" id="obs-update" style="display: none;"
                                                 >Update observation points on map
                                             </button>
                                         </div>
                                     </div>
                                     <div class="tile"><h3>Cross-Section</h3>
                                         <div class="row">
-                                            <label for="observation-cross-section">Name:</label>
-                                            <input type="text" id="observation-cross-section" placeholder="Enter name">
+                                            <label for="cross-section">Name:</label>
+                                            <input type="text" id="cross-section" placeholder="Enter name">
                                         </div>
                                         <div class="row">
-                                            <button type="button" id="observation-cross-section-picker">Draw on map</button>
-                                            <button type="button" id="observation-cross-section-remove"
+                                            <button type="button" id="cross-section-picker">Draw on map</button>
+                                            <button type="button" id="cross-section-remove"
                                                 style="color: crimson; background-color: aliceblue;">Delete list
                                             </button>
                                         </div>
-                                        <table class="attributes-table" id="observation-cross-section-table">
+                                        <table class="attributes-table" id="cross-section-table">
                                             <thead>
                                                 <tr><th>Cross-Section</th><th>Latitude (°)</th><th>Longitude (°)</th></tr>
                                             </thead>

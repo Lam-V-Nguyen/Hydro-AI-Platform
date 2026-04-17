@@ -27,7 +27,7 @@ function createWidgetHTML(title, id, iframeUrl=null) {
             <button class="remove-btn">x</button>
         </div>
         <div class="widget-body">
-            ${id === 'map' ? 
+            ${id.includes('-map') ? 
                 `<div 
                     id="leaflet-${id}" class="widget-leaflet">
                     <img class="leaflet-compass" src="/src_frontend/images/compass.png">
@@ -73,7 +73,7 @@ export function loadWidget() {
             const iframe = el.querySelector('.widget-iframe'); 
             if (iframe) iframe.src = item.iframeUrl; 
             // Restore map 
-            if (item.id === 'map') { 
+            if (item.id.includes('-map')) {
                 initMap(item.id); 
                 if (item.mapState) { 
                     currentMap.setView(item.mapState.center, item.mapState.zoom); 
@@ -95,7 +95,7 @@ export function saveWidget() {
         const iframe = el.querySelector('.widget-iframe'); 
         if (iframe) item.iframeUrl = iframe?.src; 
         // Map 
-        if (item.id === 'map' && currentMap) { 
+        if (item.id.includes('-map') && currentMap) { 
             item.mapState = { 
                 center: currentMap.getCenter(), zoom: currentMap.getZoom() 
             }; 
@@ -111,7 +111,7 @@ export function addWidget(w, h, title, id, iframeUrl) {
         x: 0, y: 0, w: w, h: h, id: id, minW:2, minH:2,
         content: createWidgetHTML(title, id, iframeUrl) 
     }); 
-    // if (id === 'map') { setTimeout(() => initMap(id), 50); } 
+    if (id.includes('-map')) { setTimeout(() => initMap(id), 50); } 
     saveWidget(); 
 }
 

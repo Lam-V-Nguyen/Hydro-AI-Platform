@@ -1,5 +1,4 @@
 import traceback, asyncio, os, shutil
-
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import JSONResponse
 from config import PROJECT_ROOT
@@ -72,6 +71,7 @@ async def select_project(request: Request, user=Depends(functions.basic_auth)):
         print('/select_project:\n==============')
         traceback.print_exc()
         return JSONResponse({"status": 'error', "message": f"Error: {str(e)}"})
+
 
 # Delete a project
 @router.post("/delete_project")
