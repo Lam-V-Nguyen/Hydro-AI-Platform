@@ -20,7 +20,7 @@ async def setup_new_project(request: Request, user=Depends(functions.basic_auth)
         project_name, _ = functions.project_definer(body.get('projectName'), user)
         project_dir = os.path.normpath(os.path.join(PROJECT_ROOT, project_name))
         os.makedirs(project_dir, exist_ok=True)
-        folders = ['input', 'GIS', 'output', 'output/config', 'output/HYD', 'output/WAQ', 'flows']
+        folders = ['GIS', 'output', 'output/config', 'output/HYD', 'output/WAQ', 'flows']
         for folder in folders:
             folder_path = os.path.normpath(os.path.join(project_dir, folder))
             if not os.path.exists(folder_path): os.makedirs(folder_path, exist_ok=True)
@@ -39,9 +39,6 @@ async def select_project(request: Request, user=Depends(functions.basic_auth)):
         # project_name, _ = functions.project_definer(body.get('filename'), user)
         project_dir = os.path.normpath(os.path.join(PROJECT_ROOT, body.get('filename')))
         if key == 'getProjects':
-            project = [p.name for p in os.scandir(project_dir) if p.is_dir()]
-            data = sorted(project)
-        elif key == 'getHYDProjects':
             project = [p.name for p in os.scandir(project_dir) if p.is_dir()]
             project = [p for p in project if os.path.exists(os.path.normpath(os.path.join(project_dir, p, folder_check)))]
             data = sorted(project)

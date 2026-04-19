@@ -3,15 +3,15 @@ import { getPendingRequest, clearPendingRequest } from "./constant.js";
 
 
 export let currentMap; 
-let currentTileLayer = null, timeCounter = null, html='', markersObs = [], markerCrossSection = [], curentPoints = [],
-    markerBoundary = [], pathCrossSection = null, pathBoundary = null, currentPointsCross = [], currentPointsBoundary = [];
+let currentTileLayer = null, timeCounter = null, html='', markersObs = [], markerCrossSection = [], 
+    currentPoints = [], markerBoundary = [], pathCrossSection = null, pathBoundary = null, 
+    currentPointsCross = [], currentPointsBoundary = [];
 const configCrossSectionPoint = {color: 'blue', fillColor: 'yellow', radius: 4, fill: true, fillOpacity: 1},
     configBoundaryPoint = {color: 'red', fillColor: 'green', radius: 4, fill: true, fillOpacity: 1},
     configCrossSectionPath = {color: 'blue', weight: 2, dashArray: '5,5'},
     configBoundaryPath = {color: 'red', weight: 2};
 const hoverTooltip = L.tooltip({
-    permanent: false, direction: 'bottom',
-    sticky: true, offset: [0, 10], className: 'custom-tooltip'
+    permanent: false, direction: 'bottom', sticky: true, offset: [0, 10], className: 'custom-tooltip'
 });
 
 function iconAdd(iconUrl, markers, map, pointList) {
@@ -48,15 +48,41 @@ function lineAdd(pointContainer, map, lineType) {
 }
 
 export function renderPreview(request=null) {
-    curentPoints.length = 0; if (!request) return;
+    currentPoints.length = 0; if (!request) return;
     const id = request.requestId;
-    if (id === 'pickPoint') { 
+    if (id === 'pickPoint' || id === 'updateObsPoint') {
         const iconUrl = `/src_frontend/images/station.png?v=${Date.now()}`;
-        iconAdd(iconUrl, markersObs, currentMap, request.content);
+        iconAdd(iconUrl, markersObs, currentMap, request.content.rows);
+        if (id === 'updateObsPoint') alert('Observation points are updated.\nSee the map for details.');
     } else if (id === 'pickPath') {
-        const pointList = request.content, lineType = request.lineType;
+        const pointList = request.content.rows;
+        const lineType = request.content.lineType;
         if (!pointList || pointList.length === 0) return;
         lineAdd(pointList, currentMap, lineType);
+    } else if (id === 'updateObsPoint') {
+        const pointList = request.content.rows, lineType = request.lineType;
+        if (!pointList || pointList.length === 0) return;
+        lineAdd(pointList, currentMap, lineType);
+    } else if (id === 'clearCrossSection') {
+        if (pathCrossSection) {
+            pathCrossSection.remove(); pathCrossSection = null;
+        }
+        if (markerCrossSection.length > 0) {
+            markerCrossSection.forEach(marker => marker.remove()); 
+            markerCrossSection.length = 0;
+        }
+        currentPointsCross.length = 0; currentPoints.length = 0;
+    } else if (id === 'clearBoundary') {
+        if (pathBoundary) {
+            pathBoundary.remove(); pathBoundary = null;
+        }
+        if (markerBoundary.length > 0) {
+            markerBoundary.forEach(marker => marker.remove()); 
+            markerBoundary.length = 0;
+        }
+        currentPointsBoundary.length = 0; currentPoints.length = 0;    
+           
+        
     }
 
 
@@ -106,6 +132,10 @@ export function initMap(mapId='map') {
             - Right-click to finish the selection.<br>
             - Number of points must be at least 2.<br>
             `;
+        } else if (req.requestId === 'pickSource') { html = 'Select source';
+        } else if (req.requestId === 'updateObsPoint') { 
+            mapContainer.style.cursor = 'grab'; return;
+
         }
         
 
@@ -118,7 +148,7 @@ export function initMap(mapId='map') {
         const req = getPendingRequest(); if (!req) return;
         if (req.requestId === 'pickLocation') { 
             result = Number(e.latlng.lat).toFixed(2);
-        } else if (req.requestId === 'pickPoint') { result = e.latlng;
+        } else if (req.requestId === 'pickPoint' || req.requestId === 'pickSource') { result = e.latlng;
         } else if (req.requestId === 'pickPath') {
             const isCross = req.lineType === 'crossSection';
             const points = isCross ? currentPointsCross : currentPointsBoundary;
@@ -127,7 +157,7 @@ export function initMap(mapId='map') {
             const configPath = isCross ? configCrossSectionPath : configBoundaryPath;
             let line = isCross ? pathCrossSection : pathBoundary;
             // Add point
-            curentPoints.push({ lat: e.latlng.lat, lng: e.latlng.lng });
+            currentPoints.push({ lat: e.latlng.lat, lng: e.latlng.lng });
             points.push({ lat: e.latlng.lat, lng: e.latlng.lng });
             // Add marker
             const marker = L.circleMarker(e.latlng, configPoint).addTo(currentMap);
@@ -141,35 +171,28 @@ export function initMap(mapId='map') {
                 line = L.polyline(latlngs, configPath).addTo(currentMap);
                 if (isCross) { pathCrossSection = line; } else { pathBoundary = line; }
             }
-
-
-
-
-
-
-            
-            
-
-
-            
         }
+
+
+
+
+
         if (req.requestId !== 'pickPath') {
             req.source.postMessage({ requestId: req.requestId, result: result }, '*');
             clearPendingRequest();
             mapContainer.style.cursor = 'grab'; currentMap.closeTooltip(hoverTooltip);
         }
-        console.log(curentPoints);
     });
     currentMap.on('contextmenu', (e) => { 
         e.originalEvent.preventDefault();
         const req = getPendingRequest(); if (!req) return;
         // Right-click
         if (req.requestId === 'pickPath') {
-            if (curentPoints.length < 2) {
+            if (currentPoints.length < 2) {
                 alert(`Not enough points selected.\nPlease select at least 02 points.`); return;
             }
-            req.source.postMessage({ requestId: req.requestId, result: curentPoints }, '*');
-            clearPendingRequest(); curentPoints.length = 0;
+            req.source.postMessage({ requestId: req.requestId, result: currentPoints }, '*');
+            clearPendingRequest(); currentPoints.length = 0;
             mapContainer.style.cursor = 'grab'; currentMap.closeTooltip(hoverTooltip); 
         }
 

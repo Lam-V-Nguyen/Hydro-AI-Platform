@@ -25,17 +25,17 @@
   justify-content: space-between; cursor: grab;
   background: linear-gradient(90deg, #203a43, #0f2027, #2c5364);
   padding: 5px; flex: 0 0 auto;
-  border-top-left-radius: 8px;
-  border-top-right-radius: 8px;
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
 }
 .widget-header:active { cursor: grabbing; }
 .widget-body { 
-  flex: 1; overflow: auto; box-sizing: border-box;
-  background: rgb(121, 119, 119);
-  border: none; min-height: 0;
+  flex: 1; box-sizing: border-box; min-height: 0;
+  background: rgb(121, 119, 119); 
+  border: none; min-height: 0; overflow: hidden;
   box-shadow: inset 0 0 0 1px #ddd;
-  border-bottom-left-radius: 8px;
-  border-bottom-right-radius: 8px;
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
 }
 .widget-title {
   font-size: 14px; font-weight: bold;
@@ -49,9 +49,9 @@
 .remove-btn:hover { color: red; }
 
 .widget-leaflet, .widget-iframe { 
-  height: 100%; width: 100%; display: block; border: none;
-  border-bottom-left-radius: 8px;
-  border-bottom-right-radius: 8px;
+  height: 100%; width: 100%;border: none; display: block; 
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
 }
 .leaflet-compass {
   position: absolute; top: 8px; right: 8px;

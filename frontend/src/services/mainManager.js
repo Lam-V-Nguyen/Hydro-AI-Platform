@@ -1,9 +1,11 @@
 import { menuManager } from "./menuManager.js";
 import { projectMaker, projectModifier, pdfOpener } from "./projectManager.js";
 import { initGrid, addWidget, loadWidget, saveWidget, hasWidget } from "./widgetFunctions.js"; 
-import { startLoading, stopLoading, jsonLoader, htmlLoader } from "./commonFunctions.js"; 
+import { startLoading, stopLoading, jsonLoader, htmlLoader, 
+    waitForWidgetReady } from "./commonFunctions.js"; 
 import { setPendingRequest, clearPendingRequest } from "./constant.js";
 import { renderPreview } from "./mapManager.js";
+import { updateComponents } from "./chartManager.js";
 
 
 const widgetMenu = document.getElementById("widgetMenu"); 
@@ -12,6 +14,7 @@ const menuContainer = document.getElementById('menu-container');
 const githubCache = {}, currentProject = 'demo', currentParams = [];
 let pickerState = { location: false, point: false, crosssection: false, boundary: false, source: false },
     isLoaded = false, userName = null, hideTimeout = null; 
+const exits = ['hyd-plot-source', 'hyd-plot-meteo'];
 
 await login(); await projectChecker(); showNotes();
 updateComponent(); widgetMenuManager(); loadWidget();
@@ -62,7 +65,7 @@ function widgetMenuManager() {
         else if (id === 'help-docs') { pdfOpener(url); closeMenu(); return; }
         else if (id === 'visualization') { w = 12; h = 9; }
         else if (id === 'about') { w = 8; h = 5; }
-        addWidget( w, h, title, id, url); closeMenu();
+        addWidget(w, h, title, id, url); closeMenu();
     });
     document.addEventListener("click", (e) => { 
         // Close button handler 
@@ -76,15 +79,25 @@ function widgetMenuManager() {
             if (newTitle) { e.target.textContent = newTitle; } 
         } 
         saveWidget(); 
-    }); 
+    });
+    // // Check whether widget exists and remove
+    // const layoutStr = localStorage.getItem('grid-layout');
+    // if (layoutStr) {
+    //     let layout = JSON.parse(layoutStr);
+    //     layout = layout.filter(item => !exits.includes(item.id));
+    //     localStorage.setItem('grid-layout', JSON.stringify(layout));
+    // }
+
+
+
 }
 
 function updateComponent() {
     // Listen for state change
-    window.addEventListener('message', (event) => {
+    window.addEventListener('message', async (event) => {
         if (event.data.type === 'addMapWidget') { // Add map
             const id = event.data.content.id;
-            if (!hasWidget(id)) addWidget(12, 6, event.data.content.title, id, '');
+            if (!hasWidget(id)) addWidget(12, 6, event.data.content.title, id);
         } else if (event.data.type === 'GET_USER') { // Get project destination
             const project = document.querySelector(".project-note");
             if (!project) return;
@@ -96,6 +109,33 @@ function updateComponent() {
                 requestId: event.data.requestId, content: event.data.content
             };
             setPendingRequest(req); renderPreview(req);
+        } else if (event.data.type === 'showOverlay') { 
+            startLoading(event.data.message);
+            await new Promise(requestAnimationFrame);
+        } else if (event.data.type === 'hideOverlay') { 
+            stopLoading(); await new Promise(requestAnimationFrame);
+        } else if (event.data.type === 'updateObsPoint') { 
+            const req = { 
+                source: event.source, requestId: event.data.type, 
+                content: event.data.content
+            };
+            setPendingRequest(req); renderPreview(req);
+        } else if (event.data.type === 'clearCrossSection') { 
+            renderPreview({ requestId: event.data.type });
+        } else if (event.data.type === 'clearBoundary') { 
+            renderPreview({ requestId: event.data.type });
+        } else if (event.data.type === 'plotSource') {
+            startLoading('Initializing data for time series graph. Please wait...');
+            const rows = event.data.rows, columns = event.data.columns;
+            const chartData = { columns, data: rows }, id = event.data.id;
+            const iframeSource = '/src_frontend/htmls/timeSeriesUI.html';
+            if (!hasWidget(id)) addWidget(10, 5, event.data.titleWindow, id, iframeSource);
+            const iframe = await waitForWidgetReady(id);
+            await updateComponents(iframe, chartData, event.data.title, 'Time', 'Value');
+            stopLoading();
+        // } else if (event.data.type === 'plotSource') {
+
+
         }
     });
 

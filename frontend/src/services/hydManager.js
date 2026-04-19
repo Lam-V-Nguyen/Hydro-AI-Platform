@@ -1,9 +1,10 @@
 import { setupTabs } from "./tabManager.js";
 import { jsonLoader, getUser, nameChecker, fillTable, updateTable, iframeConnector,
-    getDataFromTable
+    getDataFromTable, csvUploader, fileUploader, deleteTable, copyPaste,
+    addRowToTable, removeRowFromTable, pointUpdate, plotTable
 } from "./commonFunctions.js";
 import { projectRender } from "./projectManager.js";
-
+import { timeStepCalculator, saveProject } from "./projectSaver.js";
 
 const $ = (id) => document.getElementById(id);
 const obj = {
@@ -14,7 +15,7 @@ const obj = {
     latitude: $('latitude'), getLocation: $('location'),
     nLayers: $('n-layer'), gridPathText: $('grid-text'), 
     gridPathFile: $('grid-file'), startDate: $('start-date'), 
-    stopDate: $('stop-date'),userTimestepDate: $('user-date'), 
+    stopDate: $('stop-date'), userTimestepDate: $('user-date'), 
     userTimestepTime: $('user-time'), nodalTimestepDate: $('nodal-date'), 
     nodalTimestepTime: $('nodal-time'), obsPointName: $('obs-point'),
     obsPointLatitude: $('obs-latitude'), obsPointLongitude: $('obs-longitude'),
@@ -64,15 +65,14 @@ const obj = {
 
 let userName = null, listProjects = [];
 
-
 setupTabs(document); projectOptions(); updateComponent();
 
 async function getProjectList(){
     if (userName === null) return;
-    const contents = { filename: userName, key: 'getHYDProjects', folder_check: 'input' };
+    const contents = { filename: userName, key: 'getProjects', folder_check: '' };
     const data = await jsonLoader('select_project', contents);
     if (data.status === "error") { alert(data.message); return; }
-    return data.content;
+    await projectRender(obj.projectName, obj.projectList, data.content);
 }
 
 async function projectOptions(){
@@ -84,8 +84,7 @@ async function projectOptions(){
         if (name.includes('/')) { project = name.split('/').pop(); } else { project = name; }
         const data = await jsonLoader('setup_new_project', { projectName: project });
         obj.controlTab.style.display = "block"; obj.descriptionTab.style.display = "none"; // Show tabs
-        // alert(data.message); 
-        await loadScenario(name);
+        alert(data.message); await getProjectList(); await loadScenario(name); 
     });
     // Copy project
     obj.projectCloner.addEventListener('click', async () => {
@@ -105,11 +104,11 @@ async function projectOptions(){
         const name = obj.projectName.value.trim();
         if (!name || name.trim() === '') { alert('Please define scenario.'); return; }
         // Ask for confirmation
-        if (!confirm('Are you sure you want to delete this scenario?')) { return; }
+        if (!confirm(`Are you sure you want to delete scenario '${name}'?`)) { return; }
         obj.projectRemover.innerHTML = 'Deleting...';
         const data = await jsonLoader('delete_project', {projectName: name});
         alert(data.message); obj.projectName.value = '';
-        obj.projectRemover.innerHTML = 'Delete Scenario';
+        await getProjectList(); obj.projectRemover.innerHTML = 'Delete Scenario';
     });
 }
 
@@ -133,11 +132,10 @@ function assignOutput(target, start, end, startDate, stopDate){
 async function updateComponent(){
     const user = await getUser(); userName = user;
     obj.projectName.style.pointerEvents = "auto";
-    listProjects = await getProjectList();
-    await projectRender(obj.projectName, obj.projectList, listProjects);
+    await getProjectList();
     // Check whether map widget exists
     const layout = localStorage.getItem('grid-layout');
-    const hasMap = layout ? JSON.parse(layout).some(item => item.id === 'map'):false;
+    const hasMap = layout ? JSON.parse(layout).some(item => item.id === 'hyd-map'):false;
     const content = { id: 'hyd-map', title: 'Hydrodynamic Scenario Map' };
     if (!hasMap) window.parent.postMessage({ type: 'addMapWidget', content: content }, '*');
     // Show/Hide tabs
@@ -159,352 +157,307 @@ async function updateComponent(){
         () => getDataFromTable(obj.crossSectionTable, true), 'crossSection'
     );
     iframeConnector(obj.boundaryPicker,
-        [obj.boundaryName, obj.boundaryTable], 'pickPath', 
+        [obj.boundaryName, obj.boundaryTable, obj.boundarySelector], 'pickPath', 
         () => getDataFromTable(obj.boundaryTable, true), 'boundary'
     );
-    iframeConnector(obj.sourceOptionPicker, 'pickSource');
-//     // Event when user uploads CSV file
-//     obsPointUploadText().addEventListener('click', () => { obsPointUploadFile().click(); });
-//     obsPointUploadFile().addEventListener('change', async (event) => { 
-//         await csvUploader(event, obsPointUploadText(), obsPointTable(), 3); event.target.value = '';
-//     });
-//     sourceUploadText().addEventListener('click', () => { sourceUploadFile().click(); });
-//     sourceUploadFile().addEventListener('change', async (event) => { 
-//         deleteTable(sourceTable());
-//         await csvUploader(event, sourceUploadText(), sourceTable(), 5, false, sourceName(), sourceLatitude(), sourceLongitude()); 
-//         event.target.value = ''; 
-//     });
-//     meteoUploadText().addEventListener('click', () => { meteoUploadFile().click(); });
-//     meteoUploadFile().addEventListener('change', async (event) => {
-//         await csvUploader(event, meteoUploadText(), meteoTable(), 5); event.target.value = '';
-//     });
-//     weatherCSVUploadText().addEventListener('click', () => { weatherCSVUploadFile().click(); });
-//     weatherCSVUploadFile().addEventListener('change', async (event) => {
-//         await csvUploader(event, weatherCSVUploadText(), weatherTable(), 3); event.target.value = '';
-//     });
-//     // Upload file to server
-//     gridPathText().addEventListener('click', () => { gridPathFile().click(); });
-//     gridPathFile().addEventListener('change', async (event) => {
-//         await fileUploader(gridPathFile(), gridPathText(), projectName().value, 'FlowFM_net.nc', 'Uploading grid to project...', 'grid');
-//         window.parent.postMessage({type: 'showGrid', projectName: projectName().value, 
-//             gridName: 'FlowFM_net.nc', message: 'Uploading grid to project...'}, '*');
-//         event.target.value = '';
-//     });
-//     // Copy and paste to tables
-//     copyPaste(boundaryEditTable(), 2); copyPaste(sourceTable(), 5); 
-//     copyPaste(meteoTable(), 5); copyPaste(weatherTable(), 3); copyPaste(obsPointTable(), 3);
-//     // Get data from main page
-//     window.addEventListener('message', (event) => {
-//         if (event.data.type === 'locationPicked') {
-//             const lat = Number(event.data.content.lat).toFixed(1);
-//             latitude().value = lat;
-//         }
-//         if (event.data.type === 'pointPicked') {
-//             const lat = Number(event.data.content.lat).toFixed(12);
-//             const lon = Number(event.data.content.lng).toFixed(12);
-//             obsPointLatitude().value = lat; obsPointLongitude().value = lon;
-//             if (obsPointName().value.trim() === '') {
-//                 obsPointName().value = `Point_${Number(lat).toFixed(2)}_${Number(lon).toFixed(2)}`;
-//             }
-//         }
-//         if (event.data.type === 'crossSectionPicked') {
-//             const content = event.data.content;
-//             let value = crossSectionName().value.trim();
-//             if (value === '') { value = `Cross-Section`; crossSectionName().value = value; }
-//             const data_arr = content.map((row, idx) => [`${value}_${idx + 1}`, Number(row.lat).toFixed(12), Number(row.lng).toFixed(12)]);
-//             fillTable(data_arr, crossSectionTable(), true);
-//         }
-//         if (event.data.type === 'boundaryPicked') {
-//             const content = event.data.content;
-//             let value = boundaryName().value.trim();
-//             if (value === '') { value = `Boundary`; boundaryName().value = value; }
-//             const data_arr = content.map((row, idx) => [`${value}_${idx + 1}`, Number(row.lat).toFixed(12), Number(row.lng).toFixed(12)]);
-//             fillTable(data_arr, boundaryTable(), true);
-//             // Update boundary option
-//             const options = data_arr.map(row => `<option value="${row[0]}">${row[0]}</option>`).join(' ');
-//             const defaultOption = `<option value="" selected>--- No selected ---</option>`;
-//             boundarySelector().innerHTML = defaultOption + options;
-//         }
-//         if (event.data.type === 'sourcePicked') {
-//             const content = event.data.content;
-//             let value = sourceName().value.trim();
-//             if (value === '') { value = `Source_Sink`; sourceName().value = value; }
-//             sourceLatitude().value = Number(content.lat).toFixed(16);
-//             sourceLongitude().value = Number(content.lng).toFixed(16);
-//         }
-//     });
-//     // Add point to table
-//     obsPointAddList().addEventListener('click', () => {
-//         const name = obsPointName().value.trim();
-//         const lat = obsPointLatitude().value.trim();
-//         const lon = obsPointLongitude().value.trim();
-//         if (name === '' || lat === '' || lon === '' || isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
-//             alert('Please check name, latitude, and longitude of the observation point.'); return;}
-//         // Add to table
-//         fillTable([[name, lat, lon]], obsPointTable(), false);
-//         // Clear input
-//         obsPointName().value = ''; obsPointLatitude().value = ''; obsPointLongitude().value = '';
-//     });
-//     // Add a new row to the table
-//     obsPointAddRow().addEventListener('click', () => addRowToTable(obsPointTable(), ['Name', 'Latitude', 'Longitude']));
-//     boundaryAddRow().addEventListener('click', () => addRowToTable(boundaryEditTable(), ['YYYY-MM-DD HH:MM:SS', 'Value']));
-//     sourceAddBtn().addEventListener('click', () => addRowToTable(sourceTable(), ['YYYY-MM-DD HH:MM:SS', 'Discharge', 'Salinity', 'Temperature', 'Contaminant']));
-//     meteoAddBtn().addEventListener('click', () => addRowToTable(meteoTable(), ['YYYY-MM-DD HH:MM:SS', 'Humidity', 'Air temperature', 'Cloud coverage', 'Solar radiation']));
-//     weatherAddRow().addEventListener('click', () => addRowToTable(weatherTable(), ['YYYY-MM-DD HH:MM:SS', 'Magnitude', 'Direction']));
-//     // Remove point from table
-//     obsPointRemove().addEventListener('click', () => {
-//         const name = obsPointName().value.trim();
-//         removeRowFromTable(obsPointTable(), name); obsPointName().value = '';
-//     });
-//     // Event when user change radio button for observation points
-//     pointUpdate(document.getElementById('observation-point-new'), obsPointTable(),
-//         false, ["Name", "Latitude", "Longitude"]);
-//     pointUpdate(document.getElementById('observation-point-exist'), 
-//         obsPointTable(), true, [obsPointName(), obsPointLatitude(), obsPointLongitude()]);
-//     // Update observation point on map
-//     obsPointUpdate().addEventListener('click', () => {
-//         const content = getDataFromTable(obsPointTable(), true);
-//         if (content.rows.length === 0) {alert('No observation points found.'); return;}
-//         window.parent.postMessage({type: 'updateObsPoint', data: content}, '*');
-//     });
-//     // Event when user delete
-//     crossSectionRemove().addEventListener('click', () => deleteTable(crossSectionTable(), crossSectionName(), 'clearCrossSection'));
-//     boundaryEditRemove().addEventListener('click', () => { deleteTable(boundaryEditTable()); boundaryAddRow().click(); });
-//     sourceDeleteTableBtn().addEventListener('click', () => { deleteTable(sourceTable()); sourceAddBtn().click(); });
-//     meteoDeleteBtn().addEventListener('click', () => { deleteTable(meteoTable()); meteoAddBtn().click(); });
-//     weatherRemove().addEventListener('click', () => { deleteTable(weatherTable()); weatherAddRow().click(); });
-//     // Event when user plot table
-//     plotTable(sourcePlotBtn(), sourceTable()); plotTable(meteoPlotBtn(), meteoTable());
-//     // Update boundary option
-//     boundaryEditUpdate().addEventListener('click', async () => {
-//         const nameProject = projectName().value.trim(), nameBoundary = boundaryName().value.trim();
-//         const subBoundary = boundarySelector().value, boundaryType = boundaryTypeSelector().value;
-//         if (nameProject === '' || nameBoundary === '' || subBoundary === '' || boundaryType === '') {
-//             alert('Please check: \n     1. Name of project/boundary/sub-boundary option is required.' + 
-//                 '\n     2. Boundary type is required.' + '\n     3. Reference date is required.'); return;
-//         }
-//         const boundaryData = getDataFromTable(boundaryTable(), true);
-//         if (boundaryData.rows.length === 0) { alert('No data in the table. Please check boundary condition.'); return; }
-//         const subBoundaryData = getDataFromTable(boundaryEditTable());
-//         if (subBoundaryData.rows.length === 0) { alert('No data in the table. Please check sub-boundary condition.'); return; }
-//         // Create boundary
-//         const content = {projectName: nameProject, boundaryName: nameBoundary, boundaryData: boundaryData.rows,
-//             subBoundaryName: subBoundary, boundaryType: boundaryType, subBoundaryData: subBoundaryData.rows}
-//         const data = await sendQuery('update_boundary', content);
-//         alert(data.message); boundarySelectorView().value = '';
-//         boundaryViewContainer().style.display = 'none'; boundaryText().value = '';
-//     });
-//     // Update parameters of boundary from file
-//     boundarySelector().addEventListener('change', async () => {
-//         const boundaryName = boundarySelector().value, boundaryType = boundaryTypeSelector().value;
-//         const content = {projectName: projectName().value.trim(), boundaryName: boundaryName, boundaryType: boundaryType};
-//         const data = await sendQuery('get_boundary_params', content);
-//         if (data.status === 'new') { boundaryEditRemove().click(); return; }
-//         if (data.status === 'error') { alert(data.message); return; }
-//         boundaryEditRemove().click(); fillTable(data.content, boundaryEditTable());
-//     });
-//     boundaryTypeSelector().addEventListener('change', async () => {
-//         const boundaryName = boundarySelector().value, boundaryType = boundaryTypeSelector().value;
-//         const content = {projectName: projectName().value.trim(), boundaryName: boundaryName, boundaryType: boundaryType};
-//         const data = await sendQuery('get_boundary_params', content);
-//         if (data.status === 'new') { boundaryEditRemove().click(); return; }
-//         if (data.status === 'error') { alert(data.message); return; }
-//         boundaryEditRemove().click(); fillTable(data.content, boundaryEditTable());
-//     });
-//     // Upload boundary condition from CSV
-//     boundaryCSV().addEventListener('click', () => { boundaryUploadFile().click(); });
-//     boundaryUploadFile().addEventListener('change', async (event) => { 
-//         deleteTable(boundaryEditTable());
-//         await csvUploader(event, boundaryUploadText(), boundaryEditTable(), 2);
-//         boundaryUploadFile().value = '';
-//     });
-//     // View boundary condition
-//     boundarySelectorView().addEventListener('change', async () => {
-//         if (boundarySelectorView().value === '') { boundaryViewContainer().style.display = 'none'; return; }
-//         if (projectName().value === '') {
-//             alert('Name of project is required.'); 
-//             boundaryViewContainer().style.display = 'none'; return;
-//         }
-//         const value = boundarySelectorView().value;
-//         boundaryText().value = '';
-//         // Create boundary
-//         const data = await sendQuery('view_boundary', {projectName: projectName().value, boundaryType: value});
-//         if (data.status === "error") {
-//             boundarySelectorView().value = ''; alert(data.message);
-//             boundaryViewContainer().style.display = 'none'; return;
-//         };
-//         boundaryText().value = data.content; boundaryViewContainer().style.display = 'flex';
-//     });
-//     // Delete boundary
-//     boundaryRemove().addEventListener('click', async () => {
-//         const content = getDataFromTable(boundaryTable(), true).rows;
-//         // Delete the last part and get unique name
-//         const nameBoundary = [...new Set(content.map(p => p[0].replace(/_\d+$/, '')))];
-//         const data = await sendQuery('delete_boundary', {projectName: projectName().value, boundaryName: nameBoundary});
-//         alert(data.message); deleteTable(boundaryTable(), undefined, 'clearBoundary'); BCChecked = 0;
-//         const tbody = boundaryEditTable().querySelector("tbody"); tbody.innerHTML = "";
-//         boundarySelectorView().value = ''; boundarySelector().value = ''; boundarySelector().innerHTML = '';
-//         boundaryViewContainer().style.display = 'none'; boundaryText().value = ''; boundaryName().value = '';
-//     });
-//     // Working on source/sink option
-//     sourceOptionNew().addEventListener('change', () => {
-//         sourceChange(sourceOptionNew(), sourceTable(), sourceLat(), sourceLon(), sourceName(), sourceUploadText()); 
-// deleteTable(sourceTable()); sourceAddBtn().click();
-//         sourceOptionPicker().style.display = 'block';
-//     });
-//     sourceOptionExist().addEventListener('change', () => {
-//         sourceChange(sourceOptionExist(), sourceTable(), sourceLat(), sourceLon(), sourceName(), sourceUploadText()); 
-// deleteTable(sourceTable()); sourceAddBtn().click();
-//         sourceOptionPicker().style.display = 'none';
-//     });
-//     // Remove source from project
-//     sourceRemoveBtn().addEventListener('click', async () => {
-//         const nameProject = projectName().value.trim();
-//         if (nameProject === ''){ alert('Please check project name.'); return; }
-//         const name = sourceSelectorRemove().value;
-//         removeRowFromTable(sourceRemoveTable(), name); deleteTable(sourceTable());
-//         const content = getDataFromTable(sourceRemoveTable(), true).rows;
-//         updateTable(sourceRemoveTable(), sourceSelectorRemove(), nameProject, content);
-//     });
-//     // Change output options
-//     assignOutput(outputHis(), hisStart(), hisStop(), startDate(), stopDate());
-//     assignOutput(outputMap(), mapStart(), mapStop(), startDate(), stopDate());
-//     assignOutput(outputWQ(), wqStart(), wqStop(), startDate(), stopDate());
-//     assignOutput(outputRestart(), rtsStart(), rtsStop(), startDate(), stopDate());
-//     // Save source to project
-//     sourceSaveBtn().addEventListener('click', async () => {
-//         const nameProject = projectName().value.trim();
-//         if (nameProject === ''){ alert('Please check project name.'); return; }
-//         const table = getDataFromTable(sourceTable());
-//         const name = sourceName().value;
-//         const lat = sourceLatitude().value;
-//         const lon = sourceLongitude().value;
-//         if (table.rows.length === 0) { alert('No data to save. Please check the table.'); return; }
-//         if (lat === '' || lon === '' || name === ''){ alert('Please check Name/Latitude/Longitude.'); return; }
-//         const content = {projectName: nameProject, nameSource: name, lat: lat, lon: lon, data: table.rows, BC: BCChecked};
-//         const data = await sendQuery('save_source', content);
-//         updateTable(sourceRemoveTable(), sourceSelectorRemove(), nameProject);
-//         alert(data.message);
-//     });
-//     // Save meteo data to project
-//     meteoSaveBtn().addEventListener('click', async () => {
-//         const nameProject = projectName().value.trim();
-//         if (nameProject === ''){ alert('Please check project name.'); return; }        
-//         const table = getDataFromTable(meteoTable());
-//         if (table.rows.length === 0) { alert('No data to save. Please check the table.'); return; }
-//         const data = await sendQuery('save_meteo', {projectName: nameProject, data: table.rows});
-//         alert(data.message);
-//     });
-//     // Weather data
-//     weatherSelector().addEventListener('change', () => {
-//         if (weatherSelector().value === '') {
-//             weatherPanel().style.display = 'none'; weatherTable().style.display = 'none';
-//             weatherRemove().style.display = 'none'; weatherUpload().style.display = 'none'; return;
-//         }
-//         weatherPanel().style.display = 'block'; weatherTable().style.display = 'block'; 
-//         weatherRemove().style.display = 'block'; weatherUpload().style.display = 'block'; 
-//         deleteTable(weatherTable());
-//         // Add row after above function finished
-//         requestAnimationFrame(() => { weatherAddRow().click(); });
-//     });
-//     weatherUpload().addEventListener('click', async () => {
-//         const nameProject = projectName().value.trim();
-//         if (nameProject === ''){ alert('Please check project name.'); return; }        
-//         const table = getDataFromTable(weatherTable());
-//         if (table.rows.length === 0) { alert('No data to save. Please check the table.'); return; }
-//         const data = await sendQuery('save_weather', {projectName: nameProject, data: table.rows});
-//         alert(data.message);
-//     })
-//     // Save project
-//     saveProjectBtn().addEventListener('click', async () => { 
-//         const userTimeSec = timeStepCalculator(userTimestepDate().value, userTimestepTime().value);
-//         const nodalTimeSec = timeStepCalculator(nodalTimestepDate().value, nodalTimestepTime().value);
-//         const hisInterval = timeStepCalculator(hisIntervalDate().value, hisIntervalTime().value);
-//         const mapInterval = timeStepCalculator(mapIntervalDate().value, mapIntervalTime().value);
-//         const wqInterval = timeStepCalculator(wqIntervalDate().value, wqIntervalTime().value);
-//         const rtsInterval = timeStepCalculator(rstIntervalDate().value, rstIntervalTime().value);
-//         const sttInterval = timeStepCalculator(statisticDate().value, statisticTime().value);
-//         const timingInterval = timeStepCalculator(timingDate().value, timingTime().value);
-//         const elements = { projectName, latitude, nLayers, gridPathText, startDate, stopDate,
-//             userTimeSec, nodalTimeSec, obsPointTable, crossSectionName, crossSectionTable, salinity, 
-//             temperature, initWaterLevel, initSalinity, initTemperature , outputHis, hisInterval, hisStart, 
-//             hisStop, outputMap, mapInterval, mapStart, mapStop, outputWQ, wqInterval, wqStart, wqStop, 
-//             outputRestart, rtsInterval, rtsStart, rtsStop, sttInterval, timingInterval };
-//         await saveProject(elements); 
-//     });
-// }
-
-// async function loadScenario(scenarioName){
-//     // Get average latitude
-//     const data = await sendQuery('get_scenario', {projectName: scenarioName});
-//     if (data.status === 'new') { return; }
-//     if (data.status === 'error') { alert(data.message); return; }
-//     latitude().value = data.content.avgLat;
-//     gridPathText().value = data.content.gridPath;
-//     nLayers().value = data.content.nLayers;
-//     startDate().value = data.content.startDate;
-//     stopDate().value = data.content.stopDate;
-//     userTimestepDate().value = data.content.userTimestepDate;
-//     userTimestepTime().value = data.content.userTimestepTime;
-//     nodalTimestepDate().value = data.content.nodalTimestepDate;
-//     nodalTimestepTime().value = data.content.nodalTimestepTime;
-//     if (data.content.obsPointTable !== undefined && data.content.obsPointTable !== '') {
-//         fillTable(data.content.obsPointTable, obsPointTable());
-//     }
-//     if (data.content.crossSectionTable !== undefined && data.content.crossSectionTable !== '') {
-//         fillTable(data.content.crossSectionTable, crossSectionTable()); 
-//     }
-//     let defaultOption = `<option value="" selected>--- No selected ---</option>`;
-//     if (data.content.boundaryTable !== undefined && data.content.boundaryTable !== '') {
-//         fillTable(data.content.boundaryTable, boundaryTable());
-//         // Update boundary option
-//         const options = data.content.boundaryTable.map(row => `<option value="${row[0]}">${row[0]}</option>`).join(' ');
-//         defaultOption = defaultOption + options;
-//     }
-//     boundarySelector().innerHTML = defaultOption;
-//     initWaterLevel().value = data.content.initWaterLevel;
-//     initSalinity().value = data.content.initSalinity;
-//     initTemperature().value = data.content.initTemperature;
-//     // Get source data if exist
-//     updateTable(sourceRemoveTable(), sourceSelectorRemove(), scenarioName);
-//     if (data.content.meteoPath !== '' || data.content.meteoPath.length > 0) { 
-//         meteoUploadText().value = data.content.meteoName;
-//         fillTable(data.content.meteoPath, meteoTable());
-//     }
-//     if (data.content.weatherPath !== '' || data.content.weatherPath.length > 0) {
-//         weatherSelector().value = data.content.weatherType;
-//         weatherCSVUploadText().value = data.content.weatherName;
-//         weatherPanel().style.display = 'block'; weatherTable().style.display = 'block';
-//         weatherUpload().style.display = 'block'; weatherRemove().style.display = 'block';
-//         fillTable(data.content.weatherPath, weatherTable());
-//     } else { 
-//         weatherPanel().style.display = 'none'; weatherTable().style.display = 'none';
-//         weatherUpload().style.display = 'none'; weatherRemove().style.display = 'none';
-//     }
-//     hisIntervalDate().value = data.content.hisIntervalDate;
-//     hisIntervalTime().value = data.content.hisIntervalTime;
-//     hisStart().value = data.content.hisStart; hisStop().value = data.content.hisStop;
-//     if (hisStart().value !== '' || hisStop().value !== '') { outputHis().checked = true; }
-//     mapIntervalDate().value = data.content.mapIntervalDate;
-//     mapIntervalTime().value = data.content.mapIntervalTime;
-//     mapStart().value = data.content.mapStart; mapStop().value = data.content.mapStop;
-//     if (mapStart().value !== '' || mapStop().value !== '') { outputMap().checked = true; }
-//     wqIntervalDate().value = data.content.wqIntervalDate;
-//     wqIntervalTime().value = data.content.wqIntervalTime;
-//     wqStart().value = data.content.wqStart; wqStop().value = data.content.wqStop;
-//     if (wqStart().value !== '' || wqStop().value !== '') { outputWQ().checked = true; }
-//     statisticDate().value = data.content.statisticDate; statisticTime().value = data.content.statisticTime;
-//     timingDate().value = data.content.timingDate; timingTime().value = data.content.timingTime;
-// }
-
-
+    iframeConnector(obj.sourceOptionPicker, 
+        [obj.sourceName, obj.sourceLatitude, obj.sourceLongitude], 'pickSource'
+    );
+    // Upload file to server
+    obj.gridPathText.addEventListener('click', () => { obj.gridPathFile.click(); });
+    obj.gridPathFile.addEventListener('change', async (event) => {
+        await fileUploader(
+            obj.gridPathFile, obj.gridPathText, obj.projectName.value,
+            'FlowFM_net.nc', 'Uploading the unstructured grid to project...', 'grid'
+        );
+        event.target.value = '';
+    });
+    // Event when user uploads CSV file
+    obj.obsPointUploadText.addEventListener('click', () => { obj.obsPointUploadFile.click(); });
+    obj.obsPointUploadFile.addEventListener('change', async (event) => { 
+        await csvUploader(
+            event, obj.obsPointUploadText, obj.obsPointTable, 3
+        ); event.target.value = '';
+    });
+    obj.sourceUploadText.addEventListener('click', () => { obj.sourceUploadFile.click(); });
+    obj.sourceUploadFile.addEventListener('change', async (event) => { 
+        deleteTable(obj.sourceTable);
+        await csvUploader(
+            event, obj.sourceUploadText, obj.sourceTable, 5, false, 
+            obj.sourceName, obj.sourceLatitude, obj.sourceLongitude
+        ); event.target.value = ''; 
+    });
+    obj.meteoUploadText.addEventListener('click', () => { obj.meteoUploadFile.click(); });
+    obj.meteoUploadFile.addEventListener('change', async (event) => {
+        await csvUploader(
+            event, obj.meteoUploadText, obj.meteoTable, 5
+        ); event.target.value = '';
+    });
+    obj.weatherCSVUploadText.addEventListener('click', () => { obj.weatherCSVUploadFile.click(); });
+    obj.weatherCSVUploadFile.addEventListener('change', async (event) => {
+        await csvUploader(
+            event, obj.weatherCSVUploadText, obj.weatherTable, 3
+        ); event.target.value = '';
+    });
+    // Copy and paste to tables
+    copyPaste(obj.boundaryEditTable, 2); copyPaste(obj.sourceTable, 5);
+    copyPaste(obj.meteoTable, 5); copyPaste(obj.weatherTable, 3); 
+    copyPaste(obj.obsPointTable, 3);
+    // Add point to table
+    obj.obsPointAddList.addEventListener('click', () => {
+        const name = obj.obsPointName.value.trim();
+        const lat = obj.obsPointLatitude.value.trim();
+        const lon = obj.obsPointLongitude.value.trim();
+        if (name === '' || lat === '' || lon === '' || 
+            isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180
+        ) { alert('Please check name, latitude, and longitude of the observation point.'); return;}
+        // Add to table
+        fillTable([[name, lat, lon]], obj.obsPointTable, false);
+        // Clear input
+        obj.obsPointName.value = ''; obj.obsPointLatitude.value = ''; obj.obsPointLongitude.value = '';
+    });
+    // Add a new row to the table
+    obj.obsPointAddRow.addEventListener('click', () => 
+        addRowToTable(obj.obsPointTable, ['Name', 'Latitude', 'Longitude'])
+    );
+    obj.boundaryAddRow.addEventListener('click', () => 
+        addRowToTable(obj.boundaryEditTable, ['YYYY-MM-DD HH:MM:SS', 'Value'])
+    );
+    obj.sourceAddBtn.addEventListener('click', () => 
+        addRowToTable(obj.sourceTable, ['YYYY-MM-DD HH:MM:SS', 'Discharge', 'Salinity', 'Temperature', 'Contaminant'])
+    );
+    obj.meteoAddBtn.addEventListener('click', () => 
+        addRowToTable(obj.meteoTable, ['YYYY-MM-DD HH:MM:SS', 'Humidity', 'Air temperature', 'Cloud coverage', 'Solar radiation'])
+    );
+    obj.weatherAddRow.addEventListener('click', () => 
+        addRowToTable(obj.weatherTable, ['YYYY-MM-DD HH:MM:SS', 'Magnitude', 'Direction'])
+    );
+    // Remove point from table
+    obj.obsPointRemove.addEventListener('click', () => {
+        const name = obj.obsPointName.value.trim();
+        removeRowFromTable(obj.obsPointTable, name); obj.obsPointName.value = '';
+    });
+    // Event when user change radio button for observation points
+    pointUpdate(document.getElementById('observation-point-new'), 
+        obj.obsPointTable, false, ["Name", "Latitude", "Longitude"]
+    );
+    pointUpdate(document.getElementById('observation-point-exist'), obj.obsPointTable, 
+        true, [obj.obsPointName, obj.obsPointLatitude, obj.obsPointLongitude]
+    );
+    // Update observation point on map
+    obj.obsPointUpdate.addEventListener('click', () => {
+        const content = getDataFromTable(obj.obsPointTable, true);
+        if (content.rows.length === 0) {alert('No observation points found.'); return;}
+        window.parent.postMessage({type: 'updateObsPoint', content: content}, '*');
+    });
+    // Event when user delete table
+    obj.crossSectionRemove.addEventListener('click', () => 
+        deleteTable(obj.crossSectionTable, obj.crossSectionName, 'clearCrossSection')
+    );
+    obj.boundaryRemove.addEventListener('click', () => {
+        deleteTable(obj.boundaryTable, obj.boundaryName, 'clearBoundary');
+    });
+    obj.boundaryEditRemove.addEventListener('click', () => { 
+        deleteTable(obj.boundaryEditTable); obj.boundaryAddRow.click(); 
+    });
+    obj.sourceDeleteTableBtn.addEventListener('click', () => { 
+        deleteTable(obj.sourceTable); obj.sourceAddBtn.click(); 
+    });
+    obj.meteoDeleteBtn.addEventListener('click', () => { 
+        deleteTable(obj.meteoTable); obj.meteoAddBtn.click(); 
+    });
+    obj.weatherRemove.addEventListener('click', () => { 
+        deleteTable(obj.weatherTable); obj.weatherAddRow.click(); 
+    });
+    // Update boundary option
+    obj.boundaryEditUpdate.addEventListener('click', async () => {
+        const nameProject = obj.projectName.value.trim();
+        const nameBoundary = obj.boundaryName.value.trim();
+        const subBoundary = obj.boundarySelector.value;
+        const boundaryType = obj.boundaryTypeSelector.value;
+        if (nameProject === '' || nameBoundary === '' || 
+            subBoundary === '' || boundaryType === '') 
+        { alert('Please check: \n     1. Name of project/boundary/sub-boundary option is required.' + 
+            '\n     2. Boundary type is required.' + '\n     3. Reference date is required.'); return;
+        }
+        const boundaryData = getDataFromTable(obj.boundaryTable, true);
+        if (boundaryData.rows.length === 0) { 
+            alert('No data in the table. Please check boundary condition.'); return; 
+        }
+        const subBoundaryData = getDataFromTable(obj.boundaryEditTable);
+        if (subBoundaryData.rows.length === 0) { 
+            alert('No data in the table. Please check sub-boundary condition.'); return; 
+        }
+        // Create boundary
+        const content = {
+            projectName: nameProject, boundaryName: nameBoundary, 
+            boundaryData: boundaryData.rows, subBoundaryName: subBoundary, 
+            boundaryType: boundaryType, subBoundaryData: subBoundaryData.rows
+        }
+        const data = await jsonLoader('update_boundary', content);
+        alert(data.message); obj.boundarySelectorView.value = '';
+        obj.boundaryViewContainer.style.display = 'none'; obj.boundaryText.value = '';
+    });
+    // Update parameters of boundary from file
+    const handleBoundaryChange = async () => {
+        const content = {
+            projectName: obj.projectName.value.trim(), 
+            boundaryName: obj.boundarySelector.value, 
+            boundaryType: obj.boundaryTypeSelector.value
+        };
+        const data = await jsonLoader('get_boundary_params', content);
+        if (data.status === 'new') { obj.boundaryEditRemove.click(); return; }
+        if (data.status === 'error') { alert(data.message); return; }
+        obj.boundaryEditRemove.click(); fillTable(data.content, obj.boundaryEditTable);
+    };
+    obj.boundarySelector.addEventListener('change', handleBoundaryChange);
+    obj.boundaryTypeSelector.addEventListener('change', handleBoundaryChange);
+    // Upload boundary condition from CSV
+    obj.boundaryCSV.addEventListener('click', () => { obj.boundaryUploadFile.click(); });
+    obj.boundaryUploadFile.addEventListener('change', async (event) => { 
+        deleteTable(obj.boundaryEditTable);
+        await csvUploader(event, obj.boundaryUploadText, obj.boundaryEditTable, 2);
+        obj.boundaryUploadFile.value = '';
+    });
+    // View boundary condition
+    obj.boundarySelectorView.addEventListener('change', async () => {
+        if (obj.boundarySelectorView.value === '') { 
+            obj.boundaryViewContainer.style.display = 'none'; return; 
+        }
+        if (obj.projectName.value === '') {
+            alert('Name of project is required.'); 
+            obj.boundaryViewContainer.style.display = 'none'; return;
+        }
+        const value = obj.boundarySelectorView.value;
+        obj.boundaryText.value = '';
+        // Create boundary
+        const data = await jsonLoader('view_boundary', {
+            projectName: obj.projectName.value, boundaryType: value
+        });
+        if (data.status === "error") {
+            obj.boundarySelectorView.value = ''; alert(data.message);
+            obj.boundaryViewContainer.style.display = 'none'; return;
+        };
+        obj.boundaryText.value = data.content; 
+        obj.boundaryViewContainer.style.display = 'flex';
+    });
+    // Delete boundary
+    obj.boundaryRemove.addEventListener('click', async () => {
+        const content = getDataFromTable(obj.boundaryTable, true).rows;
+        // Delete the last part and get unique name
+        const nameBoundary = [...new Set(content.map(p => p[0].replace(/_\d+$/, '')))];
+        const data = await jsonLoader('delete_boundary', {
+            projectName: obj.projectName.value, boundaryName: nameBoundary
+        });
+        alert(data.message); deleteTable(obj.boundaryTable, undefined, 'clearBoundary');
+        const tbody = obj.boundaryEditTable.querySelector("tbody"); tbody.innerHTML = "";
+        obj.boundarySelectorView.value = ''; obj.boundarySelector.value = ''; 
+        obj.boundarySelector.innerHTML = ''; obj.boundaryViewContainer.style.display = 'none'; 
+        obj.boundaryText.value = ''; obj.boundaryName.value = '';
+    });
+    // Plot chart
+    obj.sourcePlotBtn.addEventListener('click', () => { 
+        plotTable(obj.sourceTable, obj.sourceName, 'hyd-plot-source');
+    });
+    obj.meteoPlotBtn.addEventListener('click', (e) => {
+        plotTable(obj.meteoTable, obj.meteoUploadText, 'hyd-plot-meteo');
+    })
+    // Working on hydrological option
+    const hydrologicalOption = (e) => {
+        sourceChange(
+            e.target, obj.sourceTable, obj.sourceLatitude, 
+            obj.sourceLongitude, obj.sourceName, obj.sourceUploadText
+        ); 
+        deleteTable(obj.sourceTable); obj.sourceAddBtn.click();
+        obj.sourceOptionPicker.style.display =
+        e.target === obj.sourceOptionNew ? 'block' : 'none';
+    };
+    obj.sourceOptionNew.addEventListener('change', (e) => { hydrologicalOption(e); });
+    obj.sourceOptionExist.addEventListener('change', (e) => { hydrologicalOption(e); });
+    // Remove source from project
+    obj.sourceRemoveBtn.addEventListener('click', async () => {
+        const nameProject = obj.projectName.value.trim();
+        if (nameProject === ''){ alert('Please check project name.'); return; }
+        const name = obj.sourceSelectorRemove.value;
+        removeRowFromTable(obj.sourceRemoveTable, name); deleteTable(obj.sourceTable);
+        const content = getDataFromTable(obj.sourceRemoveTable, true).rows;
+        updateTable(obj.sourceRemoveTable, obj.sourceSelectorRemove, nameProject, content);
+    });
+    // Change output options
+    assignOutput(obj.outputHis, obj.hisStart, obj.hisStop, obj.startDate, obj.stopDate);
+    assignOutput(obj.outputMap, obj.mapStart, obj.mapStop, obj.startDate, obj.stopDate);
+    assignOutput(obj.outputWQ, obj.wqStart, obj.wqStop, obj.startDate, obj.stopDate);
+    assignOutput(obj.outputRestart, obj.rtsStart, obj.rtsStop, obj.startDate, obj.stopDate);
+    // Save source to project
+    obj.sourceSaveBtn.addEventListener('click', async () => {
+        const nameProject = obj.projectName.value.trim();
+        if (nameProject === ''){ alert('Please check project name.'); return; }
+        const table = getDataFromTable(obj.sourceTable), name = obj.sourceName.value;
+        const lat = obj.sourceLatitude.value, lon = obj.sourceLongitude.value;
+        if (table.rows.length === 0) { alert('No data to save. Please check the table.'); return; }
+        if (lat === '' || lon === '' || name === ''){ alert('Please check Name/Latitude/Longitude.'); return; }
+        const content = {
+            projectName: nameProject, nameSource: name, lat: lat, 
+            lon: lon, data: table.rows, BC: 1
+        };
+        const data = await jsonLoader('save_source', content);
+        updateTable(obj.sourceRemoveTable, obj.sourceSelectorRemove, nameProject);
+        alert(data.message);
+    });
+    // Save meteo data to project
+    obj.meteoSaveBtn.addEventListener('click', async () => {
+        const nameProject = obj.projectName.value.trim();
+        if (nameProject === ''){ alert('Please check project name.'); return; }        
+        const table = getDataFromTable(obj.meteoTable);
+        if (table.rows.length === 0) { alert('No data to save. Please check the table.'); return; }
+        const data = await jsonLoader('save_meteo', { projectName: nameProject, data: table.rows });
+        alert(data.message);
+    });
+    // Weather data
+    obj.weatherSelector.addEventListener('change', () => {
+        if (obj.weatherSelector.value === '') {
+            obj.weatherPanel.style.display = 'none'; obj.weatherTable.style.display = 'none';
+            obj.weatherRemove.style.display = 'none'; obj.weatherUpload.style.display = 'none'; return;
+        }
+        obj.weatherPanel.style.display = 'block'; obj.weatherTable.style.display = 'block'; 
+        obj.weatherRemove.style.display = 'block'; obj.weatherUpload.style.display = 'block'; 
+        deleteTable(obj.weatherTable);
+        // Add row after above function finished
+        requestAnimationFrame(() => { obj.weatherAddRow.click(); });
+    });
+    obj.weatherUpload.addEventListener('click', async () => {
+        const nameProject = obj.projectName.value.trim();
+        if (nameProject === ''){ alert('Please check project name.'); return; }        
+        const table = getDataFromTable(obj.weatherTable);
+        if (table.rows.length === 0) { alert('No data to save. Please check the table.'); return; }
+        const data = await jsonLoader('save_weather', { projectName: nameProject, data: table.rows });
+        alert(data.message);
+    })
+    // Save project
+    obj.projectSaver.addEventListener('click', async () => { 
+        const userTimeSec = timeStepCalculator(obj.userTimestepDate.value, obj.userTimestepTime.value);
+        const nodalTimeSec = timeStepCalculator(obj.nodalTimestepDate.value, obj.nodalTimestepTime.value);
+        const hisInterval = timeStepCalculator(obj.hisIntervalDate.value, obj.hisIntervalTime.value);
+        const mapInterval = timeStepCalculator(obj.mapIntervalDate.value, obj.mapIntervalTime.value);
+        const wqInterval = timeStepCalculator(obj.wqIntervalDate.value, obj.wqIntervalTime.value);
+        const rtsInterval = timeStepCalculator(obj.rstIntervalDate.value, obj.rstIntervalTime.value);
+        const sttInterval = timeStepCalculator(obj.statisticDate.value, obj.statisticTime.value);
+        const timingInterval = timeStepCalculator(obj.timingDate.value, obj.timingTime.value);
+        const elements = { projectName: obj.projectName, latitude: obj.latitude, nLayers: obj.nLayers, 
+            gridPathText: obj.gridPathText, startDate: obj.startDate, stopDate: obj.stopDate,
+            userTimeSec: userTimeSec, nodalTimeSec: nodalTimeSec, obsPointTable: obj.obsPointTable, 
+            crossSectionName: obj.crossSectionName, crossSectionTable: obj.crossSectionTable, 
+            salinity: obj.salinity, temperature: obj.temperature, initWaterLevel: obj.initWaterLevel, 
+            initSalinity: obj.initSalinity, initTemperature: obj.initTemperature, outputHis: obj.outputHis, 
+            hisInterval: hisInterval, hisStart: obj.hisStart, hisStop: obj.hisStop, outputMap: obj.outputMap, 
+            mapInterval: mapInterval, mapStart: obj.mapStart, mapStop: obj.mapStop, outputWQ: obj.outputWQ, 
+            wqInterval: wqInterval, wqStart: obj.wqStart, wqStop: obj.wqStop, outputRestart: obj.outputRestart, 
+            rtsInterval: rtsInterval, rtsStart: obj.rtsStart, rtsStop: obj.rtsStop, sttInterval: sttInterval, 
+            timingInterval: timingInterval 
+        };
+        await saveProject(elements); 
+    });
 }
-
-
-
-
-
-
 
 async function loadScenario(scenarioName){
     // Get average latitude

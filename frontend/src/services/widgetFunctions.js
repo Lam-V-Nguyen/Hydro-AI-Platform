@@ -19,7 +19,7 @@ export function initGrid() {
     return gridInstance; 
 } 
 
-function createWidgetHTML(title, id, iframeUrl=null) {
+function createWidgetHTML(title, id, iframeUrl) {
     return `
         <div class="widget-header">
             <img src="/src_frontend/images/logo16x16.png">
@@ -105,7 +105,7 @@ export function saveWidget() {
     localStorage.setItem('grid-layout', JSON.stringify(layout)); 
 } 
 
-export function addWidget(w, h, title, id, iframeUrl) { 
+export function addWidget(w, h, title, id, iframeUrl=null) {
     const grid = initGrid(); 
     grid.addWidget({ 
         x: 0, y: 0, w: w, h: h, id: id, minW:2, minH:2,

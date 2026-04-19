@@ -187,10 +187,14 @@
                                             </button>
                                         </div>
                                         <table class="attributes-table" id="cross-section-table">
-                                            <thead>
-                                                <tr><th>Cross-Section</th><th>Latitude (°)</th><th>Longitude (°)</th></tr>
-                                            </thead>
-                                            <tbody></tbody>
+                                            <thead><tr><th>Cross-Section</th><th>Latitude (°)</th><th>Longitude (°)</th></tr></thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td><input type="text" placeholder="Name"></td>
+                                                    <td><input type="text" placeholder="Latitude"></td>
+                                                    <td><input type="text" placeholder="Longitude"></td>
+                                                </tr>
+                                            </tbody>
                                         </table>
                                     </div>
                                 </div>
@@ -210,10 +214,14 @@
                                             </button>
                                         </div>
                                         <table class="attributes-table" id="boundary-table">
-                                            <thead>
-                                                <tr><th>Name</th><th>Latitude (°)</th><th>Longitude (°)</th></tr>
-                                            </thead>
-                                            <tbody></tbody>
+                                            <thead><tr><th>Name</th><th>Latitude (°)</th><th>Longitude (°)</th></tr></thead>
+                                            <tbody>
+                                                <tr>
+                                                    <td><input type="text" placeholder="Name"></td>
+                                                    <td><input type="text" placeholder="Latitude"></td>
+                                                    <td><input type="text" placeholder="Longitude"></td>
+                                                </tr>
+                                            </tbody>
                                         </table>
                                     </div>                              
                                     <div class="tile"><h3>Edit sub-boundary condition</h3>
@@ -363,7 +371,12 @@
                                             <thead>
                                                 <tr><th>Source Name</th><th>Type</th></tr>
                                             </thead>
-                                            <tbody></tbody>
+                                            <tbody>
+                                                <tr>
+                                                    <td><input type="text" placeholder="Name"></td>
+                                                    <td><input type="text" placeholder="Type"></td>
+                                                </tr>
+                                            </tbody>
                                         </table>
                                         <div class="row">
                                             <button type="button" id="source-remove"
@@ -598,6 +611,6 @@
         defaultHour: 0, defaultMinute: 0, defaultSecond: 0
     });
   </script>
-  <script type="module" src="/src_frontend/services/hydManager.js"></script>
+  <script type="module" src="/src_frontend/services/hydManager.js?v=000"></script>
 </body>
 </html>

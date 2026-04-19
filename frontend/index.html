@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <!-- My styles -->
     <link rel="stylesheet" href="/src_frontend/styles/index.css?v=002">
-    <link rel="stylesheet" href="/src_frontend/styles/gridLayout.css?v=002">
+    <link rel="stylesheet" href="/src_frontend/styles/gridLayout.css?v=003">
   </head>
   <body>
     <!-- Header -->
@@ -31,12 +31,18 @@
     </header>
     <!-- Gridstack container -->
     <div class="grid-stack" id="grid-stack"></div>
+    <!-- Loading screen -->
     <div class="loading-container">
       <div class="spinner"></div>
       <div class="loading-text">Processing Data. Please wait...</div>
     </div>
+    
+    <!-- GitHub last update -->
     <div class="github-last-update">Loading last update...</div>
     <div class="project-note"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.26.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/gridstack@10.2.0/dist/gridstack-all.js"></script>
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script type="module" src="/src_frontend/services/mainManager.js"></script>
