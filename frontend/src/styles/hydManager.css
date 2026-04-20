@@ -19,7 +19,7 @@ body {
   display: flex; align-items: center; gap: 14px; font-size: 20px;
   justify-content: center; flex-wrap: wrap; font-weight: bold;
 }
-#project-name { text-align: center; width: 300px; pointer-events: none;}
+#project-name { text-align: center; width: 500px; pointer-events: none;}
 #project-name-wrapper {
   display: flex; align-items: center; position: relative;
 }

@@ -109,7 +109,7 @@ export function addWidget(w, h, title, id, iframeUrl=null) {
     const grid = initGrid(); 
     grid.addWidget({ 
         x: 0, y: 0, w: w, h: h, id: id, minW:2, minH:2,
-        content: createWidgetHTML(title, id, iframeUrl) 
+        content: createWidgetHTML(title, id, iframeUrl)
     }); 
     if (id.includes('-map')) { setTimeout(() => initMap(id), 50); } 
     saveWidget(); 

@@ -3,21 +3,20 @@ import { projectMaker, projectModifier, pdfOpener } from "./projectManager.js";
 import { initGrid, addWidget, loadWidget, saveWidget, hasWidget } from "./widgetFunctions.js"; 
 import { startLoading, stopLoading, jsonLoader, htmlLoader, 
     waitForWidgetReady } from "./commonFunctions.js"; 
-import { setPendingRequest, clearPendingRequest } from "./constant.js";
+import { setPendingRequest } from "./constant.js";
 import { renderPreview } from "./mapManager.js";
-import { updateComponents } from "./chartManager.js";
+import { chartManager } from "./chartManager.js";
 
 
 const widgetMenu = document.getElementById("widgetMenu"); 
 const menuContainer = document.getElementById('menu-container');
 
 const githubCache = {}, currentProject = 'demo', currentParams = [];
-let pickerState = { location: false, point: false, crosssection: false, boundary: false, source: false },
-    isLoaded = false, userName = null, hideTimeout = null; 
-const exits = ['hyd-plot-source', 'hyd-plot-meteo'];
+let isLoaded = false, userName = null; 
+// const exits = ['hyd-plot-source', 'hyd-plot-meteo', 'run-hyd', 'run-waq'];
 
-await login(); await projectChecker(); showNotes();
-updateComponent(); widgetMenuManager(); loadWidget();
+await login(); await projectChecker(); showNotes(); loadWidget();
+widgetMenuManager(); updateComponent(); 
 // showGitHubLastUpdate('Lam-V-Nguyen', 'Hydro-AI-Platform', 'dev'); 
 
 
@@ -56,13 +55,15 @@ function widgetMenuManager() {
         const id = item.id; if (!id) return;
         const title = item.textContent.replace(/▸|◂/g, '').trim();
         const url = item.dataset?.url;
-        let w = 5, h = 7;
+        let w = 11, h = 7;
         const closeMenu = () => { menuContainer.style.display = 'none'; saveWidget(); };
         if (hasWidget(id)) { alert('Widget already exists.'); closeMenu(); return; }
         if (id === 'new-project') { projectMaker(); closeMenu(); return; }
         else if (id === 'open-project') { projectModifier(userName, 'open'); closeMenu(); return; }
         else if (id === 'delete-project') { projectModifier(userName, 'delete'); closeMenu(); return; }
         else if (id === 'help-docs') { pdfOpener(url); closeMenu(); return; }
+        else if (id === 'run-hyd') { w = 11; h = 2; }
+        else if (id === 'run-waq') { w = 9; h = 1; }
         else if (id === 'visualization') { w = 12; h = 9; }
         else if (id === 'about') { w = 8; h = 5; }
         addWidget(w, h, title, id, url); closeMenu();
@@ -128,13 +129,17 @@ function updateComponent() {
             startLoading('Initializing data for time series graph. Please wait...');
             const rows = event.data.rows, columns = event.data.columns;
             const chartData = { columns, data: rows }, id = event.data.id;
-            const iframeSource = '/src_frontend/htmls/timeSeriesUI.html';
-            if (!hasWidget(id)) addWidget(10, 5, event.data.titleWindow, id, iframeSource);
+            const width = 1200, height = 300, iframeSource = '/src_frontend/htmls/timeSeriesUI.html';
+            if (!hasWidget(id)) addWidget(9, 7, event.data.titleWindow, id, iframeSource);
             const iframe = await waitForWidgetReady(id);
-            await updateComponents(iframe, chartData, event.data.title, 'Time', 'Value');
+            await new Promise( r => setTimeout(r, 200));
+            await chartManager(iframe, chartData, event.data.title, 'Time', 'Value', width, height);
             stopLoading();
-        // } else if (event.data.type === 'plotSource') {
-
+        // } else if (event.data.type === 'init-simulation') { 
+        //     console.log(mode);
+        //     const iframe = await waitForWidgetReady(mode);
+        //     if (!iframe) return;
+        //     await simulationManager(iframe, mode);
 
         }
     });

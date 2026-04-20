@@ -42,10 +42,11 @@ async def select_project(request: Request, user=Depends(functions.basic_auth)):
             project = [p.name for p in os.scandir(project_dir) if p.is_dir()]
             project = [p for p in project if os.path.exists(os.path.normpath(os.path.join(project_dir, p, folder_check)))]
             data = sorted(project)
-        # elif key == 'getWAQs': # List the scenarios for water quality
-        #     project = [p.name for p in os.scandir(os.path.normpath(os.path.join(PROJECT_STATIC_ROOT, project_name, 'output', 'scenarios')))]
-        #     project = [p.replace('.json', '') for p in project if os.path.exists(os.path.normpath(os.path.join(PROJECT_STATIC_ROOT, project_name, 'output', 'scenarios', p)))]
-        #     data = sorted(project)
+        elif key == 'getWAQs': # List the scenarios for water quality
+            scenario_dir = os.path.normpath(os.path.join(project_dir, 'output', 'scenarios'))
+            project = [p.name for p in os.scandir(scenario_dir)]
+            project = [p.replace('.json', '') for p in project if os.path.exists(os.path.normpath(os.path.join(scenario_dir, p)))]
+            data = sorted(project)
         # elif key == 'getFiles': # List the files
         #     project_folder = os.path.normpath(os.path.join(PROJECT_STATIC_ROOT, project_name))
         #     hyd_folder = os.path.normpath(os.path.join(project_folder, "output", 'HYD'))

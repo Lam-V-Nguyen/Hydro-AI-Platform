@@ -4,7 +4,7 @@ let globalChartData = {data: null, titleX: "", titleY: "", validColumns: []};
 
 // Draw the chart using Plotly
 export async function plotTimeSeries(plotDiv, checkboxList, selectBox, 
-    data, title, titleX, titleY, selectedColumns=null) {
+    data, title, titleX, titleY, width, height, selectedColumns=null) {
     const cols = data.columns, rows = data.data;
     const x = rows.map(r => r[0]);    
     let checkboxInputs = checkboxList.querySelectorAll('input[type="checkbox"]');
@@ -19,7 +19,7 @@ export async function plotTimeSeries(plotDiv, checkboxList, selectBox,
         }
         // Update global variable
         globalChartData = { data, titleX, titleY, validColumns };
-        await createCheckboxList(plotDiv, checkboxList, selectBox, title, validColumns);
+        createCheckboxList(plotDiv, checkboxList, selectBox, title, width, height, validColumns);
         checkboxInputs = checkboxList.querySelectorAll('input[type="checkbox"]');
     }
     // Get selected columns
@@ -47,7 +47,7 @@ export async function plotTimeSeries(plotDiv, checkboxList, selectBox,
     }
     if (traces.length === 0) { Plotly.purge(plotDiv); return; }
     const layout = {
-        margin: {l: 60, r: 20, t: 50, b: 20}, autosize: true,
+        margin: {l: 60, r: 20, t: 50, b: 20}, width: width, height: height,
         paper_bgcolor: '#c2bdbdff', plot_bgcolor: '#c2bdbdff',
         title: { 
             text: title, x: 0.5, xanchor: 'center', 
@@ -70,19 +70,22 @@ export async function plotTimeSeries(plotDiv, checkboxList, selectBox,
             font: { size: 14, color: 'black', weight: 'bold' } 
         }
     };
-    Plotly.react(plotDiv, traces, layout, { responsive: true, displaylogo: false });
+    const config = { responsive: true, displaylogo: false };
+    if (!plotDiv._fullLayout) { Plotly.newPlot(plotDiv, traces, layout, config);
+    } else { Plotly.react(plotDiv, traces, layout, config); }
 }
-async function updateChart(plotDiv, checkboxObj, selectBoxObj, title) {
+async function updateChart(plotDiv, checkboxObj, selectBoxObj, title, width, height) {
     const checkboxes = checkboxObj.querySelectorAll('input[type="checkbox"]');
     const selectedColumns = Array.from(checkboxes)
         .filter(cb => cb.checked && cb.value !== 'All').map(cb => cb.value);
     const {data, titleX, titleY} = globalChartData;
     await plotTimeSeries(
-        plotDiv, checkboxObj, selectBoxObj, data, title, titleX, titleY, selectedColumns
+        plotDiv, checkboxObj, selectBoxObj, data, title, 
+        titleX, titleY, width, height, selectedColumns
     );
 }
 
-export function createCheckboxList(plotDiv, checkboxObj, selectBoxObj, title, columns) {
+export function createCheckboxList(plotDiv, checkboxObj, selectBoxObj, title, width, height, columns) {
     checkboxObj.innerHTML = '';
     // Create "All" checkbox
     const allLabel = document.createElement('label');
@@ -101,20 +104,20 @@ export function createCheckboxList(plotDiv, checkboxObj, selectBoxObj, title, co
     allCheckbox.addEventListener('change', () => {
         if (allCheckbox.checked) colCheckBoxes.forEach(cb => cb.checked = true);
         else colCheckBoxes.forEach(cb => cb.checked = false);
-        updateChart(plotDiv, checkboxObj, selectBoxObj, title);
+        updateChart(plotDiv, checkboxObj, selectBoxObj, title, width, height);
         checkboxObj.style.display = 'none';
     })
     // Select other columns
     colCheckBoxes.forEach(cb => {
         cb.addEventListener('change', () => {
             allCheckbox.checked = colCheckBoxes.every(cb => cb.checked);
-            updateChart(plotDiv, checkboxObj, selectBoxObj, title);
+            updateChart(plotDiv, checkboxObj, selectBoxObj, title, width, height);
             checkboxObj.style.display = 'none';
         });
     });
 }
 
-export async function updateComponents(iframe, data, title, titleX, titleY, selectedColumns=null) {
+export async function chartManager(iframe, data, title, titleX, titleY, selectedColumns=null) {
     const doc = iframe.contentDocument;
     if (!doc?.getElementById("myChart")) return;
     const $ = (selector) => doc.querySelector(selector);

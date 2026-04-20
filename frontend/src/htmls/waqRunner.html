@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" href="/src_frontend/styles/hydManager.css?v=001">
+        <link rel="stylesheet" href="/src_frontend/styles/simulationRunner.css?v=001">
+    </head>
+    <body>
+        <div class="form-box">
+            <form>
+                <div class="form-row">
+                    <label id= "label-scenario" for="options-scenario">Scenario:</label>
+                    <select id="options-scenario"></select>
+                    <label id="label-waq" for="options-waq">WAQ model:</label>
+                    <select id="options-waq"></select>
+                    <button type="button" id="run-button">Run Simulation</button>
+                    <div class="progress-container">
+                        <progress id="progressbar" value="0" max="100"></progress>
+                        <span id="progress-text"></span>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <script
+            type="module" src="/src_frontend/services/waqRunner.js">
+        </script>
+    </body>
+</html>

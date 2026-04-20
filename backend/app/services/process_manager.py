@@ -14,8 +14,8 @@ router = APIRouter()
 async def upload_data(file: UploadFile = File(...), projectName: str = Form(...),
     fileName: str = Form(...), type: str = Form(...), user=Depends(functions.basic_auth)):
     project_name, _ = functions.project_definer(projectName, user)
-    if (type == 'grid'): save_dir = os.path.join(PROJECT_ROOT, project_name, "input")
-    elif (type == 'gis'): save_dir = os.path.join(PROJECT_ROOT, project_name, "GIS")
+    if (type == 'grid'): save_dir = os.path.normpath(os.path.join(PROJECT_ROOT, project_name, "input"))
+    elif (type == 'gis'): save_dir = os.path.normpath(os.path.join(PROJECT_ROOT, project_name, "GIS"))
     if not os.path.exists(save_dir): os.makedirs(save_dir)
     file_path = os.path.normpath(os.path.join(save_dir, fileName))
     try:
@@ -60,7 +60,7 @@ async def upload_data(file: UploadFile = File(...), projectName: str = Form(...)
         traceback.print_exc()
         return JSONResponse({"status": "error", "message": str(e)})
     finally: 
-        if os.path.exists(file_path): functions.safe_remove(file_path)
+        if file_path.endswith('.zip') and os.path.exists(file_path): functions.safe_remove(file_path)
         temp_dir = os.path.normpath(os.path.join(save_dir, 'temp'))
         if os.path.exists(temp_dir): shutil.rmtree(temp_dir)
         await file.close()

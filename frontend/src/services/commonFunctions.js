@@ -1,6 +1,5 @@
 import { toUTC } from "./projectSaver.js";
-import { createCheckboxList, viewDatafromPlot, saveToExcelFromPlot } from "./chartManager.js";
-
+let userName = null;
 
 
 export function getUser(){
@@ -14,6 +13,15 @@ export function getUser(){
         window.addEventListener('message', handler);
         window.parent.postMessage({type: "GET_USER"}, "*");
     });
+}
+
+export async function getProjectList(folderCheck='') {
+    const user = await getUser(); userName = user;
+    if (userName === null) return;
+    const contents = { filename: userName, key: 'getProjects', folder_check: folderCheck };
+    const data = await jsonLoader('select_project', contents);
+    if (data.status === "error") { alert(data.message); return; }
+    return data.content;
 }
 
 function waitForWidget(id, timeout = 3000) {

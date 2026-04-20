@@ -1,10 +1,10 @@
 import { setupTabs } from "./tabManager.js";
-import { jsonLoader, getUser, nameChecker, fillTable, updateTable, iframeConnector,
-    getDataFromTable, csvUploader, fileUploader, deleteTable, copyPaste,
-    addRowToTable, removeRowFromTable, pointUpdate, plotTable
+import { jsonLoader, nameChecker, fillTable, updateTable, iframeConnector, 
+    getDataFromTable, csvUploader, fileUploader, deleteTable, copyPaste, 
+    addRowToTable, removeRowFromTable, pointUpdate, plotTable, getProjectList
 } from "./commonFunctions.js";
-import { projectRender } from "./projectManager.js";
 import { timeStepCalculator, saveProject } from "./projectSaver.js";
+import { projectRender } from "./projectManager.js";
 
 const $ = (id) => document.getElementById(id);
 const obj = {
@@ -63,17 +63,7 @@ const obj = {
     outputRestart: $('write-restart-file'), rstStart: $('restart-start'), rstStop: $('restart-end'),
 }
 
-let userName = null, listProjects = [];
-
-setupTabs(document); projectOptions(); updateComponent();
-
-async function getProjectList(){
-    if (userName === null) return;
-    const contents = { filename: userName, key: 'getProjects', folder_check: '' };
-    const data = await jsonLoader('select_project', contents);
-    if (data.status === "error") { alert(data.message); return; }
-    await projectRender(obj.projectName, obj.projectList, data.content);
-}
+setupTabs(document); projectOptions(); hydManager();
 
 async function projectOptions(){
     // Create new project
@@ -129,10 +119,10 @@ function assignOutput(target, start, end, startDate, stopDate){
     });
 }
 
-async function updateComponent(){
-    const user = await getUser(); userName = user;
+async function hydManager(){
+    const respond = await getProjectList();
     obj.projectName.style.pointerEvents = "auto";
-    await getProjectList();
+    await projectRender(obj.projectName, obj.projectList, respond);
     // Check whether map widget exists
     const layout = localStorage.getItem('grid-layout');
     const hasMap = layout ? JSON.parse(layout).some(item => item.id === 'hyd-map'):false;
