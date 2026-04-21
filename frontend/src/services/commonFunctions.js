@@ -83,7 +83,10 @@ export function iframeConnector(objBtn, objtarget, type, content = null, lineTyp
         } else if (type === 'pickPath') {
             let name = objtarget[0].value.trim();
             if (name === '') {
-                if (lineType === 'crossSection') { name = 'Cross-Section'; } else { name = 'Boundary'; }
+                if (lineType === 'crossSection') { name = 'Cross-Section'; } 
+                else if (lineType === 'boundary') { name = 'Boundary'; }
+                else if (lineType === 'obsPoint') { name = 'Obs'; }
+                else if (lineType === 'loadsPoint') { name = 'Load'; }
                 objtarget[0].value = name;
             }
             const table = objtarget[1], arr = []; deleteTable(table);

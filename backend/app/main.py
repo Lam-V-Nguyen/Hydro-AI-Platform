@@ -10,7 +10,7 @@ if backend_dir not in sys.path:
 # Import internally backend modules
 from config import SOURCE_BACKEND, SOURCE_FRONTEND, PROJECT_ROOT, lifespan
 from services import route_page, project_manager, grid_preparation, \
-    process_manager, hydFunctions, sim_manager
+    process_manager, hydFunctions, sim_manager, waqFuntions
 # , wq_process, \
 #     run_simulation, data_preparation, flow_preparation
 
@@ -33,6 +33,7 @@ app.include_router(project_manager.router)
 app.include_router(grid_preparation.router)
 app.include_router(process_manager.router)
 app.include_router(hydFunctions.router)
+app.include_router(waqFuntions.router)
 app.include_router(sim_manager.router)
 # app.include_router(wq_process.router)
 # app.include_router(run_simulation.router)

@@ -3,7 +3,7 @@ import { projectMaker, projectModifier, pdfOpener } from "./projectManager.js";
 import { initGrid, addWidget, loadWidget, saveWidget, hasWidget } from "./widgetFunctions.js"; 
 import { startLoading, stopLoading, jsonLoader, htmlLoader, 
     waitForWidgetReady } from "./commonFunctions.js"; 
-import { setPendingRequest } from "./constant.js";
+import { setPendingRequest, clearPendingRequest } from "./constant.js";
 import { renderPreview } from "./mapManager.js";
 import { chartManager } from "./chartManager.js";
 
@@ -62,8 +62,8 @@ function widgetMenuManager() {
         else if (id === 'open-project') { projectModifier(userName, 'open'); closeMenu(); return; }
         else if (id === 'delete-project') { projectModifier(userName, 'delete'); closeMenu(); return; }
         else if (id === 'help-docs') { pdfOpener(url); closeMenu(); return; }
-        else if (id === 'run-hyd') { w = 11; h = 2; }
-        else if (id === 'run-waq') { w = 9; h = 1; }
+        else if (id === 'run-hyd') { w = 9; h = 2; }
+        else if (id === 'run-waq') { w = 7; h = 2; }
         else if (id === 'visualization') { w = 12; h = 9; }
         else if (id === 'about') { w = 8; h = 5; }
         addWidget(w, h, title, id, url); closeMenu();
@@ -94,6 +94,7 @@ function widgetMenuManager() {
 }
 
 function updateComponent() {
+    clearPendingRequest();
     // Listen for state change
     window.addEventListener('message', async (event) => {
         if (event.data.type === 'addMapWidget') { // Add map

@@ -125,17 +125,16 @@ export function initMap(mapId='map') {
         if (!req) return;
         mapContainer.style.cursor = 'crosshair';
         if (req.requestId === 'pickLocation') { html = 'Pick average latitude';
-        } else if (req.requestId === 'pickPoint') { html = 'Select observation point';
+        } else if (req.requestId === 'pickPoint') { html = 'Select an HYD point';
         } else if (req.requestId === 'pickPath') {
             html = `
             - Click the left mouse button to select points.<br>
             - Right-click to finish the selection.<br>
             - Number of points must be at least 2.<br>
             `;
-        } else if (req.requestId === 'pickSource') { html = 'Select source';
+        } else if (req.requestId === 'pickSource') { html = 'Select a HYD source';
         } else if (req.requestId === 'updateObsPoint') { 
             mapContainer.style.cursor = 'grab'; return;
-
         }
         
 

@@ -32,7 +32,7 @@ const obj = {
     boundaryCSV: $('boundary-upload-csv'), boundaryAddRow: $('boundary-add-row'),    
     boundaryEditTable: $('boundary-edit-table'), boundaryEditUpdate: $('boundary-update'),    
     boundaryEditRemove: $('boundary-edit-remove'), boundarySelectorView: $('boundary-type-view'),
-    boundaryViewContainer: $('textarea-container'), boundaryText: $('data-view'),    
+    boundaryViewContainer: $('textarea-container-hyd'), boundaryText: $('data-view-hyd'),    
     sourceName: $('source-name'), sourceOptionNew: $('source-sink-new'),
     sourceOptionExist: $('source-sink-exist'), sourceOptionPicker: $('source-picker'),   
     sourceLatitude: $('source-latitude'), sourceLongitude: $('source-longitude'),

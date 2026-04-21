@@ -1,5 +1,4 @@
 import { getProjectList, jsonLoader } from "./commonFunctions.js";
-import { updateLogHYD } from "./simManager.js";
 
 const $ = (id) => document.getElementById(id);
 const obj = { 
@@ -11,6 +10,7 @@ const obj = {
 
 let currentProject = null, logIntervalHYD = null,
     lastOffsetHYD = 0, HYDRunning = false, activeHYDProject = null;
+
 
 hydComponents();
 
@@ -44,15 +44,12 @@ async function hydComponents() {
             }
             obj.showCheckbox.checked = true; HYDRunning = true;
             // Run hydrodynamics simulation and Update logs every 10 seconds
-            updateLogHYD(
-                activeHYDProject, logIntervalHYD, projectName, 
-                obj.progressbar, obj.progressText, obj.infoArea, 10
-            );
+            updateLogHYD( projectName, obj.progressbar, obj.progressText, obj.infoArea, 10);
         } else { obj.showCheckbox.checked = false; HYDRunning = false; }
         obj.progressText.innerText = statusRes.message;
         obj.progressbar.value = statusRes.progress;
         obj.checkboxContainer.style.display = 'block'; 
-        // checkboxUpdate(mode);
+        obj.showCheckbox.dispatchEvent(new Event('change'));
     });
     // Run new simulation
     obj.runBtn.addEventListener('click', async () => {
@@ -70,4 +67,24 @@ async function hydComponents() {
         obj.progressText.innerText = 'Preparing data for the HYD simulation...';
         updateLogHYD(currentProject, obj.progressbar, obj.progressText, obj.infoArea, 10);
     });
+}
+
+function updateLogHYD(hydProject, progress_bar, progress_text, info, seconds){
+    activeHYDProject = hydProject;
+    logIntervalHYD = setInterval(async () => {
+        if (activeHYDProject !== hydProject) { clearInterval(logIntervalHYD); logIntervalHYD = null; }
+        try {
+            const statusRes = await jsonLoader('check_sim_status_hyd', {projectName: hydProject});
+            progress_text.innerText = statusRes.message; progress_bar.value = statusRes.progress;
+            if (statusRes.status !== "running" && statusRes.status !== "reorganizing") {
+                info.value += statusRes.message;
+                if (logIntervalHYD) { clearInterval(logIntervalHYD); logIntervalHYD = null; }
+            }
+            const res = await fetch(`/sim_log_tail_hyd/${hydProject}?offset=${lastOffsetHYD}&log_file=log_hyd.txt`);
+            if (!res.ok) return;
+            const data = await res.json();
+            for (const line of data.lines) { info.value += line + "\n"; }
+            lastOffsetHYD = data.offset;
+        } catch (error) { clearInterval(logIntervalHYD); logIntervalHYD = null; }
+    }, seconds * 1000);
 }

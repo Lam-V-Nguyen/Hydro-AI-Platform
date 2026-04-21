@@ -19,6 +19,8 @@ body {
   display: flex; align-items: center; gap: 14px; font-size: 20px;
   justify-content: center; flex-wrap: wrap; font-weight: bold;
 }
+#label-waq { font-size: 18px; font-weight: normal; display: none; }
+#waq-name { min-width: 150px; font-size: 18px; display: none; }
 #project-name { text-align: center; width: 500px; pointer-events: none;}
 #project-name-wrapper {
   display: flex; align-items: center; position: relative;
@@ -40,3 +42,32 @@ body {
 p { font-weight: bold; font-size: 22px; text-align: center; margin: 35px 0; }
 ul { line-height: 1.4; margin-left: 80px; font-size: 17px; }
 ul li { margin-top: 15px; }
+
+.textarea-container-hyd, .textarea-container-waq,
+.model-container-waq {
+  flex-direction: column; gap: 8px; margin-top: 12px; width: 100%;
+}
+.textarea-container-hyd, .textarea-container-waq { display: none; }
+.textarea-container-hyd label { font-weight: 500; color: var(--text); }
+.data-textarea-hyd {
+  width: 100%; max-width: none; min-width: 100%; box-sizing: border-box;
+  max-height: 100%; min-height: 200px; overflow-x: scroll; overflow-y: scroll;
+  font-family: monospace; padding: 12px; border: 1px solid var(--border);
+  border-radius: 8px; color: black; resize: vertical; white-space: pre;
+}
+#data-view-hyd { height: 200px; }
+
+.textarea-container-waq {
+  min-height: 200px; height: 400px; display: none;
+  overflow: auto;
+}
+
+.data-textarea {
+  flex: 1; min-height: 200px;
+}
+
+.model-textarea { 
+  min-height: 100px; height: auto; width: 100%; 
+  margin: 10px 0 10px 0;
+}
+.row input { width: 80px; }

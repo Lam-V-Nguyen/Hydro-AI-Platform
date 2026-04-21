@@ -19,8 +19,16 @@
                         <progress id="progressbar" value="0" max="100"></progress>
                         <span id="progress-text"></span>
                     </div>
+                    <div id="checkbox-container" style="display: none;">
+                        <label class="checkbox-label">
+                        <input type="checkbox" id="show-checkbox">Show/Hide Details
+                        </label>
+                    </div>
                 </div>
             </form>
+            <div id="form-row-textarea">
+                <textarea id="textarea" readonly></textarea>
+            </div>
         </div>
         <script
             type="module" src="/src_frontend/services/waqRunner.js">

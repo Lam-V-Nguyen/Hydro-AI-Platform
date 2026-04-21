@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=2" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="/src_frontend/styles/tabControler.css?v=002">
     <link rel="stylesheet" href="/src_frontend/styles/hydManager.css?v=001">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -10,7 +10,7 @@
 <body>
     <div class="wrapper">
         <div class="page-title">
-            <label for="project-name">Scenario Name</label>
+            <label for="project-name">HYD Scenario</label>
             <div id="project-name-wrapper">
                 <input type="text" id="project-name" placeholder="Enter scenario's name">
                 <ul id="project-list"></ul>
@@ -269,9 +269,9 @@
                                                 <option value="Contaminant">Contaminant</option>
                                             </select>
                                         </div>
-                                        <div class="textarea-container" id="textarea-container">
-                                            <label for="data-view">Boundary Data:</label>
-                                            <textarea class="data-textarea" id="data-view" readonly></textarea>
+                                        <div class="textarea-container-hyd" id="textarea-container-hyd">
+                                            <label for="data-view-hyd">Boundary Data:</label>
+                                            <textarea class="data-textarea-hyd" id="data-view-hyd" readonly></textarea>
                                         </div>
                                     </div>
                                 </div>
@@ -611,6 +611,6 @@
         defaultHour: 0, defaultMinute: 0, defaultSecond: 0
     });
   </script>
-  <script type="module" src="/src_frontend/services/hydManager.js?v=000"></script>
+  <script type="module" src="/src_frontend/services/hydManager.js?v=0"></script>
 </body>
 </html>
