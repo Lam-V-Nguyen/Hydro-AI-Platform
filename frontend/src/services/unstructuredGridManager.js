@@ -1,14 +1,19 @@
-
+import { getUser, fillTable, jsonLoader } from "./commonFunctions.js";
+import { projectRender } from "./projectManager.js";
 
 // import { startLoading, stopLoading, jsonLoader, renderProjects, fillTable
 //     } from "./commonFunctions.js"; 
 // import { createLakeMap } from "./unstructuredGrid.js";
 // import { getState } from "./constant.js";
 
-// let lakesData = {}, lakeMap = null, lakeLayer = null, dataLake = null, 
-//     dataDepth = null, drawChecked = false, entireNorway = false, 
-//     timeOut = null; 
-
+let userName = null, lakesData = {}, dataLake = null, dataDepth = null,
+    drawChecked = false, entireNorway = false, timeOut = null;
+// lakeMap = null, lakeLayer = null, 
+// let lakesData = {}, lakeMap = null, lakeLayer = null, pointLayer = null, entireNorway = false, 
+//     refineChecked = false, deleteChecked = false, dataLake = null, dataDepth = null, drawSelection = false,
+//     timeOut = null, levelValue = null, pointContainer = [], html = '', drawChecked = false, moveChecked = false,
+//     baseMap = null, currentTileLayer = null, gridLayer = null, orthoLayer = null, isRunning = false,
+//     tempLine = null, mapContainer = null, activeProject = null, logInterval = null;
     
     
 // const currentProject = 'demo';
@@ -17,14 +22,41 @@
 
 const $ = (id) => document.getElementById(id);
 const obj = {
-    selectContainer: $("#select-container"), municipalityName: $("#municipality-name"), 
-    municipalityList: $("#municipality-list"), lakeSearcher: $("#lake-search"), 
-    sugesstionLake: $("#lake-suggestions"), lakeLabel: $("#lake-name-label"), 
-    lakeSelector: $("#lake-name"), lakeTable: $("#lake-table"), 
-    tableContent: $("#table-of-contents"), menuContent: $("#menu-container"),
+    selectContainer: $("select-container"), municipalityName: $("municipality-name"), 
+    municipalityList: $("municipality-list"), lakeSearcher: $("lake-search"), 
+    sugesstionLake: $("lake-suggestions"), lakeLabel: $("lake-name-label"), 
+    lakeSelector: $("lake-name"), lakeTable: $("lake-table"), 
+    tableContent: $("table-of-contents"), menuContent: $("menu-container"),
 };
 
-unGridManager();
+async function addItems(currentProject, value) { 
+    const message = 'Loading all Lakes for entire Norway. Please wait...';
+    window.parent.postMessage({type: 'showOverlay', message: message}, '*');
+    timeOut = setTimeout( async() => { 
+        const response = await jsonLoader('search_lake', { 
+            projectName: currentProject, name: value 
+        });
+        if (response.status === "error") { alert(response.message); return; }
+        if (response.content.length === 0) { obj.sugesstionLake.style.display = 'none'; return; } 
+        obj.sugesstionLake.innerHTML = ''; 
+        response.content.forEach(lake => { 
+            var div = document.createElement('div'); 
+            div.textContent = lake; 
+            div.addEventListener('click', () => { 
+                obj.lakeSearcher.value = lake; 
+                obj.municipalityList.value = ''; 
+                obj.lakeSelector.innerHTML = `<option value="${lake}">${lake}</option>`; 
+                obj.sugesstionLake.style.display = 'none'; 
+                obj.lakeSelector.dispatchEvent(new Event('change')); 
+            }); 
+            obj.sugesstionLake.appendChild(div); 
+        }); 
+        obj.sugesstionLake.style.display = 'block'; 
+    }, 200); 
+    window.parent.postMessage({type: 'hideOverlay'}, '*');
+} 
+
+lakeOptions(); dataBaseOptions(); unGridManager();
 
 function unGridManager() {
     // Check whether map widget exists
@@ -32,7 +64,178 @@ function unGridManager() {
     const hasMap = layout ? JSON.parse(layout).some(item => item.id === 'grid-map'):false;
     const content = { id: 'grid-map', title: 'Unstructured Grid Map' };
     if (!hasMap) window.parent.postMessage({ type: 'addMapWidget', content: content }, '*');
+    // Change data source 
+    document.querySelectorAll('input[type="radio"]').forEach(opt => { 
+        opt.addEventListener('change', () => { 
+            if (opt.id === 'new-database') { 
+                obj.selectContainer.style.display = 'flex'; drawChecked = false; 
+                obj.municipalityName.value = ''; obj.lakeSearcher.value = ''; 
+                obj.lakeSelector.style.display = 'flex'; 
+                obj.lakeSelector.value = ''; obj.lakeLabel.style.display = 'flex'; 
+            } else if (opt.id === 'new-map') { 
+                obj.selectContainer.style.display = 'none'; drawChecked = true; 
+            } 
+        });
+    }); 
+
+
     
+}
+
+
+async function lakeOptions() {
+    const user = await getUser(); userName = user;
+    // Search lake
+    const handleLakeSearchEvent = async (e) => { 
+        const value = e.target.value.trim(); 
+        if (e.type === 'input') clearTimeout(timeOut); 
+        if (e.type === 'click') { 
+            obj.lakeSelector.style.display = 'none'; 
+            obj.lakeLabel.style.display = 'none'; 
+        } 
+        if (value === "") { 
+            fillTable([['', '', '', '', '', '', '']], obj.lakeTable, true); 
+            obj.menuContent.style.display = "none"; 
+        } 
+        await addItems(userName, value); obj.municipalityName.value = ''; 
+        obj.municipalityList.style.display = "none"; 
+    }; 
+    ['click', 'input'].forEach(evt => { 
+        obj.lakeSearcher.addEventListener(evt, handleLakeSearchEvent); 
+    }); 
+    obj.lakeSelector.addEventListener('change', async (e) => { 
+        const lakeName = e.target.value.trim(); if (!lakeName) return; 
+        if (lakeName === '') { obj.menuContent.style.display = "none"; 
+        } else { obj.menuContent.style.display = "grid"; } 
+        // gridLayer = clearMap(gridLayer, lakeMap); 
+        // lakeLayer = clearMap(lakeLayer, lakeMap); 
+        // pointLayer = clearMap(pointLayer, lakeMap); 
+        // orthoLayer = clearMap(orthoLayer, lakeMap); 
+        const message = `Loading data for lake: ${lakeName}`;
+        window.parent.postMessage({type: 'showOverlay', message: message}, '*');
+        const response = await jsonLoader('load_lakes', { 
+            projectName: userName, lakeName: lakeName 
+        });
+        window.parent.postMessage({type: 'hideOverlay'}, '*');
+        if (response.status === "error") { alert(response.message); return; } 
+        dataLake = response.content.lake; dataDepth = response.content.depth;
+        lakeMap = await createLakeMap(); 
+        const data = dataLake.features[0].properties;
+        const contents = [[data.name, data.region, data.area, data.perimeter, data.min, data.max, data.avg]]; 
+        obj.tableContent.style.display = "block"; 
+        fillTable(contents, obj.lakeTable, true);
+        // depthCheckbox().checked = true; 
+        // polygonCheckbox().checked = true; 
+        // orthoCheckbox().checked = false; 
+        // // Plot lake and depth on map
+        // window.depthGridLayer = clearMap(window.depthGridLayer, lakeMap); 
+        // window.depthGridLayer = gridPlotter(dataLake, dataDepth); 
+        // lakeLayer = clearMap(lakeLayer, lakeMap); 
+        // lakeLayer = polygonPlotter(dataLake, true);
+    }); 
+}
+
+
+async function loadLakes(currentProject){
+    const message = "Initializing Database for entire Norway's Lakes. Please wait...";
+    window.parent.postMessage({type: 'showOverlay', message: message}, '*');
+    const response = await jsonLoader('init_lakes', {projectName: currentProject});
+    if (response.status === "error") { alert(response.message); return; }
+    window.parent.postMessage({type: 'hideOverlay'}, '*');
+    lakesData = response.content;
+    dataLake = lakesData.lake; dataDepth = lakesData.depth;
+}
+
+async function dataBaseOptions() {
+    if (userName === null) userName = await getUser();
+    // Update municipality name 
+    obj.municipalityName.addEventListener('change', async (e) => { 
+        const selectedLake = e.target.value.trim(); entireNorway = false; 
+        if (!selectedLake || selectedLake === "") { 
+            e.target.dispatchEvent(new Event('click')); return; 
+        }
+        if (selectedLake === "All Municipalities" ) { 
+            const message = 'Loading Lakes for entire Norway. Please wait...';
+            window.parent.postMessage({type: 'showOverlay', message: message}, '*');
+            entireNorway = true; obj.tableContent.style.display = "none"; 
+            obj.menuContent.style.display = "none"; 
+            obj.lakeSelector.style.display = "none"; 
+            // colorbar_container_grid().style.display = 'none'; 
+            const response = await jsonLoader('load_lakes', { 
+                projectName: userName, lakeName: 'all' 
+            });
+            window.parent.postMessage({type: 'hideOverlay'}, '*');
+            if (response.status === "error") { alert(response.message); return; } 
+            dataLake = response.content.lake; dataDepth = response.content.depth; 
+            // lakeLayer = clearMap(lakeLayer, lakeMap); 
+            // lakeLayer = polygonPlotter(dataLake, true);
+            // orthoLayer = clearMap(orthoLayer, lakeMap); 
+            return; 
+        }
+        obj.lakeSelector.innerHTML = lakesData[selectedLake]
+            .map(name => `<option value="${name}">${name}</option>`).join(''); 
+        obj.lakeSelector.value = lakesData[selectedLake][0]; 
+        obj.lakeSelector.dispatchEvent(new Event('change')); 
+    });
+    obj.municipalityName.addEventListener('click', async (e) => { 
+        obj.sugesstionLake.style.display = "none"; obj.lakeSearcher.value = "";
+        if (e.target.value.trim() === "") { 
+            obj.lakeLabel.style.display = "none"; 
+            obj.lakeSelector.style.display = "none"; 
+            obj.menuContent.style.display = "none"; 
+            const tbody = obj.lakeTable.querySelector("tbody"); tbody.innerHTML = '';
+            fillTable([['', '', '', '', '', '', '']], obj.lakeTable, true); 
+        } 
+        if (Object.keys(lakesData).length === 0) { await loadLakes(userName); } 
+        obj.municipalityList.innerHTML = ''; 
+        // Add "All Municipalities" option 
+        const allLi = document.createElement("li"); 
+        allLi.textContent = "All Municipalities"; allLi.style.fontWeight = "bold"; 
+        allLi.dataset.value = "All Municipalities"; allLi.style.fontSize = "14px"; 
+        allLi.addEventListener('mousedown', () => { 
+            obj.municipalityName.value = allLi.dataset.value; 
+            obj.municipalityList.style.display = "none"; 
+            obj.lakeLabel.style.display = "none"; 
+            obj.lakeSelector.style.display = "none"; 
+            obj.municipalityName.dispatchEvent(new Event('change')); 
+        }); 
+        obj.municipalityList.appendChild(allLi); 
+        const allHr = document.createElement("hr"); 
+        allHr.style.margin = "5px 10px 5px 10px"; 
+        allHr.style.borderTop = "1px solid #0414f5"; 
+        obj.municipalityList.appendChild(allHr); 
+        Object.keys(lakesData).forEach(p => { 
+            const li = document.createElement("li"); 
+            li.textContent = p; 
+            li.addEventListener('mousedown', () => { 
+                obj.municipalityName.value = p; 
+                obj.municipalityList.style.display = "none"; 
+                obj.lakeLabel.style.display = "block"; 
+                obj.lakeSelector.style.display = "block"; 
+                obj.municipalityName.dispatchEvent(new Event('change')); 
+            }); 
+            obj.municipalityList.appendChild(li); 
+        });
+        obj.municipalityList.style.display = "block"; 
+    });
+    obj.municipalityName.addEventListener('input', (e) => { 
+        const value = e.target.value.trim(); 
+        if (value !== "") { 
+            projectRender(e.target, obj.municipalityList, Object.keys(lakesData));
+        } else { 
+            // lakeLayer = clearMap(lakeLayer, lakeMap); 
+            obj.lakeSelector.value = ""; e.target.value = ""; 
+            obj.lakeLabel.style.display = "none"; 
+            obj.lakeSelector.style.display = "none"; 
+            e.target.dispatchEvent(new Event('click')); 
+        } 
+    });
+    obj.municipalityName.addEventListener('blur', (e) => { 
+        setTimeout(() => { obj.municipalityList.style.display = "none"; }, 0); 
+        if (e.target.value === "") { 
+            obj.lakeLabel.style.display = "none"; obj.lakeSelector.style.display = "none"; 
+        } 
+    });
 }
 
 
@@ -40,207 +243,687 @@ function unGridManager() {
 
 
 
-
-
 // function updateManager() { 
-//     // Change data source 
-//     document.querySelectorAll('input[type="radio"]').forEach(obj => { 
-//         obj.addEventListener('change', () => { 
-//             if (obj.id === 'new-database') { 
-//                 selectContainer().style.display = 'flex'; drawChecked = false; 
-//                 municipalityName().value = ''; lakeSearcher().value = ''; 
-//                 lakeSelector().style.display = 'flex'; 
-//                 lakeSelector().value = ''; lakeLabel().style.display = 'flex'; 
-//             } else if (obj.id === 'new-map') { 
-//                 selectContainer().style.display = 'none'; drawChecked = true; 
-//                 const contents = [['', '', '', '', '', '', '']]; 
-//                 fillTable(contents, lakeTable(), true); 
-//             } 
-//             tableContent().style.display = "block"; menuContent().style.display = "none"; 
-//             const tbody = lakeTable().querySelector("tbody"); tbody.innerHTML = '';
-//             fillTable([['', '', '', '', '', '', '']], lakeTable(), true); 
 
-//             console.log('Goi loadLakes', getState().temp); 
-             
-//         });
-//     }); 
-//     // Update municipality name 
-//     municipalityName().addEventListener('change', async (e) => { 
-//         const selectedLake = e.target.value.trim(); entireNorway = false; 
-//         if (!selectedLake || selectedLake === "") { 
-//             e.target.dispatchEvent(new Event('click')); return; 
-//         } 
-//         if (selectedLake === "All Municipalities" ) { 
-//             startLoading('Loading Lakes for entire Norway. Please wait...');
-//             // await new Promise(requestAnimationFrame);
-//             entireNorway = true; tableContent().style.display = "none"; 
-//             menuContent().style.display = "none"; lakeSelector().style.display = "none"; 
-//             // colorbar_container_grid().style.display = 'none'; 
-//             const response = await jsonLoader('load_lakes', { 
-//                 projectName: currentProject, lakeName: 'all' 
-//             }); stopLoading(); 
-//             if (response.status === "error") { alert(response.message); return; } 
-//             dataLake = response.content.lake; dataDepth = response.content.depth; 
-//             // lakeLayer = clearMap(lakeLayer, lakeMap); 
-//             // lakeLayer = polygonPlotter(dataLake, true);
-//             // orthoLayer = clearMap(orthoLayer, lakeMap); 
-//             return; 
-//         } 
-//         lakeSelector().innerHTML = lakesData[selectedLake].map(name => `<option value="${name}">${name}</option>`).join(''); 
-//         lakeSelector().value = lakesData[selectedLake][0]; 
-//         lakeSelector().dispatchEvent(new Event('change')); 
-//     }); 
-//     municipalityName().addEventListener('click', async (e) => { 
-//         sugesstionLake().style.display = "none"; lakeSearcher().value = ""; 
-//         if (e.target.value.trim() === "") { 
-//             lakeLabel().style.display = "none"; lakeSelector().style.display = "none"; 
-//             menuContent().style.display = "none"; 
-//             const tbody = lakeTable().querySelector("tbody"); tbody.innerHTML = '';
-//             fillTable([['', '', '', '', '', '', '']], lakeTable(), true); 
-//         } 
-//         if (Object.keys(lakesData).length === 0) { await loadLakes(); } 
-//         municipalityList().innerHTML = ''; 
-//         // Add "All Municipalities" option 
-//         const allLi = document.createElement("li"); 
-//         allLi.textContent = "All Municipalities"; allLi.style.fontWeight = "bold"; 
-//         allLi.dataset.value = "All Municipalities"; allLi.style.fontSize = "14px"; 
-//         allLi.addEventListener('mousedown', () => { 
-//             municipalityName().value = allLi.dataset.value; 
-//             municipalityList().style.display = "none"; 
-//             lakeLabel().style.display = "none"; 
-//             lakeSelector().style.display = "none"; 
-//             municipalityName().dispatchEvent(new Event('change')); 
-//         }); 
-//         municipalityList().appendChild(allLi); 
-//         const allHr = document.createElement("hr"); 
-//         allHr.style.margin = "5px 10px 5px 10px"; 
-//         allHr.style.borderTop = "1px solid #0414f5"; 
-//         municipalityList().appendChild(allHr); 
-//         Object.keys(lakesData).forEach(p => { 
-//             const li = document.createElement("li"); 
-//             li.textContent = p; 
-//             li.addEventListener('mousedown', () => { 
-//                 municipalityName().value = p; 
-//                 municipalityList().style.display = "none"; 
-//                 lakeLabel().style.display = "block"; 
-//                 lakeSelector().style.display = "block"; 
-//                 municipalityName().dispatchEvent(new Event('change')); 
-//             }); 
-//             municipalityList().appendChild(li); 
-//         });
-//         municipalityList().style.display = "block"; 
-//     }); 
-//     municipalityName().addEventListener('input', (e) => { 
-//         const value = e.target.value.trim(); 
-//         if (value !== "") { 
-//             renderProjects(municipalityList(), e.target, Object.keys(lakesData), value); 
-//         } else { 
-//             // lakeLayer = clearMap(lakeLayer, lakeMap); 
-//             lakeSelector().value = ""; e.target.value = ""; 
-//             lakeLabel().style.display = "none"; 
-//             lakeSelector().style.display = "none"; 
-//             e.target.dispatchEvent(new Event('click')); 
-//         } 
-//     }); 
-//     municipalityName().addEventListener('blur', (e) => { 
-//         setTimeout(() => { municipalityList().style.display = "none"; }, 0); 
-//         if (e.target.value === "") { 
-//             lakeLabel().style.display = "none"; lakeSelector().style.display = "none"; 
-//         } 
-//     }); 
-//     // Search lake 
-//     const handleLakeSearchEvent = async (e) => { 
-//         const value = e.target.value.trim(); 
-//         if (e.type === 'input') clearTimeout(timeOut); 
-//         if (e.type === 'click') { 
-//             lakeSelector().style.display = 'none'; 
-//             lakeLabel().style.display = 'none'; 
-//         } 
-//         if (value === "") { 
-//             fillTable([['', '', '', '', '', '', '']], lakeTable(), true); 
-//             menuContent().style.display = "none"; 
-//         } 
-//         await addItems(value); municipalityName().value = ''; 
-//         municipalityList().style.display = "none"; 
-//     }; 
-//     ['click', 'input'].forEach(evt => { 
-//         lakeSearcher().addEventListener(evt, handleLakeSearchEvent); 
-//     }); 
-//     lakeSelector().addEventListener('change', async (e) => { 
-//         const lakeName = e.target.value.trim(); if (!lakeName) return; 
-//         if (lakeName === '') { menuContent().style.display = "none"; 
-//         } else { menuContent().style.display = "grid"; } 
-//         // gridLayer = clearMap(gridLayer, lakeMap); 
-//         // lakeLayer = clearMap(lakeLayer, lakeMap); 
-//         // pointLayer = clearMap(pointLayer, lakeMap); 
-//         // orthoLayer = clearMap(orthoLayer, lakeMap); 
-//         startLoading(`Loading data for lake: ${lakeName}`);
-//         // await new Promise(requestAnimationFrame); 
-//         const response = await jsonLoader('load_lakes', { 
-//             projectName: currentProject, lakeName: lakeName 
-//         }); stopLoading(); 
-//         if (response.status === "error") { alert(response.message); return; } 
-//         dataLake = response.content.lake; dataDepth = response.content.depth;
 
-        
-//         // lakeMap = await createLakeMap(); 
-//         const data = dataLake.features[0].properties;
-//         const contents = [[data.name, data.region, data.area, data.perimeter, data.min, data.max, data.avg]]; 
-//         tableContent().style.display = "block"; 
-//         fillTable(contents, lakeTable(), true);
-//         // depthCheckbox().checked = true; 
-//         // polygonCheckbox().checked = true; 
-//         // orthoCheckbox().checked = false; 
-//         // // Plot lake and depth on map
-//         // window.depthGridLayer = clearMap(window.depthGridLayer, lakeMap); 
-//         // window.depthGridLayer = gridPlotter(dataLake, dataDepth); 
-//         // lakeLayer = clearMap(lakeLayer, lakeMap); 
-//         // lakeLayer = polygonPlotter(dataLake, true);
-//     }); 
 //     document.addEventListener('click', (e) => { 
 //         const input = lakeSearcher(), suggestion = sugesstionLake(); 
 //         if (!input.contains(e.target) && !suggestion.contains(e.target)) { 
 //             suggestion.style.display = "none"; 
 //         } 
 //     }); 
-//     // // Check whether map widget exists 
-//     // const layout = localStorage.getItem('grid-layout'); 
-//     // const hasMap = layout ? JSON.parse(layout).some(item => item.id === 'map'):false; 
-//     // if (!hasMap) window.parent.postMessage({ type: 'addMapWidget' }, '*'); 
+
 // }
 
 
 
-// async function loadLakes(){ 
-//     startLoading("Initializing Database for entire Norway's Lakes. Please wait...");
-//     // await new Promise(requestAnimationFrame);
-//     const response = await jsonLoader('init_lakes', {projectName: currentProject});
-//     if (response.status === "error") { alert(response.message); return; } stopLoading();
-//     lakesData = response.content; dataLake = lakesData.lake; dataDepth = lakesData.depth; 
-// } 
 
-// async function addItems(value) { 
-//     startLoading('Loading all Lakes. Please wait...');
-//     timeOut = setTimeout( async() => { 
-//         const response = await jsonLoader('search_lake', { 
-//             projectName: currentProject, name: value 
+
+
+
+
+// function toggleMoveMode(targetLayer, enable) {
+//     targetLayer.eachLayer(layer => {
+//         if (layer.dragging) {
+//             enable ? layer.dragging.enable() : layer.dragging.disable();
+//         }
+//     });
+// }
+
+// async function plotUnstructuredGrid(obj) {
+//     const tempLayer = L.geoJSON(obj, {
+//         style: feature => {
+//             switch (feature.geometry.type) {
+//                 case 'LineString': 
+//                 case 'MultiLineString': return { color: 'black', weight: 0.5 };
+//                 case 'Polygon':
+//                 case 'MultiPolygon':
+//                     return { color: 'black', fillColor: 'darkcyan', fillOpacity: 0.5, weight: 0.5 };
+//                 default: return {};
+//             }
+//         }
+//     }).addTo(lakeMap);
+//     return tempLayer;
+// }
+
+
+
+async function createLakeMap() {
+//     setTimeout(() => { lakeMap.invalidateSize(); }, 0); mapContainer = lakeMap.getContainer();
+//     lakeMap.on('mousemove', function (e) { 
+//         mapContainer.style.cursor = "grab";
+//         if (refineChecked) {
+//             if (pointContainer.length === 0) { html = "Select start point to refine."; }
+//             hoverTooltip.setLatLng(e.latlng).setContent(html);
+//             lakeMap.openTooltip(hoverTooltip);
+//         }
+//         if (deleteChecked) {
+//             if (pointContainer.length === 0) { html = "Select start point to delete."; }
+//             hoverTooltip.setLatLng(e.latlng).setContent(html);
+//             lakeMap.openTooltip(hoverTooltip);
+//         }
+//         if (drawChecked) { 
+//             mapContainer.style.cursor = "crosshair";
+//             if (pointContainer.length === 0) { html = `Draw a polygon using the left mouse button.`; }
+//             hoverTooltip.setLatLng(e.latlng).setContent(html);
+//             lakeMap.openTooltip(hoverTooltip);
+//         }
+//         if (moveChecked) { 
+//             mapContainer.style.cursor = "move";
+//             html = `Move a vertex using the left mouse button.`;
+//             hoverTooltip.setLatLng(e.latlng).setContent(html);
+//             lakeMap.openTooltip(hoverTooltip);
+//         }
+//     });
+//     lakeMap.on('click', async function (e) {
+//         if (drawChecked) { 
+//             mapContainer.style.cursor = "crosshair";
+//             html = `Finish drawing with the right mouse button.`;
+//             // Add marker
+//             L.circleMarker(e.latlng, {
+//                 radius: 5, color: 'red', fillColor: 'pink', fillOpacity: 0.9
+//             }).addTo(lakeMap);
+//             pointContainer.push([e.latlng.lat, e.latlng.lng]);
+//             // Plot polygon
+//             if (tempLine) { tempLine.setLatLngs(pointContainer);
+//             } else {
+//                 tempLine = L.polyline(pointContainer, { 
+//                     color: 'red', weight: 2
+//                 }).addTo(lakeMap);
+//             }
+//             if (hoverTooltip) lakeMap.closeTooltip(hoverTooltip); return; 
+//         }
+//     });
+//     lakeMap.on('contextmenu', async function (e) { 
+//         e.originalEvent.preventDefault();
+//         if (drawChecked) { 
+//             if (pointContainer.length < 3) { 
+//                 alert("Polygon must have at least 3 points."); return; 
+//             }
+//             tempLine = clearMap(tempLine, lakeMap); lakeLayer = clearMap(lakeLayer, lakeMap);
+//             // Plot polygon
+//             await drawPolygon(pointContainer); drawChecked = false;
+//             pointContainer = []; mapContainer.style.cursor = "auto";
+//         }
+//     });
+}
+
+// function resetMap(){
+//     lakeMap.eachLayer((layer) => { if (!(layer instanceof L.TileLayer)) lakeMap.removeLayer(layer); });
+//     polygonCheckbox().checked = false; depthCheckbox().checked = false;
+//     refinementCheckbox().checked = false; orthoCheckbox().checked = false; deleteCheckbox().checked = false;
+//     refineChecked = false; deleteChecked = false; colorbar_container_grid().style.display = 'none';
+// }
+
+// function polygonPlotter(polygon, zoom = false) {
+//     // Draw lake polygon
+//     const tempLayer = L.geoJSON(polygon, {
+//         style: { color: 'blue', weight: 2, fillColor: 'cyan', fillOpacity: 0 },
+//         // Add tooltips or popups if needed
+//         onEachFeature: (feature, layer) => {
+//             if (feature.properties && entireNorway) {
+//                 let tooltip = `
+//                     <div style="font-weight: bold; text-align: center;">${feature.properties.name}</div>
+//                     <hr style="margin: 5px 0 5px 0;">
+//                     <strong>• Municipality:</strong> ${feature.properties.region}<br>
+//                     <strong>• Area:</strong> ${feature.properties.area} (m²)<br>
+//                     <strong>• Perimeter:</strong> ${feature.properties.perimeter} (m)
+//                 `;
+//                 layer.bindTooltip(tooltip, {sticky: true});
+//             }
+//         }
+//     }).addTo(lakeMap);
+//     // Fit map to lake bounds
+//     const bounds = tempLayer.getBounds();
+//     if (bounds.isValid() && zoom) { 
+//         setTimeout(() => { lakeMap.invalidateSize(); lakeMap.fitBounds(bounds); }, 0);
+//     }
+//     return tempLayer;
+// }
+
+// function gridPlotter(polygon, points, colorbarKey='depth') {
+//     // Make grid points colored by depth
+//     const lakePolygon = polygon.features[0];
+//     const cellSize = Math.max(1, Math.floor(lakePolygon.properties.area / 60000));
+//     colorbar_container_grid().style.display = 'block';
+//     const grid = turf.squareGrid(turf.bbox(lakePolygon), cellSize, {units: 'meters'});
+//     grid.features.forEach(cell => {
+//         const center = turf.center(cell);
+//         if (!turf.booleanPointInPolygon(center , lakePolygon)) return;
+//         let num = 0, den = 0;
+//         points.features.forEach(p => {
+//             const d = turf.distance(center , p, {units: 'meters'});
+//             const w = 1 / Math.max(d, 1);
+//             num += w * p.properties.depth; den += w;
 //         });
+//         if (den > 0) { cell.properties.value = num / den; }
+//     });
+//     const vmin = lakePolygon.properties.min, vmax = lakePolygon.properties.max;
+//     const tempGrid = L.geoJSON(grid, {
+//         filter: f => f.properties.value !== undefined,
+//         style: f => {
+//             const value = f.properties.value;
+//             const { r, g, b, a } = getColorFromValue(value, vmin, vmax, colorbarKey);
+//             return { fill: true, fillColor: `rgb(${r},${g},${b})`, 
+//                 fillOpacity: a, weight: 0, opacity: 1, stroke: false };
+//         }
+//     }).addTo(lakeMap);
+//     updateColorbar(vmin, vmax, 'Depth (m)', colorbarKey, colorbar_color_grid(), 
+//         colorbar_title_grid(), colorbar_label_grid());
+//     return tempGrid;
+// }
+
+
+
+// function addPointLayer(points, checkMove=false) {
+//     const pointType = checkMove ? 'point-marker-move' : 'point-marker-default';
+//     const tempLayer = L.geoJSON(points, {
+//         pointToLayer: (_, latlng) => {
+//             const marker = L.marker(latlng, {
+//                 draggable: checkMove,
+//                 icon: L.divIcon({
+//                     className: "", html: `<div class="${pointType}"></div>`,
+//                     iconSize: [10, 10], iconAnchor: [5, 5]
+//                 }),
+//             });
+//             return marker;
+//         },
+//         onEachFeature: (feature, layer) => {
+//             layer.on('click', async () => { 
+//                 mapContainer.style.cursor = "auto";
+//                 if (refineChecked) {
+//                     if (!pointContainer.includes(feature.properties.id)) { pointContainer.push(feature.properties.id); }
+//                     if (pointContainer.length === 1) { html = "Select end point to refine."; }
+//                     if (pointContainer.length === 2) { 
+//                         await polygonRefinement(pointContainer); pointContainer = []; 
+//                         refinementCheckbox().dispatchEvent(new Event('change'));
+//                         if (hoverTooltip) lakeMap.closeTooltip(hoverTooltip); return; 
+//                     }
+//                 }
+//                 if (deleteChecked) {
+//                     if (!pointContainer.includes(feature.properties.id)) { pointContainer.push(feature.properties.id); }
+//                     if (pointContainer.length === 1) { html = "Select end point to delete."; }
+//                     if (pointContainer.length === 2) { 
+//                         await pointRemoval(pointContainer); pointContainer = []; 
+//                         deleteCheckbox().dispatchEvent(new Event('change'));
+//                         if (hoverTooltip) lakeMap.closeTooltip(hoverTooltip); return; 
+//                     }
+//                 }
+//             });
+//             layer.on('dragend', async function (e) {
+//                 const pos = e.target.getLatLng(), pointCollection = [];
+//                 // Update point
+//                 layer.feature.geometry.coordinates = [pos.lng, pos.lat];
+//                 pointLayer.eachLayer(layer => {
+//                     const latlng = layer.getLatLng();
+//                     pointCollection.push([latlng.lat, latlng.lng]);
+//                 });
+//                 startLoading('Regenerating vertexes. Please wait...');
+//                 await new Promise(resolve => setTimeout(resolve, 0));
+//                 const contents = { projectName: getState().currentProject, pointCollection: pointCollection };
+//                 const response = await sendQuery('vertex_mover', contents); stopLoading();
+//                 if (response.status === "error") { alert(response.message); return; }
+//                 if (!polygonCheckbox().checked) { polygonCheckbox().checked = true; }
+//                 lakeMap.eachLayer((layer) => { if (!(layer instanceof L.TileLayer)) lakeMap.removeLayer(layer); });
+//                 lakeLayer = polygonPlotter(response.content.polygon); 
+//                 pointLayer = addPointLayer(response.content.point, checkMove);
+//             });
+//             layer.bindTooltip(`Id: ${feature.properties.id}`, {
+//                 sticky: true, permanent: false, direction: 'center', opacity: 1
+//             });
+//         }
+//     }).addTo(lakeMap);
+//     return tempLayer;
+// }
+
+// async function drawPolygon(pointList) {
+//     startLoading('Drawing Polygon. Please wait...');
+//     const content = { projectName: getState().currentProject, points: pointList };
+//     const response = await sendQuery('polygon_generator', content); stopLoading();
+//     if (response.status === "error") { alert(response.message); return; }
+//     const polygon = response.content.polygon, point = response.content.point;
+//     const data = polygon.features[0].properties;
+//     const contents = [[data.name, data.region, data.area, data.perimeter, data.min, data.max, data.avg]];
+//     fillTable(contents, lakeTable(), true); depthCheckbox().checked = false;
+//     polygonCheckbox().checked = true; dataLake = polygon;
+//     lakeMap.eachLayer(layer => { if (!(layer instanceof L.TileLayer)) lakeMap.removeLayer(layer); });
+//     lakeLayer = polygonPlotter(polygon); pointLayer = addPointLayer(point, true);
+// }
+
+// async function polygonRefinement(pointIds) {
+//     const refineValue = Number(refinementValue().value); gridLayer = clearMap(gridLayer, lakeMap);
+//     if (!Number.isFinite(refineValue) || refineValue <= 0) { alert("Please enter a valid non-negative value."); return; }
+//     if (pointLayer === null) { alert("No polygon has been found. Select the button 'Get/Reset Vertexes' to draw the original polygon first."); return; }
+//     const pointCollection = [];
+//     pointLayer.eachLayer(layer => {
+//         const latlng = layer.getLatLng();
+//         pointCollection.push([latlng.lat, latlng.lng]);
+//     });
+//     if (pointCollection.length < 2) { alert("No point has been found. Select the button 'Get/Reset Vertexes' to create vertexes first."); return; }
+//     startLoading('Refining Vertexes. Please wait...');
+//     const contents = {
+//         projectName: getState().currentProject, distance: refineValue, polygon: pointCollection,
+//         startPoint: pointIds[0], endPoint: pointIds[pointIds.length - 1]
+//     }
+//     const response = await sendQuery('vertex_refiner', contents); stopLoading();
+//     if (response.status === "error") { alert(response.message);  return; }
+//     const polygon = response.content.polygon, point = response.content.point; dataLake = polygon;
+//     if (!polygonCheckbox().checked) { polygonCheckbox().checked = true; }
+//     lakeMap.eachLayer((layer) => { if (!(layer instanceof L.TileLayer)) lakeMap.removeLayer(layer); });
+//     lakeLayer = polygonPlotter(polygon); pointLayer = addPointLayer(point, false);
+//     orthoCheckbox().checked = false; orthoCheckbox().dispatchEvent(new Event('change'));
+// }
+
+// async function pointRemoval(pointIds) {
+//     if (pointLayer === null) { alert("No polygon has been found. Select the button 'Get/Reset Vertexes' to draw the original polygon first."); return; }
+//     const pointCollection = []; deleteChecked = true;
+//     pointLayer.eachLayer(layer => {
+//         const latlng = layer.getLatLng();
+//         pointCollection.push([latlng.lat, latlng.lng]);
+//     });
+//     if (pointCollection.length < 2) { alert("No point has been found. Select the button 'Get/Reset Vertexes' to draw the original polygon first."); return; }
+//     startLoading('Deleting Vertexes. Please wait...');
+//     const contents = {
+//         projectName: getState().currentProject, polygon: pointCollection,
+//         startPoint: pointIds[0], endPoint: pointIds[pointIds.length - 1]
+//     }
+//     await new Promise(resolve => setTimeout(resolve, 0));
+//     const response = await sendQuery('vertex_remover', contents); stopLoading();
+//     if (response.status === "error") { alert(response.message); return; }
+//     const polygon = response.content.polygon, point = response.content.point;
+//     lakeMap.eachLayer((layer) => { if (!(layer instanceof L.TileLayer)) lakeMap.removeLayer(layer); });
+//     lakeLayer = polygonPlotter(polygon, false); pointLayer = addPointLayer(point, false);
+//     orthoCheckbox().checked = false; orthoCheckbox().dispatchEvent(new Event('change'));
+// }
+
+// async function initializeProject(){
+//     // Update region name
+//     regionName().addEventListener('click', async () => {
+//         sugesstionLake().style.display = "none"; lakeSearcher().value = "";
+//         if (regionName().value.trim() === "") { 
+//             lakeLabel().style.display = "none"; lakeSelector().style.display = "none"; 
+//         }
+//         if (Object.keys(lakesData).length === 0) { await loadLakes(); }
+//         regionList().innerHTML = '';
+//         // Add "All Municipalities" option
+//         const allLi = document.createElement("li");
+//         allLi.textContent = "All Municipalities"; allLi.style.fontWeight = "bold";
+//         allLi.dataset.value = "All Municipalities"; allLi.style.fontSize = "14px";
+//         allLi.addEventListener('mousedown', () => {
+//             regionName().value = allLi.dataset.value; regionList().style.display = "none"; 
+//             lakeLabel().style.display = "none"; lakeSelector().style.display = "none";
+//             regionName().dispatchEvent(new Event('change'));
+//         });
+//         regionList().appendChild(allLi);
+//         const allHr = document.createElement("hr");
+//         allHr.style.margin = "5px 10px 5px 10px"; allHr.style.borderTop = "1px solid #0414f5";
+//         regionList().appendChild(allHr);
+//         Object.keys(lakesData).forEach(p => {
+//             const li = document.createElement("li");
+//             li.textContent = p;
+//             li.addEventListener('mousedown', () => {
+//                 regionName().value = p; regionList().style.display = "none";
+//                 lakeLabel().style.display = "block"; lakeSelector().style.display = "block";
+//                 regionName().dispatchEvent(new Event('change'));
+//             });
+//             regionList().appendChild(li);
+//         })
+//         regionList().style.display = "block"; 
+//     });
+//     regionName().addEventListener('input', (e) => { 
+//         const value = e.target.value.trim();
+//         if (value !== "") { renderProjects(regionList(), regionName(), Object.keys(lakesData), value); }
+//         else { 
+//             lakeLayer = clearMap(lakeLayer, lakeMap); lakeSelector().value = ""; regionName().value = "";
+//             lakeLabel().style.display = "none"; lakeSelector().style.display = "none";
+//             regionName().dispatchEvent(new Event('change'));
+//         }
+//     });
+//     regionName().addEventListener('blur', () => { 
+//         setTimeout(() => { regionList().style.display = "none"; }, 100);
+//         if (regionName().value.trim() === "") { 
+//             lakeLabel().style.display = "none"; lakeSelector().style.display = "none";
+//         }
+//     });
+// }
+
+// async function orthoPlotter(data, plotDiv, titleX, titleY, chartTitle) {
+//     if (!plotDiv) { alert("plotDiv is null"); return; }
+//     if (!data || data.length === 0) return;
+//     // Delete existing plot
+//     Plotly.purge(plotDiv); plotDiv.innerHTML = "";
+//     const x = data.map(d => d.iteration), minVals = data.map(d => d.min);
+//     const meanVals = data.map(d => d.mean), maxVals = data.map(d => d.max);
+//     const traces = [{x: x, y: minVals, mode: 'lines', type: 'scatter', name: 'Min', line: { width: 2 }},
+//         { x: x, y: meanVals, mode: 'lines', type: 'scatter', name: 'Mean', line: { width: 2 } },
+//         { x: x, y: maxVals, mode: 'lines', type: 'scatter', name: 'Max', line: { width: 2 } }
+//     ];
+//     const layout = {
+//         title: { text: chartTitle, font: { size: 20, color: 'black', weight: 'bold' } },
+//         paper_bgcolor: 'rgb(245, 240, 240)', plot_bgcolor: 'rgb(247, 243, 243)', showlegend: true,
+//         xaxis: {  title: titleX, type: 'linear', showline: true, mirror: true, ticks: 'outside', font: { color: 'black', size: 18 } },
+//         yaxis: { title: titleY, showline: true, mirror: true, ticks: 'outside', font: { color: 'black', size: 18 } },
+//         margin: { l: 70, r: 30, t: 50, b: 50 }, 
+//     };
+//     Plotly.react(plotDiv, traces, layout, { responsive: true });
+// }
+
+// function updateLog(project, progress_bar, progress_text, seconds){
+//     activeProject = project; isRunning = true;
+//     logInterval = setInterval(async () => {
+//         if (activeProject !== project) { clearInterval(logInterval); logInterval = null; }
+//         try {
+//             const statusRes = await sendQuery('check_grid_optimization', {projectName: project});
+//             progress_text.innerText = statusRes.message; progress_bar.value = statusRes.progress;
+//             if (statusRes.status === "finished" || statusRes.status === "stopped") {
+//                 clearInterval(logInterval); logInterval = null; isRunning = false;
+//                 if (statusRes.grid) { 
+//                     gridLayer = clearMap(gridLayer, lakeMap);
+//                     gridLayer = await plotUnstructuredGrid(statusRes.grid);
+//                     orthoCheckbox().checked = true; orthoCheckbox().dispatchEvent(new Event('change'));
+//                 } else { alert('No grid has been found. Consider running the optimization again.'); }
+//                 optimizeCloseBtn().innerText = "Close and Plot Grid"; return;
+//             }
+//             if (statusRes.status === "failed") {
+//                 clearInterval(logInterval); logInterval = null; isRunning = false;
+//                 alert(statusRes.message); return;
+//             }
+//             // Plotting Orthogonality
+//             await orthoPlotter(statusRes.his, chartDiv(), 'Step', 'Orthogonality', 'Orthogonality History');
+//         } catch (error) { 
+//             alert("Polling error:", error); clearInterval(logInterval); logInterval = null; 
+//         }
+//     }, seconds * 1000);
+// }
+
+// async function dataPreparationManager(){
+//     baseMap = document.getElementById("base-map-select");
+//     if (!lakeMap) { createLakeMap(); }; lakeLayer = clearMap(lakeLayer, lakeMap);
+//     regionName().addEventListener('change', async () => {
+//         const selectedLake = regionName().value.trim(); entireNorway = false;
+//         if (!selectedLake || selectedLake === "") { return; }
+//         if (selectedLake === "All Municipalities" ) {
+//             startLoading('Loading Lakes for entire Norway. Please wait...'); entireNorway = true;
+//             const response = await sendQuery('load_lakes', { projectName: getState().currentProject, lakeName: 'all' }); stopLoading();
+//             if (response.status === "error") { alert(response.message);  return; }
+//             tableContent().style.display = "none"; menuContent().style.display = "none";
+//             colorbar_container_grid().style.display = 'none'; lakeSelector().style.display = "none";
+//             dataLake = response.content.lake; dataDepth = response.content.depth;
+//             lakeLayer = clearMap(lakeLayer, lakeMap); lakeLayer = polygonPlotter(dataLake, true); 
+//             orthoLayer = clearMap(orthoLayer, lakeMap); return;
+//         }
+//         lakeSelector().innerHTML = lakesData[selectedLake].map(name => `<option value="${name}">${name}</option>`).join('');
+//         lakeSelector().value = lakesData[selectedLake][0]; lakeSelector().dispatchEvent(new Event('change'));
+//     });
+//     lakeSelector().addEventListener('change', async () => {
+//         const lakeName = lakeSelector().value; if (!lakeName) return;
+//         gridLayer = clearMap(gridLayer, lakeMap); lakeLayer = clearMap(lakeLayer, lakeMap);
+//         pointLayer = clearMap(pointLayer, lakeMap); orthoLayer = clearMap(orthoLayer, lakeMap);
+//         startLoading(`Loading data for lake: ${lakeName}`);
+//         const response = await sendQuery('load_lakes', { projectName: getState().currentProject, lakeName: lakeName }); stopLoading();
 //         if (response.status === "error") { alert(response.message); return; }
-//         if (response.content.length === 0) { sugesstionLake().style.display = 'none'; return; } 
-//         sugesstionLake().innerHTML = ''; 
-//         response.content.forEach(lake => { 
-//             var div = document.createElement('div'); 
-//             div.textContent = lake; 
-//             div.addEventListener('click', () => { 
-//                 lakeSearcher().value = lake; 
-//                 municipalityList().value = ''; 
-//                 lakeSelector().innerHTML = `<option value="${lake}">${lake}</option>`; 
-//                 sugesstionLake().style.display = 'none'; 
-//                 lakeSelector().dispatchEvent(new Event('change')); 
-//             }); 
-//             sugesstionLake().appendChild(div); 
-//         }); 
-//         sugesstionLake().style.display = 'block'; 
-//     }, 200); 
-//     stopLoading();
-// } 
+//         dataLake = response.content.lake; dataDepth = response.content.depth;
+//         createLakeMap(); const data = dataLake.features[0].properties;
+//         const contents = [[data.name, data.region, data.area, data.perimeter, data.min, data.max, data.avg]];
+//         tableContent().style.display = "block"; menuContent().style.display = "flex";
+//         fillTable(contents, lakeTable(), true); lakeSelector().style.display = 'flex';
+//         depthCheckbox().checked = true; polygonCheckbox().checked = true; orthoCheckbox().checked = false;
+//         // Plot lake and depth on map
+//         window.depthGridLayer = clearMap(window.depthGridLayer, lakeMap);
+//         window.depthGridLayer = gridPlotter(dataLake, dataDepth);
+//         lakeLayer = clearMap(lakeLayer, lakeMap); lakeLayer = polygonPlotter(dataLake, true);
+//     });
+//     // Search lake
+//     lakeSearcher().addEventListener('click', (e) => { 
+//         addItems(e.target.value.trim()); regionList().style.display = "none";
+//         lakeSelector().style.display = 'none'; regionName().value = '';
+//     });
+//     lakeSearcher().addEventListener('input', (e) => {
+//         clearTimeout(timeOut); addItems(e.target.value.trim()); regionName().value = '';
+//         regionList().style.display = "none"; lakeSelector().style.display = 'none'; resetMap();
+//     });
+//     document.addEventListener('click', (e) => { 
+//         const input = lakeSearcher(), suggestion = sugesstionLake();
+//         if (!input.contains(e.target) && !suggestion.contains(e.target)) {
+//             suggestion.style.display = "none";
+//         }
+//     });
+//     polygonCheckbox().addEventListener('change', (e) => {
+//         if (e.target.checked) { 
+//             if (lakeLayer === null) { lakeLayer = polygonPlotter(dataLake, true); }
+//         } else { lakeLayer = clearMap(lakeLayer, lakeMap); }
+//     });
+//     depthCheckbox().addEventListener('change', async (e) => {
+//         if (e.target.checked) {
+//             if (drawSelection) { e.target.checked = false; return; } 
+//             if (window.depthGridLayer === null) {
+//                 startLoading('Plotting depth grid. Please wait...');
+//                 await new Promise(resolve => setTimeout(resolve, 0));
+//                 window.depthGridLayer = gridPlotter(dataLake, dataDepth);
+//                 stopLoading();
+//             }
+//         } else {
+//             window.depthGridLayer = clearMap(window.depthGridLayer, lakeMap);
+//             colorbar_container_grid().style.display = 'none';
+//         }
+//     });
+//     baseMap.addEventListener('change', () => {
+//         const url = baseMap.value.trim(); currentTileLayer = clearMap(currentTileLayer, lakeMap);
+//         currentTileLayer = L.tileLayer(url, {zIndex: 0});
+//         currentTileLayer.addTo(lakeMap);
+//         setTimeout(() => { lakeMap.invalidateSize(); }, 0);
+//     });
+//     vertexesBtn().addEventListener('click', async () => {
+//         gridLayer = clearMap(gridLayer, lakeMap); lakeLayer = clearMap(lakeLayer, lakeMap);
+//         colorbar_container_grid().style.display = 'none';
+//         startLoading('Generating Vertexes. Please wait...');
+//         await new Promise(resolve => setTimeout(resolve, 0));
+//         const response = await sendQuery('vertex_generator', { projectName: getState().currentProject }); stopLoading();
+//         if (response.status === "error") { alert(response.message); return; }
+//         pointLayer = clearMap(pointLayer, lakeMap); pointLayer = addPointLayer(response.content, false);
+//         if (!polygonCheckbox().checked) { polygonCheckbox().checked = true; }
+//         polygonCheckbox().dispatchEvent(new Event('change'));
+//         orthoCheckbox().checked = false; orthoCheckbox().dispatchEvent(new Event('change'));
+//         refineChecked = false; refinementCheckbox().checked = false;
+//         refinementCheckbox().dispatchEvent(new Event('change'));
+//         depthCheckbox().checked = false; depthCheckbox().dispatchEvent(new Event('change'));
+//     });
+//     refinementCheckbox().addEventListener('change', (e) => {
+//         if (e.target.checked) { 
+//             if (pointLayer === null) { 
+//                 alert("Select the button 'Get/Reset Vertexes' to create vertexes first.");
+//                 e.target.checked = false; return;
+//             }
+//             refineChecked = true; depthCheckbox().checked = false;
+//             moveCheckbox().checked = false; moveChecked = false;
+//             depthCheckbox().dispatchEvent(new Event('change'));
+//             orthoLayer = clearMap(orthoLayer, lakeMap); deleteChecked = false;
+//             orthoCheckbox().checked = false; orthoCheckbox().dispatchEvent(new Event('change'));
+//             pointContainer = []; gridLayer = clearMap(gridLayer, lakeMap);
+//             refinementContainer().style.display = 'flex';
+//             deleteChecked = false; deleteCheckbox().checked = false;
+//             deleteCheckbox().dispatchEvent(new Event('change'));
+//         } else { refinementContainer().style.display = 'none'; refineChecked = false; }
+//     });
+//     moveCheckbox().addEventListener('change', async (e) => { 
+//         const value = e.target.checked, pointCollection = [];
+//         if (value) {
+//             if (pointLayer === null) {
+//                 alert("Select the button 'Get/Reset Vertexes' to create vertexes first.");
+//                 e.target.checked = false; return;
+//             }
+//             toggleMoveMode(pointLayer, true);
+//             pointLayer.eachLayer(layer => {
+//                 const latlng = layer.getLatLng();
+//                 pointCollection.push([latlng.lat, latlng.lng]);
+//             });
+//             if (pointCollection.length === 0) { alert("No vertexes found."); return; }
+//             pointCollection.push(pointCollection[0]); 
+//             moveChecked = true; refineChecked = false; deleteChecked = false;
+//             deleteCheckbox().checked = false; refinementCheckbox().checked = false;
+//             startLoading('Regenerating vertexes. Please wait...');
+//             await new Promise(resolve => setTimeout(resolve, 0));
+//             const contents = { projectName: getState().currentProject, pointCollection: pointCollection };
+//             const response = await sendQuery('vertex_mover', contents); stopLoading();
+//             if (response.status === "error") { alert(response.message); return; }
+//             if (!polygonCheckbox().checked) { polygonCheckbox().checked = true; }
+//             lakeLayer = clearMap(lakeLayer, lakeMap); lakeLayer = polygonPlotter(response.content.polygon);
+//             pointLayer = clearMap(pointLayer, lakeMap); pointLayer = addPointLayer(response.content.point, true);
+//         } else { moveChecked = false; toggleMoveMode(pointLayer, false); }
+//     });
+//     deleteCheckbox().addEventListener('change', async (e) => {
+//         if (!e.target.checked) { deleteChecked = false; return; }
+//         if (pointLayer === null) { 
+//             alert("Select the button 'Get/Reset Vertexes' to create vertexes first.");
+//             e.target.checked = false; return;
+//         }
+//         moveCheckbox().checked = false; moveChecked = false;
+//         pointContainer = []; gridLayer = clearMap(gridLayer, lakeMap); deleteChecked = true; 
+//         orthoCheckbox().checked = false; orthoCheckbox().dispatchEvent(new Event('change'));
+//         refineChecked = false; refinementCheckbox().checked = false;
+//         refinementCheckbox().dispatchEvent(new Event('change'));
+//     });
+//     scaleSelector().addEventListener('change', (e) => {
+//         const value = e.target.value;
+//         if (value === "auto") { scaleFactor().style.display = "none"; }
+//         else { scaleFactor().style.display = "flex"; }
+//     });
+//     scaleFactor().addEventListener('input', (e) => { 
+//         const value = e.target.value;
+//         if (value === "" || !Number.isFinite(Number(value)) || Number(value) <= 0) { e.target.value = '1.0'; return; }
+//     });
+//     createGrid().addEventListener('click', async () => {
+//         if (pointLayer === null) { alert("Please generate vertexes first."); return; }
+//         const levelSelector = scaleSelector().value, pointCollection = [];
+//         if (levelSelector === "auto") { levelValue = ''; } else { levelValue = Number(scaleFactor().value); }
+//         pointLayer.eachLayer(layer => {
+//             const latlng = layer.getLatLng();
+//             pointCollection.push([latlng.lat, latlng.lng]);
+//         });
+//         if (pointCollection.length === 0) { alert("No vertexes found."); return; }
+//         pointCollection.push(pointCollection[0]);
+//         startLoading('Generating an Unstructured Grid. Please wait...');
+//         await new Promise(resolve => setTimeout(resolve, 0));
+//         const contents = { projectName: getState().currentProject, pointCollection: pointCollection, levelValue: levelValue }
+//         const response = await sendQuery('grid_creator', contents); stopLoading();
+//         if (response.status === "error") { alert(response.message); return; }
+//         gridLayer = clearMap(gridLayer, lakeMap); orthoLayer = clearMap(orthoLayer, lakeMap);
+//         gridLayer = await plotUnstructuredGrid(response.content);
+//         moveChecked = false; moveCheckbox().checked = false;
+//         refineChecked = false; refinementCheckbox().checked = false;
+//         refinementCheckbox().dispatchEvent(new Event('change'));
+//         gridOptimizationCheckbox().checked = false;
+//         gridOptimizationCheckbox().dispatchEvent(new Event('change'));
+//         depthCheckbox().checked = false; depthCheckbox().dispatchEvent(new Event('change'));
+//         orthoCheckbox().checked = false; orthoCheckbox().dispatchEvent(new Event('change'));
+//     });
+//     orthoCheckbox().addEventListener('change', async (e) => {
+//         if (e.target.checked) { 
+//             if (gridLayer === null) { 
+//                 alert("Please generate grid first."); 
+//                 orthoCheckbox().checked = false; return; 
+//             }
+//             startLoading('Generating Orthogonality Grid. Please wait...');
+//             await new Promise(resolve => setTimeout(resolve, 0));
+//             const contents = { projectName: getState().currentProject };
+//             const response = await sendQuery('grid_ortho', contents); stopLoading();
+//             if (response.status === "error") { alert(response.message); return; }
+//             window.depthGridLayer = clearMap(window.depthGridLayer, lakeMap);
+//             orthoLayer = clearMap(orthoLayer, lakeMap); depthCheckbox().checked = false;
+//             const vmin = response.content.min, vmax = response.content.max, colorKey = 'ortho';
+//             orthoLayer = L.geoJSON(response.content.data, {
+//                 pointToLayer: (feature, latlng) => {
+//                     const value = Number(feature.properties.orth);
+//                     const { r, g, b, a } = getColorFromValue(value, vmin, vmax, colorKey);
+//                     const col = `rgb(${r},${g},${b})`;
+//                     return L.circleMarker(latlng, {
+//                         color: col, fillColor: col, radius: 2, fillOpacity: a
+//                     });
+//                 },
+//                 onEachFeature: (feature, layer) => {
+//                     layer.bindTooltip(`Orthogonality: ${feature.properties.orth}`, {
+//                         sticky: true, permanent: false, direction: 'center', opacity: 1
+//                     });
+//                 }
+//             }).addTo(lakeMap);
+//             updateColorbar(vmin, vmax, 'Orthogonality', colorKey, colorbar_color_grid(), 
+//                 colorbar_title_grid(), colorbar_label_grid());
+//             colorbar_container_grid().style.display = 'block';
+//         } else { 
+//             orthoLayer = clearMap(orthoLayer, lakeMap);
+//             if (!depthCheckbox().checked) { colorbar_container_grid().style.display = 'none'; } 
+//         }
+//     });
+//     gridOptimizationCheckbox().addEventListener('change', async (e) => {
+//         if (e.target.checked) {
+//             if (gridLayer === null) { 
+//                 alert("Please generate grid first."); e.target.checked = false; return; 
+//             }
+//             gridOptimizationContainer().style.display = 'flex';
+//         } else { gridOptimizationContainer().style.display = 'none'; }
+//     });
+//     optimizeBtn().addEventListener('click', async () => {
+//         progressbarGrid().value = 0; progressTextGrid().innerText = ''; gridLayer = clearMap(gridLayer, lakeMap);
+//         if (isRunning) { alert("Grid optimization is already running."); return; }
+//         if (pointLayer === null) { alert("Please generate grid first."); return; }
+//         const iterations = Number(iterationValue().value);
+//         if (isNaN(iterations)) { alert("Please enter a valid number of iterations."); return; }
+//         const levelFrom = Number(valueFrom().value), levelTo = Number(valueTo().value);
+//         if (isNaN(levelFrom) || isNaN(levelTo) || levelFrom < 0 || levelTo < 0 || levelFrom >= levelTo) {
+//             alert("Please enter a valid value range."); return; 
+//         }
+//         leafletContainer().style.display = 'none'; plotContainer().style.display = 'flex'; compass().style.display = 'none';
+//         tableContent().style.display = 'none'; menuContent().style.display = 'none'; 
+//         optimizeCloseBtn().innerText = 'Stop'; isRunning = true;
+//         const statusRes = await sendQuery('check_grid_optimization', {projectName: getState().currentProject});
+//         if (statusRes.status === "running") {
+//             updateLog(getState().currentProject, progressbarGrid(), progressTextGrid(), 1);
+//         }
+//         const pointCollection = [];
+//         pointLayer.eachLayer(layer => {
+//             const latlng = layer.getLatLng();
+//             pointCollection.push([latlng.lat, latlng.lng]);
+//         });
+//         if (pointCollection.length === 0) { alert("No vertexes found."); return; }
+//         pointCollection.push(pointCollection[0]);
+//         const contents = { projectName: getState().currentProject, pointCollection: pointCollection,
+//             iterations: iterations, levelFrom: levelFrom, levelTo: levelTo
+//         };
+//         const start = await sendQuery('start_grid_optimization', contents);
+//         if (start.status === "error") { isRunning = false; alert(start.message); return; }
+//         updateLog(getState().currentProject, progressbarGrid(), progressTextGrid(), 1);
+//     });
+//     optimizeCloseBtn().addEventListener('click', async (e) => {
+//         const value = e.target.innerText;
+//         if (value === 'Stop') {
+//             const response = await sendQuery('grid_stop', {projectName: getState().currentProject});
+//             if (response.status === "error") { alert(response.message); }
+//             isRunning = false; e.target.innerText = 'Close and Plot Grid';
+//         } else if (value === 'Close and Plot Grid') {
+//             leafletContainer().style.display = 'flex'; plotContainer().style.display = 'none'; compass().style.display = 'flex';
+//             tableContent().style.display = 'flex'; menuContent().style.display = 'flex';
+//         }
+//     });
+//     saveGrid().addEventListener('click', async() => {
+//         if (gridLayer === null) { alert("Please generate unstructured grid first."); return; }
+//         let name = gridName().value.trim();
+//         if (name === "") { alert("Please enter a name."); return; }
+//         if (nameChecker(name)) { alert('Grid name contains invalid characters.'); return; }
+//         if (!name.toLowerCase().endsWith('.nc')) { name = name + '.nc'; }
+//         startLoading('Checking grid existence. Please wait...');
+//         await new Promise(resolve => setTimeout(resolve, 0));
+//         const contents = { projectName: getState().currentProject, gridName: name };
+//         const check = await sendQuery('grid_checker', contents); stopLoading();
+//         if (check.status === "error") { 
+//             if (!confirm(`File "${name}" already exists. Do you want to overwrite it?`)) { return; }
+//         }
+//         startLoading('Saving grid. Please wait...');
+//         const response = await sendQuery('grid_saver', contents);
+//         stopLoading(); alert(response.message);
+//     });
+//     baseMap.dispatchEvent(new Event('change'));
+// }
+
+
+// dataPreparationManager();
+// await loadLakes(); await initializeProject(); 

@@ -1,5 +1,4 @@
-import { CENTER, ZOOM, L } from "./constant.js";
-import { getPendingRequest, clearPendingRequest } from "./constant.js";
+import { CENTER, ZOOM, L, getPendingRequest, clearPendingRequest, hoverTooltip } from "./constant.js";
 
 
 export let currentMap; 
@@ -10,9 +9,7 @@ const configCrossSectionPoint = {color: 'blue', fillColor: 'yellow', radius: 4, 
     configBoundaryPoint = {color: 'red', fillColor: 'green', radius: 4, fill: true, fillOpacity: 1},
     configCrossSectionPath = {color: 'blue', weight: 2, dashArray: '5,5'},
     configBoundaryPath = {color: 'red', weight: 2};
-const hoverTooltip = L.tooltip({
-    permanent: false, direction: 'bottom', sticky: true, offset: [0, 10], className: 'custom-tooltip'
-});
+
 
 function iconAdd(iconUrl, markers, map, pointList) {
     if (!pointList || pointList.length === 0) return;
