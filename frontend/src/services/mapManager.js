@@ -5,7 +5,7 @@ import { getPendingRequest, clearPendingRequest } from "./constant.js";
 export let currentMap; 
 let currentTileLayer = null, timeCounter = null, html='', markersObs = [], markerCrossSection = [], 
     currentPoints = [], markerBoundary = [], pathCrossSection = null, pathBoundary = null, 
-    currentPointsCross = [], currentPointsBoundary = [];
+    currentPointsCross = [], currentPointsBoundary = [], waqObs = [], waqLoads = [];
 const configCrossSectionPoint = {color: 'blue', fillColor: 'yellow', radius: 4, fill: true, fillOpacity: 1},
     configBoundaryPoint = {color: 'red', fillColor: 'green', radius: 4, fill: true, fillOpacity: 1},
     configCrossSectionPath = {color: 'blue', weight: 2, dashArray: '5,5'},
@@ -15,15 +15,17 @@ const hoverTooltip = L.tooltip({
 });
 
 function iconAdd(iconUrl, markers, map, pointList) {
-    const customIcon = L.icon({
+    if (!pointList || pointList.length === 0) return;
+    const customIcon = iconUrl ? L.icon({
         iconUrl: iconUrl, iconSize: [20, 20], popupAnchor: [1, -34],
-    });
+    }) : null;
     // Add new markers
     pointList.forEach(row => {
         const [name, lat, lon] = row;
         if (!name || isNaN(lat) || isNaN(lon)) return;
+        const markerOptions = customIcon ? { icon: customIcon } : {};
         const marker = L.marker(
-            [parseFloat(lat), parseFloat(lon)], { icon: customIcon }
+            [parseFloat(lat), parseFloat(lon)], markerOptions
         ).addTo(map);
         marker.bindPopup(name); markers.push(marker);
     })
@@ -49,21 +51,20 @@ function lineAdd(pointContainer, map, lineType) {
 
 export function renderPreview(request=null) {
     currentPoints.length = 0; if (!request) return;
-    const id = request.requestId;
-    if (id === 'pickPoint' || id === 'updateObsPoint') {
+    const type = request.requestId;
+    if (type === 'pickPoint' || type === 'updateObsPoint') {
         const iconUrl = `/src_frontend/images/station.png?v=${Date.now()}`;
         iconAdd(iconUrl, markersObs, currentMap, request.content.rows);
-        if (id === 'updateObsPoint') alert('Observation points are updated.\nSee the map for details.');
-    } else if (id === 'pickPath') {
-        const pointList = request.content.rows;
-        const lineType = request.content.lineType;
+        if (type === 'updateObsPoint') alert('Observation points are updated.\nSee the map for details.');
+    } else if (type === 'pickPath') {
+        const pointList = request.content.rows, lineType = request.content.lineType;
         if (!pointList || pointList.length === 0) return;
         lineAdd(pointList, currentMap, lineType);
-    } else if (id === 'updateObsPoint') {
+    } else if (type === 'updateObsPoint') {
         const pointList = request.content.rows, lineType = request.lineType;
         if (!pointList || pointList.length === 0) return;
         lineAdd(pointList, currentMap, lineType);
-    } else if (id === 'clearCrossSection') {
+    } else if (type === 'clearCrossSection') {
         if (pathCrossSection) {
             pathCrossSection.remove(); pathCrossSection = null;
         }
@@ -72,7 +73,7 @@ export function renderPreview(request=null) {
             markerCrossSection.length = 0;
         }
         currentPointsCross.length = 0; currentPoints.length = 0;
-    } else if (id === 'clearBoundary') {
+    } else if (type === 'clearBoundary') {
         if (pathBoundary) {
             pathBoundary.remove(); pathBoundary = null;
         }
@@ -81,15 +82,26 @@ export function renderPreview(request=null) {
             markerBoundary.length = 0;
         }
         currentPointsBoundary.length = 0; currentPoints.length = 0;    
-           
+    } else if (type === 'waqPoint' || type === 'loadsPoint' 
+        || type === 'waqUpdate' || type === 'loadsUpdate') {
+        let iconUrl = null;
+        if (type === 'waqPoint' || type === 'waqUpdate') {
+            iconUrl =`/src_frontend/images/waq_obs.png?v=${Date.now()}`
+        } else {
+            iconUrl =`/src_frontend/images/waq_loads.png?v=${Date.now()}`
+        }
+        if (type === 'waqUpdate') {
+            waqObs.forEach(marker => marker.remove()); waqObs.length = 0;
+            iconAdd(iconUrl, waqObs, currentMap, request.content.rows);
+        } else if (type === 'loadsUpdate') {
+            waqLoads.forEach(marker => marker.remove()); waqLoads.length = 0; 
+            iconAdd(iconUrl, waqLoads, currentMap, request.content.rows);
+        }
         
+
+
+
     }
-
-
-
-
-
-
 }
 
 export function initMap(mapId='map') { 
@@ -123,6 +135,7 @@ export function initMap(mapId='map') {
     currentMap.on('mousemove', (e) => { 
         const req = getPendingRequest();
         if (!req) return;
+        if (req.requestId === 'waqUpdate' || req.requestId === 'loadsUpdate') return;
         mapContainer.style.cursor = 'crosshair';
         if (req.requestId === 'pickLocation') { html = 'Pick average latitude';
         } else if (req.requestId === 'pickPoint') { html = 'Select an HYD point';
@@ -133,12 +146,13 @@ export function initMap(mapId='map') {
             - Number of points must be at least 2.<br>
             `;
         } else if (req.requestId === 'pickSource') { html = 'Select a HYD source';
+        } else if (req.requestId === 'waqPoint') { html = 'Select a WAQ observation point';
+        } else if (req.requestId === 'loadsPoint') { html = 'Select a WAQ load point';
+
+
         } else if (req.requestId === 'updateObsPoint') { 
             mapContainer.style.cursor = 'grab'; return;
         }
-        
-
-
         hoverTooltip.setLatLng(e.latlng).setContent(html);
         currentMap.openTooltip(hoverTooltip);
     });
@@ -147,7 +161,8 @@ export function initMap(mapId='map') {
         const req = getPendingRequest(); if (!req) return;
         if (req.requestId === 'pickLocation') { 
             result = Number(e.latlng.lat).toFixed(2);
-        } else if (req.requestId === 'pickPoint' || req.requestId === 'pickSource') { result = e.latlng;
+        } else if (req.requestId === 'pickPoint' || req.requestId === 'pickSource'
+            || req.requestId === 'waqPoint' || req.requestId === 'loadsPoint') { result = e.latlng;
         } else if (req.requestId === 'pickPath') {
             const isCross = req.lineType === 'crossSection';
             const points = isCross ? currentPointsCross : currentPointsBoundary;
@@ -164,12 +179,22 @@ export function initMap(mapId='map') {
             if (points.length < 2) return;
             const latlngs = points.map(p => [p.lat, p.lng]); 
             // Draw/update line
-            if (line) {
-                line.setLatLngs(latlngs); line.setStyle(configPath);
+            if (line) { line.setLatLngs(latlngs); line.setStyle(configPath);
             } else {
                 line = L.polyline(latlngs, configPath).addTo(currentMap);
                 if (isCross) { pathCrossSection = line; } else { pathBoundary = line; }
             }
+        // } else if (req.requestId === 'waqPoint') {
+        //     result = e.latlng;
+        //     const marker = L.marker(
+        //         [e.latlng.lat, e.latlng.lng]
+        //     ).addTo(currentMap);
+        //     marker.bindPopup('Observation point');
+        
+
+
+
+
         }
 
 

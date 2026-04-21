@@ -28,8 +28,10 @@ async function waqComponents() {
     });
     obj.scenarioSelector.addEventListener('change', async() => {
         const projectName = obj.scenarioSelector.value;
-        if (!projectName) {
-            obj.progressText.innerText = ""; obj.progressbar.value = 0; return;
+        if (!projectName || projectName === '') {
+            obj.progressText.innerText = ""; obj.progressbar.value = 0;
+            obj.waqSelector.value = ''; obj.waqSelector.innerHTML = defaultOption;
+            return;
         }
         // Work with WAQ simulation
         if (logIntervalWAQ) { clearInterval(logIntervalWAQ); logIntervalWAQ = null; }

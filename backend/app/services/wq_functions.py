@@ -126,7 +126,7 @@ def wqPreparation(parameters:dict, key:str, output_folder:str, includes_folder:s
         The path to the config file for the water quality simulation.
     """
     try:
-        sample_path = os.path.normpath(os.path.join(SOURCE_BACKEND, 'samples', 'waq'))
+        sample_path = os.path.normpath(os.path.join(SOURCE_BACKEND, 'templates', 'waq'))
         params_INP, params_INC, model_type = {}, {}, {"model_type": key}
         grid_path = os.path.normpath(os.path.join(os.path.dirname(parameters['hyd_path']), 'FlowFM_waqgeom.nc'))
         data = xr.open_dataset(grid_path, chunks={'time': 1}, decode_times=False)

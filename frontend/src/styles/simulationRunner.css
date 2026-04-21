@@ -29,7 +29,7 @@ button {
   border: none; border-radius: 6px; cursor: pointer; width: auto;
   transition: background-color 0.3s; white-space: nowrap;
 }
-button:hover { background-color: #00264d; }
+button:hover { background-color: #065baf; }
 .progress-container {
   display: flex; flex-direction: column; align-items: center; width: 100%;
 }

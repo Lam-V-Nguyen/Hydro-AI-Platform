@@ -64,7 +64,7 @@ export function iframeConnector(objBtn, objtarget, type, content = null, lineTyp
             }
             window.addEventListener('message', listener);
             const contents = {
-                id: 'hyd', requestId: type, content: freshData, lineType
+                id: 'hyd-waq', requestId: type, content: freshData, lineType
             }
             window.parent.postMessage( contents, '*');
         });
@@ -85,8 +85,6 @@ export function iframeConnector(objBtn, objtarget, type, content = null, lineTyp
             if (name === '') {
                 if (lineType === 'crossSection') { name = 'Cross-Section'; } 
                 else if (lineType === 'boundary') { name = 'Boundary'; }
-                else if (lineType === 'obsPoint') { name = 'Obs'; }
-                else if (lineType === 'loadsPoint') { name = 'Load'; }
                 objtarget[0].value = name;
             }
             const table = objtarget[1], arr = []; deleteTable(table);
@@ -102,6 +100,25 @@ export function iframeConnector(objBtn, objtarget, type, content = null, lineTyp
                 const defaultOption = `<option value="" selected>--- No selected ---</option>`;
                 objtarget[2].innerHTML = defaultOption + options;
             }
+        } else if (type === 'waqPoint' || type === 'loadsPoint') {
+            const lat = Number(result.lat).toFixed(12);
+            const lon = Number(result.lng).toFixed(12);            
+            const table = objtarget[1];
+            if (freshData.rows.length === 0) { deleteTable(table); } 
+            let name = objtarget[0].value.trim();
+            if (name === '') { 
+                if (type === 'waqPoint') {
+                    name = `Obs_${Number(lat).toFixed(2)}_${Number(lon).toFixed(2)}`;
+                } else if (type === 'loadsPoint') {
+                    name = `Loads_${Number(lat).toFixed(2)}_${Number(lon).toFixed(2)}`; 
+                }
+            }
+            addRowToTable(table, [name, lat, lon], true);
+        // } else if (type === 'waqUpdate' || type === 'loadsUpdate') {
+
+
+
+
 
 
 
@@ -148,22 +165,6 @@ export function fillTable(data2D, table, clear=true){
         fragment.appendChild(tr);
     }
     tbody.appendChild(fragment);
-
-    // // Add new rows to table
-    // const numRows = data2D.length;
-    // const numCols = data2D[0].length;
-    // for (let i = 0; i < numRows; i++) {
-    //     const row = document.createElement("tr");
-    //     for (let j = 0; j < numCols; j++) {
-    //         const td = document.createElement("td");
-    //         const input = document.createElement("input");
-    //         input.type = "text";
-    //         input.value = data2D[i][j];
-    //         td.appendChild(input);
-    //         row.appendChild(td);
-    //     }
-    //     tbody.appendChild(row);
-    // }
 }
 
 export function getDataFromTable(table, isZeroIndexString=false){
@@ -330,16 +331,15 @@ export function copyPaste(table, nCols){
     });
 }
 
-export function addRowToTable(table, list){
+export function addRowToTable(table, list, fillValue=false){
     const tbody = table.querySelector("tbody");
     const tr = document.createElement('tr');
     list.forEach(text => {
         const td = document.createElement('td');
         const input = document.createElement('input');
-        input.type = 'text';
-        input.placeholder = text;
-        td.appendChild(input);
-        tr.appendChild(td);
+        input.type = 'text'; input.placeholder = text;
+        if (fillValue) input.value = text;
+        td.appendChild(input); tr.appendChild(td);
     });
     tbody.appendChild(tr);
 }

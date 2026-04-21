@@ -1,24 +1,17 @@
 import { setupTabs } from "./tabManager.js";
 import { getProjectList, jsonLoader, fillTable, deleteTable, addRowToTable,
-    nameChecker, iframeConnector
+    nameChecker, iframeConnector, getDataFromTable, copyPaste, removeRowFromTable
 } from "./commonFunctions.js";
 import { projectRender } from "./projectManager.js";
+import { toUTC } from "./projectSaver.js";
 
-// let  folderName='', , pointSelected=null, nPoints=0,
-//     , n_layers='', , , nLoads=0,
-//       
-//      , useforsTo=[];
-
-let projectSelected = [], subKey = '', 
+let projectSelected = [], subKey = '', folderName = '', useforsTo = [], 
     volPath = '', timeStep1 = 0, timeStep2 = 0, nSegments = 0, attrPath_ =' ',
     exchange_x = 0, exchange_z = 0, exchange_y = 0, ptrPath = '', areaPath = '',
     flowPath = '', lengthPath = '', srfPath = '', vdfPath = '', temPath = '',
     salPath = '', usefors = null, initial_area = null, scheme = null, maxiter = null,
     tolerance = null, useforsFrom = [], waqContent = [], from_initial = null,
-    initial_value = null, to_usefors = null, from_usesfor=null;
-
-
-
+    initial_value = null, to_usefors = null, from_usesfor = null, n_layers='';
 
 const $ = (id) => document.getElementById(id);
 const obj = {
@@ -30,6 +23,7 @@ const obj = {
     nLayers: $('n-layer'), startTime: $('start-time'), stopTime: $('stop-time'),
     sourcesContainer: $('wq-sources-container'), sourcesTable: $('wq-sources-table'),
     obsPointName: $('wq-obs-point'), obsPointPicker: $('wq-obs-picker'),
+    obsPointUpdate: $('wq-obs-update'), loadsUpdate: $('wq-loads-update'),
     obsPointRemove: $('wq-obs-remove'), obsPointTable: $('wq-obs-table'),
     loadsPointName: $('wq-loads-point'), loadsPointPicker: $('wq-loads-picker'),
     loadsPointRemove: $('wq-loads-remove'), loadsPointTable: $('wq-loads-table'),
@@ -70,244 +64,229 @@ async function waqManager(){
     const content = { id: 'waq-map', title: 'Water Quality Scenario Map' };
     if (!hasMap) window.parent.postMessage({ type: 'addMapWidget', content: content }, '*');
     // Update location
-    iframeConnector(obj.obsPointPicker, obj.latitude, 'waqPoint');
-
-//     obsPointPicker().addEventListener('click', () => {
-//         pointSelected = 'obsPoint';
-//         const obsPoints = getDataFromTable(obsPointTable(), true);
-//         const loadsPoints = getDataFromTable(loadsPointTable(), true);
-//         window.parent.postMessage({type: 'pickPoint', data: [loadsPoints, obsPoints], pointType: 'waqPoint'}, '*');
-//     });
-//     loadsPointPicker().addEventListener('click', () => {
-//         pointSelected = 'loadsPoint'; 
-//         const obsPoints = getDataFromTable(obsPointTable(), true);
-//         const loadsPoints = getDataFromTable(loadsPointTable(), true);
-//         window.parent.postMessage({type: 'pickPoint', data: [obsPoints, loadsPoints], pointType: 'loadsPoint'}, '*');
-//     });
-//     // Copy and paste to tables
-//     copyPaste(obsPointTable(), 3); copyPaste(loadsPointTable(), 3);
-//     copyPaste(timeTable(), 4); copyPaste(sourcesTable(), 3);
-//     // Update when user change Combobox
-//     substanceChanger(waqSelector(), chemicalSelector(), chemicalName(), 'wq-chemical');
-//     substanceChanger(waqSelector(), physicalSelector(), physicalName(), 'wq-physical');
-//     substanceChanger(waqSelector(), microbialSelector(), microbialName(), 'wq-microbial');
-//     // Add new row to table
-//     timeTableAddRow().addEventListener('click', () => {
-//         deleteTable(timeTable()); addRowToTable(timeTable(), ['YYYY-MM-DD HH:MM:SS', 'PointName', 'Substance', 'Value']);
-//     });
-//     // Delete table
-//     removeTable().addEventListener('click', () => { 
-//         deleteTable(timeTable()); timePreview().value = ''; timePreviewContainer().style.display = 'none';
-//         addRowToTable(timeTable(), ['YYYY-MM-DD HH:MM:SS', 'PointName', 'Substance', 'Value']);
-//     });
-//     // Upload CSV
-//     csvTable().addEventListener('click', () => { 
-//         inputFile().click();
-//         inputFile().addEventListener('change', () => {
-//             if (inputFile().files.length > 0) {
-//                 const file = inputFile().files[0];
-//                 const reader = new FileReader();
-//                 reader.onload = (e) => {
-//                     const text = e.target.result;
-//                     // Get the first row
-//                     const firstLine = text.split(/\r?\n/)[0];
-//                     const columns = firstLine.split(/\t|,/);
-//                     if (columns.length !== 4) { 
-//                     alert(`The current table has ${columns.length} columns.\nNumber of columns must be 4.`); 
-//                         inputFile().value = ''; return; 
-//                     }
-//                     const rows = text.split(/\r?\n/).slice(1).filter(row => row.trim() !== ''); // Split into rows 
-//                     const data_arr = rows.map(row => row.split(/\t|,/).slice(0, 4)); // Split into columns
-//                     fillTable(data_arr, timeTable(), true);
-//                     inputFile().value = "";
-//                 };
-//                 reader.readAsText(file, 'UTF-8');
-//             }
-//         }, {once: true});
-//     });
-//     // Remove point from table
-//     obsPointRemove().addEventListener('click', () => {
-//         const name = obsPointName().value.trim();
-//         if (name === '') { alert('Please enter name of observation point from list to remove.'); return; }
-//         removeRowFromTable(obsPointTable(), name); obsPointName().value = '';
-//     });
-//     loadsPointRemove().addEventListener('click', () => {
-//         const name = loadsPointName().value.trim();
-//         if (name === '') { alert('Please enter name of loads point from list to remove.'); return; }
-//         removeRowFromTable(loadsPointTable(), name);
-//         loadsPointName().value = ''; 
-//     });
-//     // Get data from main page
-//     window.addEventListener('message', (event) => {
-//         if (event.data.type === 'pointPicked') {
-//             const lat = Number(event.data.content.lat).toFixed(12);
-//             const lon = Number(event.data.content.lng).toFixed(12);
-//             if (pointSelected === 'obsPoint') {
-//                 let name = ''; nPoints++;
-//                 // Define name of point
-//                 if (obsPointName().value.trim() !== '') name = obsPointName().value.trim();
-//                 else name = `Obs_${nPoints}`;
-//                 const data_arr = [[name, lat, lon]];
-//                 fillTable(data_arr, obsPointTable(), false);
-//             }
-//             else if (pointSelected === 'loadsPoint') {
-//                 let name = ''; nLoads++;
-//                 if (loadsPointName().value.trim() !== '') name = loadsPointName().value.trim();
-//                 else name = `Load_${nLoads}`; 
-//                 const data_arr = [[name, lat, lon]];
-//                 fillTable(data_arr, loadsPointTable(), false);
-//             }
-//         }
-//     });
-//     // Check function to process time-series
-//     document.querySelectorAll('.wq-process-time-series').forEach(btn => {
-//         btn.addEventListener('click', async () => {
-//             const loadsData = getDataFromTable(loadsPointTable(), true);
-//             if (loadsData.rows.length === 0) {
-//                 alert("No loads data found in the table.\nPlease check the load table in tab 'Point Settings'."); 
-//                 timePreviewContainer().style.display = 'none'; return; 
-//             }
-//             const timeData = getDataFromTable(timeTable(), false);
-//             if (timeData.rows.length === 0) {
-//                 alert("No time-series data found in the table.\nPlease check the table 'Time-Series Preparation'."); 
-//                 timePreviewContainer().style.display = 'none'; return; 
-//             }
-//             if (btn.id === 'wq-chemical') {
-//                 subKey = chemicalSelector().value; folderName = chemicalName().value.trim();
-//                 initial_area = initialAreaChemical(); usefors = usesforChemical();
-//                 to_usefors = usesforToChemical(); initial_value = initialToChemical();
-//             } else if (btn.id === 'wq-physical') {
-//                 subKey = physicalSelector().value; folderName = physicalName().value.trim();
-//                 initial_area = initialAreaPhysical(); usefors = usesforPhysical();
-//                 to_usefors = usesforToPhysical(); initial_value = initialToPhysical();
-//             } else if (btn.id === 'wq-microbial') {
-//                 subKey = microbialSelector().value; folderName = microbialName().value.trim();
-//                 initial_area = initialAreaMirobial(); usefors = usesforMicrobial();
-//                 to_usefors = usesforToMirobial(); initial_value = initialToMirobial();
-//             }
-//             timePreview().value = ''; initial_area.value = ''; usefors.value = ''; initial_value.value = '0';
-//             if (subKey === '') { alert('Please specify type of simulation.'); return; }
-//             if (folderName === '') { alert('Please specify name of substance.'); return; }
-//             const data = await sendQuery('wq_time_to_waq', { folderName: folderName, 
-//                 loadsData: loadsData.rows, timeData: timeData.rows });
-//             if (data.status === "error") {
-//                 timePreviewContainer().style.display = 'none'; 
-//                 timePreview().value = ''; alert(data.message); return;
-//             };
-//             timePreview().value = data.content; useforsTo = data.tos;
-//             timePreviewContainer().style.display = 'flex'; to_usefors.innerHTML = '';
-//             data.tos.forEach(item => {
-//                 const option = document.createElement('option');
-//                 option.value = item; option.text = item;
-//                 to_usefors.add(option);
-//             });
-//         });
-//     });
-//     // Update USEFORS data
-//     document.querySelectorAll('.wq-usefors').forEach(btn => {
-//         btn.addEventListener('click', () => {
-//             if (btn.dataset.info === 'physical') {
-//                 from_usesfor = usesforFromPhysical(); to_usefors = usesforToPhysical();
-//                 usefors = usesforPhysical();
-//             } else if (btn.dataset.info === 'chemical') {
-//                 from_usesfor = usesforFromChemical(); to_usefors = usesforToChemical();
-//                 usefors = usesforChemical();
-//             } else if (btn.dataset.info === 'microbial') {
-//                 from_usesfor = usesforFromMirobial(); to_usefors = usesforToMirobial();
-//                 usefors = usesforMicrobial();
-//             }
-//             const txt = `USEFOR '${from_usesfor.value}' '${to_usefors.value}'`;
-//             let content = usefors.value;
-//             content = content === '' ? txt : content + '\n' + txt;
-//             // Split and remove duplicates
-//             usefors.value = [...new Set(content.split('\n'))].join('\n');
-//         });
-//     });
-//     // Update initial data
-//     document.querySelectorAll('.wq-initial').forEach(btn => {
-//         btn.addEventListener('click', () => {
-//             if (btn.dataset.info === 'physical') {
-//                 from_initial = initialFromPhysical(); initial_value = initialToPhysical();
-//                 initial_area = initialAreaPhysical();
-//             } else if (btn.dataset.info === 'chemical') {
-//                 from_initial = initialFromChemical(); initial_value = initialToChemical();
-//                 initial_area = initialAreaChemical();
-//             } else if (btn.dataset.info === 'microbial') {
-//                 from_initial = initialFromMirobial(); initial_value = initialToMirobial();
-//                 initial_area = initialAreaMirobial();
-//             }
-//             const txt = `${from_initial.value} ${initial_value.value}`;
-//             let content = initial_area.value;
-//             content = content === '' ? txt : content + '\n' + txt;
-//             content = [...new Set(content.split('\n'))].join('\n');
-//             initial_area.value = content;
-//         });
-//     });
-//     // Save and run water quality simulation
-//     document.querySelectorAll('.wq-simulation').forEach(btn => {
-//         btn.addEventListener('click', async () => {
-//             const name = projectName().value.trim();
-//             if (!name || name === '') { alert('Please define project.'); return; }
-//             const hydPath = hydFilename().value.trim();
-//             if (!hydPath || hydPath === '') { alert('Please define hydrological (*.hyd) file.'); return; }
-//             const start = startTime().value, stop = stopTime().value;
-//             if (!start || start === '' || !stop || stop === '') { alert("The fields 'Start time' and 'Stop time' are required"); return; }
-//             const data = await sendQuery('select_hyd', {projectName: name});
-//             if (data.status === "error") { alert(data.message); return; }
-//             timeStep1 = data.content.time_step1; timeStep2 = data.content.time_step2;
-//             attrPath_ = data.content.attr_path; volPath = data.content.vol_path;
-//             nSegments = data.content.n_segments; ptrPath = data.content.ptr_path;
-//             exchange_x = data.content.exchange_x; exchange_z = data.content.exchange_z;
-//             if (data.content.exchange_y) { exchange_y = data.content.exchange_y; }
-//             flowPath = data.content.flow_path; lengthPath = data.content.length_path;
-//             areaPath = data.content.area_path; n_layers = nLayers().value.trim();
-//             if (!n_layers || n_layers === '') { alert("The field 'Nr. sigma layers' is required"); return; }
-//             srfPath = data.content.srf_path; vdfPath = data.content.vdf_path;
-//             temPath = data.content.tem_path; salPath = data.content.sal_path;
-//             const sourceTable = getDataFromTable(sourcesTable(), true);         
-//             const obsTable = getDataFromTable(obsPointTable(), true);
-//             const loadTable = getDataFromTable(loadsPointTable(), true);
-//             if (loadTable.rows.length === 0) { alert('No loads data found. Please add at least one load.'); return; }
-//             const timeData = timePreview().value.trim();
-//             if (!timeData || timeData === '') { alert("Post-processing field is required"); return; }
-//             if (btn.dataset.info === 'chemical') {
-//                 subKey = chemicalSelector().value; folderName = chemicalName().value.trim();
-//                 useforsFrom = usesforFromChemical(); useforsTo = usesforToChemical();
-//                 usefors = usesforChemical(); initial_area = initialAreaChemical();
-//                 maxiter = maxInterChemical(); tolerance = toleranceChemical(); scheme = schemeChemical(); 
-//             } else if (btn.dataset.info === 'physical') {
-//                 subKey = physicalSelector().value; folderName = physicalName().value.trim();
-//                 useforsFrom = usesforFromPhysical(); useforsTo = usesforToPhysical();
-//                 usefors = usesforPhysical(); initial_area = initialAreaPhysical();
-//                 maxiter = maxInterPhysical(); tolerance = tolerancePhysical(); scheme = schemePhysical();
-//             } else if (btn.dataset.info === 'microbial') {
-//                 subKey = microbialSelector().value; folderName = microbialName().value.trim();
-//                 useforsFrom = usesforFromMirobial(); useforsTo = usesforToMirobial();
-//                 usefors = usesforMicrobial(); initial_area = initialAreaMirobial();
-//                 maxiter = maxInterMirobial(); tolerance = toleranceMirobial(); scheme = schemeMicrobial();
-//             }
-//             if (!folderName || folderName === '') { alert("Name of substance is required"); return; }
-//             const userforValue = usefors.value.trim();
-//             if (userforValue === '') { alert("The field 'Assigned Substance' must has at least one value"); return; }
-//             const valueFrom = Array.from(useforsFrom.options).map(option => option.value);
-//             const valueTo = Array.from(useforsTo.options).map(option => option.value);
-//             const initialArea = initial_area.value.trim();
-//             if (maxiter.value === '' || parseInt(maxiter.value) <= 0) { alert('Please define maximum number of iterations.'); return; }
-//             if (tolerance.value === '' || parseFloat(tolerance.value) <= 0) { alert('Please define tolerance.'); return; }
-//             const params = { mode: btn.dataset.info, projectName: name, key: subKey, folderName: folderName,
-//                 hydName: hydPath, nLayers: n_layers, timeStep1: timeStep1, timeStep2: timeStep2, nSegments: nSegments,
-//                 startTime: toUTC(start), stopTime: toUTC(stop), exchangeY: exchange_y, exchangeX: exchange_x,
-//                 exchangeZ: exchange_z, attrPath: attrPath_, volPath: volPath, ptrPath: ptrPath, areaPath: areaPath, 
-//                 flowPath: flowPath, lengthPath: lengthPath, srfPath: srfPath, vdfPath: vdfPath, temPath: temPath,
-//                 salPath: salPath, useforsFrom: valueFrom, useforsTo: valueTo, usefors: userforValue,
-//                 sources: sourceTable.rows, obsPoints: obsTable.rows, loadsData: loadTable.rows, timeTable: timeData, 
-//                 initial: initialArea, maxiter: maxiter.value, tolerance: tolerance.value, scheme: scheme.value
-//             }
-//             const waq_config = await sendQuery('waq_config_writer', params);
-//             if (waq_config.status === 'error') { alert(waq_config.message); return; }
-//             alert(waq_config.message);
-//         });
-//     });
+    iframeConnector(obj.obsPointPicker, [obj.obsPointName, obj.obsPointTable],
+        'waqPoint', () => getDataFromTable(obj.obsPointTable, true)
+    );
+    iframeConnector(obj.loadsPointPicker, [obj.loadsPointName, obj.loadsPointTable],
+        'loadsPoint', () => getDataFromTable(obj.loadsPointTable, true)
+    );
+    iframeConnector(obj.obsPointUpdate, null, 'waqUpdate', 
+        () => getDataFromTable(obj.obsPointTable, true)
+    );
+    iframeConnector(obj.loadsUpdate, null, 'loadsUpdate', 
+        () => getDataFromTable(obj.loadsPointTable, true)
+    );
+    // Copy and paste to tables
+    copyPaste(obj.obsPointTable, 3); copyPaste(obj.loadsPointTable, 3);
+    copyPaste(obj.timeTable, 4); copyPaste(obj.sourcesTable, 3);
+    // Remove point from table
+    obj.obsPointRemove.addEventListener('click', () => {
+        const name = obj.obsPointName.value.trim();
+        if (name === '') { alert('Please enter name of observation point from list to remove.'); return; }
+        removeRowFromTable(obj.obsPointTable, name); obj.obsPointName.value = '';
+    });
+    obj.loadsPointRemove.addEventListener('click', () => {
+        const name = obj.loadsPointName.value.trim();
+        if (name === '') { alert('Please enter name of loads point from list to remove.'); return; }
+        removeRowFromTable(obj.loadsPointTable, name); obj.loadsPointName.value = ''; 
+    });
+    // Update when user change Combobox
+    substanceChanger(obj.waqSelector, obj.chemicalSelector, obj.chemicalName, 'wq-chemical');
+    substanceChanger(obj.waqSelector, obj.physicalSelector, obj.physicalName, 'wq-physical');
+    substanceChanger(obj.waqSelector, obj.microbialSelector, obj.microbialName, 'wq-microbial');
+    // Add new row to table
+    obj.timeTableAddRow.addEventListener('click', () => {
+        addRowToTable(obj.timeTable, ['YYYY-MM-DD HH:MM:SS', 'PointName', 'Substance', 'Value']);
+    });
+    // Delete table
+    obj.removeTable.addEventListener('click', () => { 
+        deleteTable(obj.timeTable); obj.timePreview.value = ''; 
+        obj.timePreviewContainer.style.display = 'none';
+        addRowToTable(obj.timeTable, ['YYYY-MM-DD HH:MM:SS', 'PointName', 'Substance', 'Value']);
+    });
+    // Upload CSV
+    obj.csvTable.addEventListener('click', () => { 
+        obj.inputFile.click();
+        obj.inputFile.addEventListener('change', () => {
+            if (obj.inputFile.files.length > 0) {
+                const file = obj.inputFile.files[0];
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const text = e.target.result;
+                    // Get the first row
+                    const firstLine = text.split(/\r?\n/)[0];
+                    const columns = firstLine.split(/\t|,/);
+                    if (columns.length !== 4) { 
+                    alert(`The current table has ${columns.length} columns.\nNumber of columns must be 4.`); 
+                        obj.inputFile.value = ''; return; 
+                    }
+                    const rows = text.split(/\r?\n/).slice(1).filter(row => row.trim() !== ''); // Split into rows 
+                    const data_arr = rows.map(row => row.split(/\t|,/).slice(0, 4)); // Split into columns
+                    fillTable(data_arr, obj.timeTable, true);
+                    obj.inputFile.value = "";
+                };
+                reader.readAsText(file, 'UTF-8');
+            }
+        }, {once: true});
+    });
+    // Check function to process time-series
+    document.querySelectorAll('.wq-process-time-series').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const loadsData = getDataFromTable(obj.loadsPointTable, true);
+            if (loadsData.rows.length === 0) {
+                alert("No loads data found in the table.\nPlease check the load table in tab 'Point Settings'."); 
+                obj.timePreviewContainer.style.display = 'none'; return; 
+            }
+            const timeData = getDataFromTable(obj.timeTable, false);
+            if (timeData.rows.length === 0) {
+                alert("No time-series data found in the table.\nPlease check the table 'Time-Series Preparation'."); 
+                obj.timePreviewContainer.style.display = 'none'; return; 
+            }
+            if (btn.id === 'wq-chemical') {
+                subKey = obj.chemicalSelector.value; folderName = obj.chemicalName.value.trim();
+                initial_area = obj.initialAreaChemical; usefors = obj.usesforChemical;
+                to_usefors = obj.usesforToChemical; initial_value = obj.initialToChemical;
+            } else if (btn.id === 'wq-physical') {
+                subKey = obj.physicalSelector.value; folderName = obj.physicalName.value.trim();
+                initial_area = obj.initialAreaPhysical; usefors = obj.usesforPhysical;
+                to_usefors = obj.usesforToPhysical; initial_value = obj.initialToPhysical;
+            } else if (btn.id === 'wq-microbial') {
+                subKey = obj.microbialSelector.value; folderName = obj.microbialName.value.trim();
+                initial_area = obj.initialAreaMirobial; usefors = obj.usesforMicrobial;
+                to_usefors = obj.usesforToMirobial; initial_value = obj.initialToMirobial;
+            }
+            obj.timePreview.value = ''; initial_area.value = ''; usefors.value = ''; initial_value.value = '0';
+            if (subKey === '') { alert('Please specify type of simulation.'); return; }
+            if (folderName === '') { alert('Please specify name of substance.'); return; }
+            const data = await jsonLoader('wq_time_to_waq', { folderName: folderName, 
+                loadsData: loadsData.rows, timeData: timeData.rows });
+            if (data.status === "error") {
+                obj.timePreviewContainer.style.display = 'none'; 
+                obj.timePreview.value = ''; alert(data.message); return;
+            };
+            obj.timePreview.value = data.content; useforsTo = data.tos;
+            obj.timePreviewContainer.style.display = 'flex'; to_usefors.innerHTML = '';
+            data.tos.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item; option.text = item;
+                to_usefors.add(option);
+            });
+        });
+    });
+    // Update USEFORS data
+    document.querySelectorAll('.wq-usefors').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (btn.dataset.info === 'physical') {
+                from_usesfor = obj.usesforFromPhysical; 
+                to_usefors = obj.usesforToPhysical;
+                usefors = obj.usesforPhysical;
+            } else if (btn.dataset.info === 'chemical') {
+                from_usesfor = obj.usesforFromChemical; 
+                to_usefors = obj.usesforToChemical;
+                usefors = obj.usesforChemical;
+            } else if (btn.dataset.info === 'microbial') {
+                from_usesfor = obj.usesforFromMirobial; 
+                to_usefors = obj.usesforToMirobial;
+                usefors = obj.usesforMicrobial;
+            }
+            const txt = `USEFOR '${from_usesfor.value}' '${to_usefors.value}'`;
+            let content = usefors.value;
+            content = content === '' ? txt : content + '\n' + txt;
+            // Split and remove duplicates
+            usefors.value = [...new Set(content.split('\n'))].join('\n');
+        });
+    });
+    // Update initial data
+    document.querySelectorAll('.wq-initial').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (btn.dataset.info === 'physical') {
+                from_initial = obj.initialFromPhysical; 
+                initial_value = obj.initialToPhysical;
+                initial_area = obj.initialAreaPhysical;
+            } else if (btn.dataset.info === 'chemical') {
+                from_initial = obj.initialFromChemical; 
+                initial_value = obj.initialToChemical;
+                initial_area = obj.initialAreaChemical;
+            } else if (btn.dataset.info === 'microbial') {
+                from_initial = obj.initialFromMirobial; 
+                initial_value = obj.initialToMirobial;
+                initial_area = obj.initialAreaMirobial;
+            }
+            const txt = `${from_initial.value} ${initial_value.value}`;
+            let content = initial_area.value;
+            content = content === '' ? txt : content + '\n' + txt;
+            content = [...new Set(content.split('\n'))].join('\n');
+            initial_area.value = content;
+        });
+    });
+    // Save and run water quality simulation
+    document.querySelectorAll('.wq-simulation').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const name = obj.projectName.value.trim();
+            if (!name || name === '') { alert('Please define project.'); return; }
+            const hydPath = obj.hydFilename.value.trim();
+            if (!hydPath || hydPath === '') { alert('Please define hydrological (*.hyd) file.'); return; }
+            const start = obj.startTime.value, stop = obj.stopTime.value;
+            if (!start || start === '' || !stop || stop === '') { alert("The fields 'Start time' and 'Stop time' are required"); return; }
+            const data = await jsonLoader('select_hyd', { projectName: name });
+            if (data.status === "error") { alert(data.message); return; }
+            timeStep1 = data.content.time_step1; timeStep2 = data.content.time_step2;
+            attrPath_ = data.content.attr_path; volPath = data.content.vol_path;
+            nSegments = data.content.n_segments; ptrPath = data.content.ptr_path;
+            exchange_x = data.content.exchange_x; exchange_z = data.content.exchange_z;
+            if (data.content.exchange_y) { exchange_y = data.content.exchange_y; }
+            flowPath = data.content.flow_path; lengthPath = data.content.length_path;
+            areaPath = data.content.area_path; n_layers = obj.nLayers.value.trim();
+            if (!n_layers || n_layers === '') { alert("The field 'Nr. sigma layers' is required"); return; }
+            srfPath = data.content.srf_path; vdfPath = data.content.vdf_path;
+            temPath = data.content.tem_path; salPath = data.content.sal_path;
+            const sourceTable = getDataFromTable(obj.sourcesTable, true);         
+            const obsTable = getDataFromTable(obj.obsPointTable, true);
+            const loadTable = getDataFromTable(obj.loadsPointTable, true);
+            if (loadTable.rows.length === 0) { alert('No loads data found. Please add at least one load.'); return; }
+            const timeData = obj.timePreview.value.trim();
+            if (!timeData || timeData === '') { alert("Post-processing field is required"); return; }
+            if (btn.dataset.info === 'chemical') {
+                subKey = obj.chemicalSelector.value; folderName = obj.chemicalName.value.trim();
+                useforsFrom = obj.usesforFromChemical; useforsTo = obj.usesforToChemical;
+                usefors = obj.usesforChemical; initial_area = obj.initialAreaChemical;
+                maxiter = obj.maxInterChemical; tolerance = obj.toleranceChemical; 
+                scheme = obj.schemeChemical; 
+            } else if (btn.dataset.info === 'physical') {
+                subKey = obj.physicalSelector.value; folderName = obj.physicalName.value.trim();
+                useforsFrom = obj.usesforFromPhysical; useforsTo = obj.usesforToPhysical;
+                usefors = obj.usesforPhysical; initial_area = obj.initialAreaPhysical;
+                maxiter = obj.maxInterPhysical; tolerance = obj.tolerancePhysical; 
+                scheme = obj.schemePhysical;
+            } else if (btn.dataset.info === 'microbial') {
+                subKey = obj.microbialSelector.value; folderName = obj.microbialName.value.trim();
+                useforsFrom = obj.usesforFromMirobial; useforsTo = obj.usesforToMirobial;
+                usefors = obj.usesforMicrobial; initial_area = obj.initialAreaMirobial;
+                maxiter = obj.maxInterMirobial; tolerance = obj.toleranceMirobial; 
+                scheme = obj.schemeMicrobial;
+            }
+            if (!folderName || folderName === '') { alert("Name of substance is required"); return; }
+            const userforValue = usefors.value.trim();
+            if (userforValue === '') { alert("The field 'Assigned Substance' must has at least one value"); return; }
+            const valueFrom = Array.from(useforsFrom.options).map(option => option.value);
+            const valueTo = Array.from(useforsTo.options).map(option => option.value);
+            const initialArea = initial_area.value.trim();
+            if (maxiter.value === '' || parseInt(maxiter.value) <= 0) { alert('Please define maximum number of iterations.'); return; }
+            if (tolerance.value === '' || parseFloat(tolerance.value) <= 0) { alert('Please define tolerance.'); return; }
+            const params = { mode: btn.dataset.info, projectName: name, key: subKey, folderName: folderName,
+                hydName: hydPath, nLayers: n_layers, timeStep1: timeStep1, timeStep2: timeStep2, nSegments: nSegments,
+                startTime: toUTC(start), stopTime: toUTC(stop), exchangeY: exchange_y, exchangeX: exchange_x,
+                exchangeZ: exchange_z, attrPath: attrPath_, volPath: volPath, ptrPath: ptrPath, areaPath: areaPath, 
+                flowPath: flowPath, lengthPath: lengthPath, srfPath: srfPath, vdfPath: vdfPath, temPath: temPath,
+                salPath: salPath, useforsFrom: valueFrom, useforsTo: valueTo, usefors: userforValue,
+                sources: sourceTable.rows, obsPoints: obsTable.rows, loadsData: loadTable.rows, timeTable: timeData, 
+                initial: initialArea, maxiter: maxiter.value, tolerance: tolerance.value, scheme: scheme.value
+            }
+            const waq_config = await jsonLoader('waq_config_writer', params);
+            if (waq_config.status === 'error') { alert(waq_config.message); return; }
+            alert(waq_config.message);
+        });
+    });
 }
 
 async function projectOptions(){
@@ -315,8 +294,6 @@ async function projectOptions(){
     obj.projectCreator.addEventListener('click', async () => {
         const name = obj.projectName.value.trim();
         if (!name || name.trim() === '') { alert('Please define a WAQ Scenario.'); return; }
-        const waqName = obj.waqSelector.value;
-        if (waqName === '' && obj.waqSelector.style.display !== 'none') { alert('Please define a WAQ model.'); return; }
         // Find .hyd file
         const data = await jsonLoader('select_hyd', {projectName: name});
         if (data.status === "error") { alert(data.message); return; }
@@ -559,5 +536,6 @@ function substanceChanger(waqModel, target, name, type){
                 select.add(option);
             }); 
         });
+        obj.removeTable.dispatchEvent(new Event('click'));
     });
 }

@@ -3,17 +3,19 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <link rel="stylesheet" href="/src_frontend/styles/hydManager.css?v=001">
-        <link rel="stylesheet" href="/src_frontend/styles/simulationRunner.css?v=001">
+        <link rel="stylesheet" href="/src_frontend/styles/hydManager.css?v=002">
+        <link rel="stylesheet" href="/src_frontend/styles/simulationRunner.css?v=002">
     </head>
     <body>
         <div class="form-box">
             <form>
                 <div class="form-row">
-                    <label id= "label-scenario" for="options-scenario">Scenario:</label>
+                    <label id= "label-scenario" for="options-scenario">HYD Scenario:</label>
                     <select id="options-scenario"></select>
-                    <label id="label-waq" for="options-waq">WAQ model:</label>
-                    <select id="options-waq"></select>
+                    <label id="label-waq-model">WAQ model:</label>
+                    <select id="options-waq">
+                        <option value="">--- No selected ---</option>
+                    </select>
                     <button type="button" id="run-button">Run Simulation</button>
                     <div class="progress-container">
                         <progress id="progressbar" value="0" max="100"></progress>

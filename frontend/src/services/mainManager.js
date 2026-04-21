@@ -62,8 +62,7 @@ function widgetMenuManager() {
         else if (id === 'open-project') { projectModifier(userName, 'open'); closeMenu(); return; }
         else if (id === 'delete-project') { projectModifier(userName, 'delete'); closeMenu(); return; }
         else if (id === 'help-docs') { pdfOpener(url); closeMenu(); return; }
-        else if (id === 'run-hyd') { w = 9; h = 2; }
-        else if (id === 'run-waq') { w = 7; h = 2; }
+        else if (id === 'run-hyd' || id === 'run-waq') { w = 9; h = 3; }
         else if (id === 'visualization') { w = 12; h = 9; }
         else if (id === 'about') { w = 8; h = 5; }
         addWidget(w, h, title, id, url); closeMenu();
@@ -105,7 +104,7 @@ function updateComponent() {
             if (!project) return;
             const content = project.textContent.split(':').pop().split('/').shift().trim();
             event.source.postMessage({ type: 'USER', content: content }, '*');
-        } else if (event.data.id === 'hyd') {
+        } else if (event.data.id === 'hyd-waq') {
             const req = { 
                 source: event.source, lineType: event.data.lineType,
                 requestId: event.data.requestId, content: event.data.content

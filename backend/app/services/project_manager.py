@@ -36,14 +36,15 @@ async def select_project(request: Request, user=Depends(functions.basic_auth)):
     try:
         body = await request.json()
         key, folder_check = body.get('key'), body.get('folder_check')
-        # project_name, _ = functions.project_definer(body.get('filename'), user)
-        project_dir = os.path.normpath(os.path.join(PROJECT_ROOT, body.get('filename')))
+        project_name, _ = functions.project_definer(body.get('filename'), user)
+        
         if key == 'getProjects':
+            project_dir = os.path.normpath(os.path.join(PROJECT_ROOT, body.get('filename')))
             project = [p.name for p in os.scandir(project_dir) if p.is_dir()]
             project = [p for p in project if os.path.exists(os.path.normpath(os.path.join(project_dir, p, folder_check)))]
             data = sorted(project)
         elif key == 'getWAQs': # List the scenarios for water quality
-            scenario_dir = os.path.normpath(os.path.join(project_dir, 'output', 'scenarios'))
+            scenario_dir = os.path.normpath(os.path.join(PROJECT_ROOT, project_name, 'output', 'scenarios'))
             project = [p.name for p in os.scandir(scenario_dir)]
             project = [p.replace('.json', '') for p in project if os.path.exists(os.path.normpath(os.path.join(scenario_dir, p)))]
             data = sorted(project)

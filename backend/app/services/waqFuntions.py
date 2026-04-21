@@ -1,9 +1,10 @@
-import os, json, datetime, re, traceback, asyncio, shutil
+import os, json, re, traceback, asyncio, shutil
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import JSONResponse
 from services import functions, wq_functions
-from config import PROJECT_ROOT, SOURCE_BACKEND
+from config import PROJECT_ROOT
 import numpy as np, pandas as pd
+from datetime import datetime, timezone
 
 router = APIRouter()
 
@@ -146,9 +147,62 @@ async def wq_time_from_waq(request: Request):
     except Exception as e:
         return JSONResponse({"status": 'error', "message":  f"Error: {str(e)}"})
 
+@router.post("/wq_time_to_waq")
+async def wq_time(request: Request):
+    try:
+        body = await request.json()
+        load_data, time_data, folder = body.get('loadsData'), body.get('timeData'), body.get('folderName')
+        # Check whether the location in time-series is in the load data
+        loads, times = [x[0] for x in load_data], [x[1] for x in time_data]
+        if not any(x in times for x in loads):
+            return JSONResponse({"status": 'error', 
+                "message": 'Error: No Location found in the table.\nThe field "Location" has to be defined in the table "List of Loads".'})        
+        # Read file and prepare data
+        time_data = np.array(time_data)
+        idx = [datetime.fromtimestamp(int(x)/1000.0, tz=timezone.utc) for x in time_data[:, 0]]
+        df = pd.DataFrame(time_data[:, 1:], index=idx, columns=['source', 'substance', 'value'])
+        # Sort data
+        df = df.sort_index(ascending=True)
+        # Structure data
+        groups, result = df.groupby(['source']), []
+        if len(groups) == 0: return JSONResponse({"status": 'error',
+                "message": 'The inputed time-series data is not found in the table.'})
+        for name, group in groups:
+            if (len(group) == 0 or name[0] not in loads): continue
+            gr_substance = [x[0][0] for x in group.groupby(['substance'])]
+            subs = ' '.join(f"'{x}'" for x in gr_substance)
+            temp = ["DATA_ITEM", name[0], "CONCENTRATIONS",
+                f"INCLUDE 'includes_deltashell\\load_data_tables\\{folder}.usefors'",
+                "TIME LINEAR DATA", subs]
+            # Assign data
+            temp_df = pd.DataFrame()
+            for item in gr_substance:
+                subset = group[group['substance'] == item].copy()
+                subset.index = pd.to_datetime(subset.index)
+                temp_df[item] = pd.to_numeric(subset.value, errors="coerce")
+            temp_df = temp_df.sort_index(ascending=True).fillna(-999)
+            temp_df.index = [x.strftime('%Y/%m/%d-%H:%M:%S') for x in temp_df.index]
+            temp_df.reset_index(inplace=True)
+            lst = temp_df.astype(str).values.tolist() # Convert to string
+            lst = [' '.join(x) for x in lst]
+            temp += lst
+            result.append('\n'.join(temp))
+        return JSONResponse({"status": 'ok',"content": '\n\n\n'.join(result), "tos": gr_substance})
+    except Exception as e: return JSONResponse({"status": 'error', "message":  f"Error: {str(e)}"})
 
-
-
-
-
-
+@router.post("/waq_config_writer")
+async def waq_config_writer(request: Request, user=Depends(functions.basic_auth)):
+    try:
+        body = await request.json()
+        project_name, _ = functions.project_definer(body.get('projectName'), user)
+        redis, file_name = request.app.state.redis, body.get('folderName')
+        lock = redis.lock(f"{project_name}:waq_config", timeout=10)
+        async with lock:
+            config_path = os.path.normpath(os.path.join(PROJECT_ROOT, project_name, "output", "scenarios"))
+            if not os.path.exists(config_path): os.makedirs(config_path)
+            config_file = os.path.normpath(os.path.join(config_path, f"{file_name}.json"))
+            if os.path.exists(config_file): os.remove(config_file)
+            with open(config_file, 'w', encoding=functions.encoding_detect(config_file)) as f:
+                json.dump(body, f, indent=4)
+            return JSONResponse({"status": 'ok', "message": f"Configurations of model '{file_name}' saved successfully."})
+    except Exception as e: return JSONResponse({"status": 'error', "message":  f"Error: {str(e)}"})
