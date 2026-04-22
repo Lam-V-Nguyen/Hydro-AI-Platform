@@ -37,9 +37,8 @@ async def select_project(request: Request, user=Depends(functions.basic_auth)):
         body = await request.json()
         key, folder_check = body.get('key'), body.get('folder_check')
         project_name, _ = functions.project_definer(body.get('filename'), user)
-        
+        project_dir = os.path.normpath(os.path.join(PROJECT_ROOT, project_name))
         if key == 'getProjects':
-            project_dir = os.path.normpath(os.path.join(PROJECT_ROOT, body.get('filename')))
             project = [p.name for p in os.scandir(project_dir) if p.is_dir()]
             project = [p for p in project if os.path.exists(os.path.normpath(os.path.join(project_dir, p, folder_check)))]
             data = sorted(project)
@@ -70,6 +69,33 @@ async def select_project(request: Request, user=Depends(functions.basic_auth)):
         print('/select_project:\n==============')
         traceback.print_exc()
         return JSONResponse({"status": 'error', "message": f"Error: {str(e)}"})
+
+# Copy a project
+@router.post("/copy_project")
+async def copy_project(request: Request, user=Depends(functions.basic_auth)):
+    try:
+        body = await request.json()
+        old_name, _ = functions.project_definer(body.get('oldName'), user)
+        new_name, _ = functions.project_definer(body.get('newName'), user)
+        project_folder = os.path.normpath(os.path.join(PROJECT_ROOT, old_name))
+        redis = request.app.state.redis
+        extend_task, lock = None, redis.lock(f"{old_name}:copy_project", timeout=600)
+        async with lock:
+            # Optional: auto-extend lock if deletion may take long
+            extend_task = asyncio.create_task(functions.auto_extend(lock))
+            if not os.path.exists(project_folder): 
+                return JSONResponse({"status": 'error', "message": f"Project '{old_name}' does not exist."})
+            shutil.copytree(project_folder, os.path.normpath(os.path.join(PROJECT_ROOT, new_name)))
+            return JSONResponse({"message": f"HYD scenario '{new_name}' was cloned successfully!"})
+    except Exception as e:
+        print('/copy_project:\n==============')
+        traceback.print_exc()
+        return JSONResponse({"message": f"Error: {str(e)}"})
+    finally:
+        if extend_task:
+            extend_task.cancel()
+            try: await extend_task
+            except asyncio.CancelledError: pass
 
 
 # Delete a project

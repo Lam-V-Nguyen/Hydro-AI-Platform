@@ -1,10 +1,12 @@
+import { waqMapId } from "./constant.js";
 import { setupTabs } from "./tabManager.js";
-import { getProjectList, jsonLoader, fillTable, deleteTable, addRowToTable,
+import { getProjectList, jsonLoader, fillTable, deleteTable, addRowToTable, signalSender,
     nameChecker, iframeConnector, getDataFromTable, copyPaste, removeRowFromTable
 } from "./commonFunctions.js";
 import { projectRender } from "./projectManager.js";
 import { toUTC } from "./projectSaver.js";
 
+const defaultWAQ = `<option value="">-- New WAQ model --</option>`;
 let projectSelected = [], subKey = '', folderName = '', useforsTo = [], 
     volPath = '', timeStep1 = 0, timeStep2 = 0, nSegments = 0, attrPath_ =' ',
     exchange_x = 0, exchange_z = 0, exchange_y = 0, ptrPath = '', areaPath = '',
@@ -49,20 +51,208 @@ const obj = {
     maxInterMirobial: $('max-iterations-microbial'), toleranceMirobial: $('tolerance-microbial'),
 };
 
-getProjects(); projectOptions(); initializeProject(); waqManager();
+setupTabs(document); projectOptions(); waqManager();
 
-async function getProjects(){
+async function projectOptions(){
     projectSelected = await getProjectList();
+    await projectRender(obj.projectName, obj.projectList, await getProjectList());
     obj.projectName.style.pointerEvents = "auto";
-    await projectRender(obj.projectName, obj.projectList, projectSelected);
+    obj.projectName.addEventListener('click', async () => {
+        if (projectSelected.length === 0) { return; }
+        obj.projectList.innerHTML = '';
+        projectSelected.forEach(p => {
+            const li = document.createElement("li");
+            li.textContent = p;
+            li.addEventListener('mousedown', () => {
+                obj.projectName.value = p; 
+                obj.projectList.style.display = "none";
+            });
+            obj.projectList.appendChild(li);
+        });
+        obj.projectList.style.display = "block";
+    });
+    obj.projectName.addEventListener('input', (e) => { 
+        const value = e.target.value.trim();
+        if (value === '') {
+            obj.controlTab.style.display = "none"; 
+            obj.descriptionTab.style.display = "block";
+            obj.waqSelector.innerHTML = ''; 
+            obj.waqSelector.style.display = "none"; 
+            obj.waqLabel.style.display = "none";
+            obj.projectCloner.style.display = "none"; 
+            obj.projectRemover.style.display = "none";
+        }
+        projectRender(obj.projectName, obj.projectList, projectSelected);
+    });
+    obj.projectName.addEventListener('blur', () => { 
+        setTimeout(() => { obj.projectList.style.display = "none"; }, 5);
+    });
+    obj.projectList.addEventListener('mousedown', async () => {
+        const name = obj.projectName.value.trim();
+        const data = await jsonLoader('select_waq', { projectName: name });
+        if (!name || name === '' || data.status === "error") { 
+            obj.waqSelector.style.display = "none"; obj.waqSelector.value = '';
+            obj.waqLabel.style.display = "none"; obj.projectCloner.style.display = "none"; 
+            obj.projectRemover.style.display = "none"; return; 
+        }
+        waqContent = data.content; obj.descriptionTab.style.display = "block";
+        obj.controlTab.style.display = "none";
+        const waqTemp = waqContent.map(name => `<option value="${name}">${name}</option>`).join('');
+        obj.waqSelector.innerHTML = defaultWAQ + waqTemp; obj.waqSelector.value = '';
+        obj.waqSelector.style.display = "flex"; obj.waqLabel.style.display = "flex";
+    });
+    obj.waqSelector.addEventListener('change', async (e) => { 
+        const value = e.target.value;
+        if (value === '') {
+            obj.projectCloner.style.display = "none"; 
+            obj.projectRemover.style.display = "none";
+        } else {
+            obj.projectCloner.style.display = "flex"; 
+            obj.projectRemover.style.display = "flex";
+        }
+        obj.controlTab.style.display = "none"; 
+        obj.descriptionTab.style.display = "block";
+    });    
+    // Create new WAQ scenario
+    obj.projectCreator.addEventListener('click', async () => {
+        const name = obj.projectName.value.trim(); let project = '';
+        if (!name || name.trim() === '') { alert('Please select a HYD Scenario from the list.'); return; }
+        // Find .hyd file
+        const data = await jsonLoader('select_hyd', {projectName: name});
+        if (data.status === "error") { alert(data.message); return; }
+        // Show tabs
+        obj.controlTab.style.display = "block"; obj.descriptionTab.style.display = "none";
+        obj.sourcesContainer.style.display = data.content.sink_sources.length > 0 ? "block":"none";
+        fillTable(data.content.sink_sources, obj.sourcesTable, true);
+        // Assign values
+        obj.hydFilename.value = data.content.filename; volPath = data.content.vol_path;
+        timeStep1 = data.content.time_step1; timeStep2 = data.content.time_step2;
+        nSegments = data.content.n_segments; attrPath_ = data.content.attr_path;
+        exchange_x = data.content.exchange_x; exchange_z = data.content.exchange_z;
+        if (data.content.exchange_y) { exchange_y = data.content.exchange_y; }
+        ptrPath = data.content.ptr_path; areaPath = data.content.area_path;
+        flowPath = data.content.flow_path; lengthPath = data.content.length_path;
+        if (data.content.n_layers) { obj.nLayers.value = data.content.n_layers; }
+        srfPath = data.content.srf_path; vdfPath = data.content.vdf_path;
+        temPath = data.content.tem_path; salPath = data.content.sal_path;
+        obj.startTime.value = data.content.start_time; 
+        obj.stopTime.value = data.content.stop_time;
+        // Set default values
+        deleteTable(obj.obsPointTable); deleteTable(obj.loadsPointTable);
+        addRowToTable(obj.obsPointTable, ['Name', 'Latitude', 'Longitude']);
+        addRowToTable(obj.loadsPointTable, ['Name', 'Latitude', 'Longitude']);
+        deleteTable(obj.timeTable); 
+        addRowToTable(obj.timeTable, ['Time', 'Location', 'Substance', 'Value']);
+        // Physical tab
+        obj.physicalSelector.value = ''; obj.physicalName.value = ''; 
+        obj.usesforFromPhysical.innerHTML = ''; obj.usesforToPhysical.innerHTML = '';
+        obj.usesforPhysical.value = ''; obj.initialFromPhysical.innerHTML = '';
+        obj.initialAreaPhysical.value = ''; obj.schemePhysical.value = '15';
+        obj.maxInterPhysical.value = '500'; obj.tolerancePhysical.value = '1E-07';
+        // Chemical tab
+        obj.chemicalSelector.value = ''; obj.chemicalName.value = '';
+        obj.usesforFromChemical.innerHTML = ''; obj.usesforToChemical.innerHTML = '';
+        obj.usesforChemical.value = ''; obj.initialFromChemical.innerHTML = '';
+        obj.initialAreaChemical.value = ''; obj.schemeChemical.value = '15';
+        obj.maxInterChemical.value = '500'; obj.toleranceChemical.value = '1E-07';
+        // Microbial tab
+        obj.microbialSelector.value = ''; obj.microbialName.value = '';
+        obj.usesforFromMirobial.innerHTML = ''; obj.usesforToMirobial.innerHTML = '';
+        obj.usesforMicrobial.value = ''; obj.initialFromMirobial.innerHTML = '';
+        obj.initialAreaMirobial.value = ''; obj.schemeMicrobial.value = '15';
+        obj.maxInterMirobial.value = '500'; obj.toleranceMirobial.value = '1E-07';
+        obj.timePreview.value = ''; obj.timePreviewContainer.style.display = 'none';
+        const waqValue = obj.waqSelector.value;
+        if (waqValue !== '') { 
+            const data = await jsonLoader('load_waq', {projectName: name, waqName: waqValue});
+            if (data.status === "error") { alert(data.message); return; }
+            if (data.content.obs.length > 0) { fillTable(data.content.obs, obj.obsPointTable, true); }
+            fillTable(data.content.loads, obj.loadsPointTable, true);
+            deleteTable(obj.timeTable); fillTable(data.content.time_data, obj.timeTable, true);
+            if (data.content.mode === 'physical') {
+                obj.physicalSelector.value = data.content.key;
+                obj.physicalName.value = data.content.name;
+                obj.chemicalSelector.value = ''; obj.chemicalName.value = '';
+                obj.microbialSelector.value = ''; obj.microbialName.value = '';
+                from_usesfor = obj.usesforFromPhysical; to_usefors = obj.usesforToPhysical;
+                from_initial = obj.initialFromPhysical; usefors = obj.usesforPhysical;
+                initial_area = obj.initialAreaPhysical; scheme = obj.schemePhysical;
+                maxiter = obj.maxInterPhysical; tolerance = obj.tolerancePhysical;
+            } else if (data.content.mode === 'chemical') {
+                obj.chemicalSelector.value = data.content.key;
+                obj.chemicalName.value = data.content.name;
+                obj.physicalSelector.value = ''; obj.physicalName.value = '';
+                obj.microbialSelector.value = ''; obj.microbialName.value = '';
+                from_usesfor = obj.usesforFromChemical; to_usefors = obj.usesforToChemical;
+                from_initial = obj.initialFromChemical; usefors = obj.usesforChemical;
+                initial_area = obj.initialAreaChemical; scheme = obj.schemeChemical;
+                maxiter = obj.maxInterChemical; tolerance = obj.toleranceChemical;
+            } else if (data.content.mode === 'microbial') {
+                obj.microbialSelector.value = data.content.key;
+                obj.microbialName.value = data.content.name;
+                obj.physicalSelector.value = ''; obj.physicalName.value = '';
+                obj.chemicalSelector.value = ''; obj.chemicalName.value = '';
+                from_usesfor = obj.usesforFromMirobial; to_usefors = obj.usesforToMirobial;
+                from_initial = obj.initialFromMirobial; usefors = obj.usesforMicrobial;
+                initial_area = obj.initialAreaMirobial; scheme = obj.schemeMicrobial;
+                maxiter = obj.maxInterMirobial; tolerance = obj.toleranceMirobial;
+            }
+            usefors.value = data.content.usefors; initial_area.value = data.content.initial;
+            scheme.value = data.content.scheme; maxiter.value = data.content.maxiter;
+            tolerance.value = data.content.tolerance;
+            data.content.useforsFrom.forEach(item => {
+                [from_usesfor, from_initial].forEach(select => {
+                    const option = document.createElement('option');
+                    option.value = item; option.text = item;
+                    select.add(option);
+                })
+            });
+            data.content.useforsTo.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item; option.text = item;
+                to_usefors.add(option);
+            });
+            obj.timePreviewContainer.style.display = 'flex';
+            obj.timePreview.value = data.content.times;
+        }
+    });
+    // Clone scenario
+    obj.projectCloner.addEventListener('click', async () => { 
+        const name = obj.waqSelector.value;
+        if (!name || name === '') { alert('Please select a WAQ scenario first.'); return; }
+        const newName = prompt('Please enter a name for the new WAQ scenario.');
+        if (!newName || newName === '') { alert('Please define the clone scenario name.'); return; }
+        if (nameChecker(newName)) { alert('Scenario name contains invalid characters.'); return; }
+        signalSender('showOverlay', `Cloning WAQ scenario '${name}' to '${newName}'. Please be patient...`);
+        const data = await jsonLoader('clone_waq', {
+            projectName: obj.projectName.value, oldName: name, newName: newName
+        });
+        if (data.status === "error") { return; }
+        waqContent.push(newName); obj.waqSelector.innerHTML = '';
+        const waqTemp = waqContent.map(name => `<option value="${name}">${name}</option>`).join('');
+        obj.waqSelector.innerHTML = defaultWAQ + waqTemp; obj.waqSelector.value = newName;
+        signalSender('hideOverlay'); alert(data.message);
+    });
+    // Delete scenario
+    obj.projectRemover.addEventListener('click', async () => {
+        const name = obj.projectName.value.trim(), waqName = obj.waqSelector.value;
+        if (!confirm(`Are you sure you want to delete scenario '${waqName}'?`)) { return; }
+        signalSender('showOverlay', `Deleting WAQ scenario '${waqName}'. Please be patient...`);
+        const data = await jsonLoader('delete_file', { projectName: name, name: waqName });
+        obj.waqSelector.innerHTML = '';
+        waqContent = waqContent.filter(item => item !== waqName);
+        const waqTemp = waqContent.map(name => `<option value="${name}">${name}</option>`).join('');
+        obj.waqSelector.innerHTML = defaultWAQ + waqTemp;
+        obj.waqSelector.value = ''; signalSender('hideOverlay'); alert(data.message); 
+    });
 }
 
 async function waqManager(){
     // Check whether map widget exists
     const layout = localStorage.getItem('grid-layout');
-    const hasMap = layout ? JSON.parse(layout).some(item => item.id === 'waq-map') : false;
-    const content = { id: 'waq-map', title: 'Water Quality Scenario Map' };
-    if (!hasMap) window.parent.postMessage({ type: 'addMapWidget', content: content }, '*');
+    const hasMap = layout ? JSON.parse(layout).some(item => item.id === waqMapId) : false;
+    const content = { id: waqMapId, title: 'Water Quality Scenario Map' };
+    if (!hasMap) signalSender('addMapWidget', content);
     // Update location
     iframeConnector(obj.obsPointPicker, [obj.obsPointName, obj.obsPointTable],
         'waqPoint', () => getDataFromTable(obj.obsPointTable, true)
@@ -287,201 +477,6 @@ async function waqManager(){
             alert(waq_config.message);
         });
     });
-}
-
-async function projectOptions(){
-    // Create new scenario
-    obj.projectCreator.addEventListener('click', async () => {
-        const name = obj.projectName.value.trim();
-        if (!name || name.trim() === '') { alert('Please define a WAQ Scenario.'); return; }
-        // Find .hyd file
-        const data = await jsonLoader('select_hyd', {projectName: name});
-        if (data.status === "error") { alert(data.message); return; }
-        setupTabs(document);
-        // Show tabs
-        obj.controlTab.style.display = "block"; obj.descriptionTab.style.display = "none";
-        obj.sourcesContainer.style.display = data.content.sink_sources.length > 0 ? "block":"none";
-        fillTable(data.content.sink_sources, obj.sourcesTable, true);
-        // Assign values
-        obj.hydFilename.value = data.content.filename; volPath = data.content.vol_path;
-        timeStep1 = data.content.time_step1; timeStep2 = data.content.time_step2;
-        nSegments = data.content.n_segments; attrPath_ = data.content.attr_path;
-        exchange_x = data.content.exchange_x; exchange_z = data.content.exchange_z;
-        if (data.content.exchange_y) { exchange_y = data.content.exchange_y; }
-        ptrPath = data.content.ptr_path; areaPath = data.content.area_path;
-        flowPath = data.content.flow_path; lengthPath = data.content.length_path;
-        if (data.content.n_layers) { obj.nLayers.value = data.content.n_layers; }
-        srfPath = data.content.srf_path; vdfPath = data.content.vdf_path;
-        temPath = data.content.tem_path; salPath = data.content.sal_path;
-        obj.startTime.value = data.content.start_time; 
-        obj.stopTime.value = data.content.stop_time;
-        // Set default values
-        deleteTable(obj.obsPointTable); deleteTable(obj.loadsPointTable);
-        addRowToTable(obj.obsPointTable, ['Name', 'Latitude', 'Longitude']);
-        addRowToTable(obj.loadsPointTable, ['Name', 'Latitude', 'Longitude']);
-        // Physical tab
-        obj.physicalSelector.value = ''; obj.physicalName.value = ''; 
-        obj.usesforFromPhysical.innerHTML = ''; obj.usesforToPhysical.innerHTML = '';
-        obj.usesforPhysical.value = ''; obj.initialFromPhysical.innerHTML = '';
-        obj.initialAreaPhysical.value = ''; obj.schemePhysical.value = '15';
-        obj.maxInterPhysical.value = '500'; obj.tolerancePhysical.value = '1E-07';
-        // Chemical tab
-        obj.chemicalSelector.value = ''; obj.chemicalName.value = '';
-        obj.usesforFromChemical.innerHTML = ''; obj.usesforToChemical.innerHTML = '';
-        obj.usesforChemical.value = ''; obj.initialFromChemical.innerHTML = '';
-        obj.initialAreaChemical.value = ''; obj.schemeChemical.value = '15';
-        obj.maxInterChemical.value = '500'; obj.toleranceChemical.value = '1E-07';
-        // Microbial tab
-        obj.microbialSelector.value = ''; obj.microbialName.value = '';
-        obj.usesforFromMirobial.innerHTML = ''; obj.usesforToMirobial.innerHTML = '';
-        obj.usesforMicrobial.value = ''; obj.initialFromMirobial.innerHTML = '';
-        obj.initialAreaMirobial.value = ''; obj.schemeMicrobial.value = '15';
-        obj.maxInterMirobial.value = '500'; obj.toleranceMirobial.value = '1E-07';
-        obj.timePreview.value = ''; obj.timePreviewContainer.style.display = 'none';
-        const waqValue = obj.waqSelector.value;
-        if (waqValue !== '') { 
-            const data = await jsonLoader('load_waq', {projectName: name, waqName: waqValue});
-            if (data.status === "error") { alert(data.message); return; }
-            if (data.content.obs.length > 0) { fillTable(data.content.obs, obj.obsPointTable, true); }
-            fillTable(data.content.loads, obj.loadsPointTable, true);
-            deleteTable(obj.timeTable); fillTable(data.content.time_data, obj.timeTable, true);
-            if (data.content.mode === 'physical') {
-                obj.physicalSelector.value = data.content.key;
-                obj.physicalName.value = data.content.name;
-                obj.chemicalSelector.value = ''; obj.chemicalName.value = '';
-                obj.microbialSelector.value = ''; obj.microbialName.value = '';
-                from_usesfor = obj.usesforFromPhysical; to_usefors = obj.usesforToPhysical;
-                from_initial = obj.initialFromPhysical; usefors = obj.usesforPhysical;
-                initial_area = obj.initialAreaPhysical; scheme = obj.schemePhysical;
-                maxiter = obj.maxInterPhysical; tolerance = obj.tolerancePhysical;
-            } else if (data.content.mode === 'chemical') {
-                obj.chemicalSelector.value = data.content.key;
-                obj.chemicalName.value = data.content.name;
-                obj.physicalSelector.value = ''; obj.physicalName.value = '';
-                obj.microbialSelector.value = ''; obj.microbialName.value = '';
-                from_usesfor = obj.usesforFromChemical; to_usefors = obj.usesforToChemical;
-                from_initial = obj.initialFromChemical; usefors = obj.usesforChemical;
-                initial_area = obj.initialAreaChemical; scheme = obj.schemeChemical;
-                maxiter = obj.maxInterChemical; tolerance = obj.toleranceChemical;
-            } else if (data.content.mode === 'microbial') {
-                obj.microbialSelector.value = data.content.key;
-                obj.microbialName.value = data.content.name;
-                obj.physicalSelector.value = ''; obj.physicalName.value = '';
-                obj.chemicalSelector.value = ''; obj.chemicalName.value = '';
-                from_usesfor = obj.usesforFromMirobial; to_usefors = obj.usesforToMirobial;
-                from_initial = obj.initialFromMirobial; usefors = obj.usesforMicrobial;
-                initial_area = obj.initialAreaMirobial; scheme = obj.schemeMicrobial;
-                maxiter = obj.maxInterMirobial; tolerance = obj.toleranceMirobial;
-            }
-            usefors.value = data.content.usefors; initial_area.value = data.content.initial;
-            scheme.value = data.content.scheme; maxiter.value = data.content.maxiter;
-            tolerance.value = data.content.tolerance;
-            data.content.useforsFrom.forEach(item => {
-                [from_usesfor, from_initial].forEach(select => {
-                    const option = document.createElement('option');
-                    option.value = item; option.text = item;
-                    select.add(option);
-                })
-            });
-            data.content.useforsTo.forEach(item => {
-                const option = document.createElement('option');
-                option.value = item; option.text = item;
-                to_usefors.add(option);
-            });
-            obj.timePreviewContainer.style.display = 'flex';
-            obj.timePreview.value = data.content.times;
-        }
-    });
-    // Clone scenario
-    obj.projectCloner.addEventListener('click', async () => { 
-        const name = obj.projectName.value.trim();
-        if (!name || name === '') { alert('Please select scenario first.'); return; }
-        const newName = prompt('Please enter a name for the new WAQ scenario.');
-        if (!newName || newName === '') { alert('Please define clone scenario name.'); return; }
-        if (nameChecker(newName)) { alert('Scenario name contains invalid characters.'); return; }
-        obj.projectCloner.innerHTML = 'Cloning...';
-        const data = await jsonLoader('clone_waq', {
-            projectName: name, oldName: obj.waqSelector.value, newName: newName
-        });
-        obj.projectCloner.innerHTML = 'Clone Scenario'; alert(data.message);
-        if (data.status === "error") { return; }
-        waqContent.push(newName); obj.waqSelector.innerHTML = '';
-        const defaultWAQ = `<option value="">-- New WAQ model --</option>`;
-        const waqTemp = waqContent.map(name => `<option value="${name}">${name}</option>`).join('');
-        obj.waqSelector.innerHTML = defaultWAQ + waqTemp;
-        obj.waqSelector.value = newName; obj.projectCreator.click();
-    });
-    // Delete scenario
-    obj.projectRemover.addEventListener('click', async () => {
-        const name = obj.projectName.value.trim(), waqName = obj.waqSelector.value;
-        obj.projectRemover.innerHTML = 'Deleting...';
-        const data = await jsonLoader('delete_file', { projectName: name, name: waqName });
-        obj.projectRemover.innerHTML = 'Delete Scenario'; alert(data.message);
-        if (data.status === "error") { return; }
-        obj.waqSelector.innerHTML = '';
-        waqContent = waqContent.filter(item => item !== waqName);
-        const defaultWAQ = `<option value="">-- New WAQ model --</option>`;
-        const waqTemp = waqContent.map(name => `<option value="${name}">${name}</option>`).join('');
-        obj.waqSelector.innerHTML = defaultWAQ + waqTemp;
-        obj.waqSelector.value = ''; obj.projectCreator.click();
-    });
-}
-
-function initializeProject(){
-    // Update project name
-    obj.projectName.addEventListener('click', () => {
-        if (obj.projectList.children.length === 0) {
-            projectSelected.forEach(p => {
-                const li = document.createElement("li");
-                li.textContent = p;
-                li.addEventListener('mousedown', () => {
-                    obj.projectName.value = p; 
-                    obj.projectList.style.display = "none";
-                });
-                obj.projectList.appendChild(li);
-            });
-        }
-        obj.projectList.style.display = "block";
-    });
-    // Show/Hide tabs
-    obj.projectName.addEventListener('input', (e) => { 
-        const value = e.target.value.trim();
-        if (value === '') {
-            obj.controlTab.style.display = "none"; 
-            obj.descriptionTab.style.display = "block";
-            obj.waqSelector.innerHTML = '';
-            obj.waqSelector.style.display = "none"; 
-            obj.waqLabel.style.display = "none";
-            deleteTable(obj.timeTable);
-            addRowToTable(obj.timeTable, [
-                "YYYY-MM-DD HH:MM:SS", "Point Name", "Substance", "Value"
-            ]);
-        }
-        projectRender(obj.projectName, obj.projectList, projectSelected);
-    });
-    obj.projectName.addEventListener('blur', () => { 
-        setTimeout(() => { obj.projectList.style.display = "none"; }, 50);
-    });
-    obj.projectList.addEventListener('mousedown', async () => {
-        const name = obj.projectName.value.trim();
-        const data = await jsonLoader('select_waq', { projectName: name });
-        if (!name || name === '' || data.status === "error") { 
-            obj.waqSelector.style.display = "none"; obj.waqSelector.value = '';
-            obj.waqLabel.style.display = "none"; obj.projectCloner.style.display = "none"; 
-            obj.projectRemover.style.display = "none"; return; 
-        }
-        waqContent = data.content;
-        const waqTemp = waqContent.map(name => `<option value="${name}">${name}</option>`).join('');
-        const defaultWAQ = `<option value="">-- New WAQ model --</option>`;
-        obj.waqSelector.innerHTML = defaultWAQ + waqTemp; obj.waqSelector.value = '';
-        obj.waqSelector.style.display = "flex"; obj.waqLabel.style.display = "flex";
-        obj.projectCloner.style.display = "flex"; obj.projectRemover.style.display = "flex";
-    });
-    obj.waqSelector.addEventListener('change', async (e) => { 
-        if (e.target.value === '') { 
-            obj.controlTab.style.display = "none"; obj.descriptionTab.style.display = "block";
-        }
-    });    
 }
 
 function substanceChanger(waqModel, target, name, type){

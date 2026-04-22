@@ -44,6 +44,20 @@ function createWidgetHTML(title, id, iframeUrl) {
                             <button class="basemap-option" data-url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png">Carto Dark</button>
                         </div>
                     </div>
+                    <div class="custom-colorbar"">
+                        <div class="colorbar-wrapper">
+                            <div class="colorbar-title">Legend</div>
+                            <div class="colorbar-gradient"></div>
+                            <div class="colorbar-labels">
+                                <div></div> <!-- max -->
+                                <div></div> <!-- 75% -->
+                                <div></div> <!-- 50% -->
+                                <div></div> <!-- 25% -->
+                                <div></div> <!-- min -->
+                            </div>
+                        </div>
+                    </div>
+
                 </div>` : 
                 `<iframe 
                     id="iframe-${id}" class="widget-iframe" 

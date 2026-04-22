@@ -1,6 +1,8 @@
 import { toUTC } from "./projectSaver.js";
-let userName = null;
 
+export function signalSender(key, contents={}) {
+    window.parent.postMessage({type: key, content: contents}, '*');
+}
 
 export function getUser(){
     return new Promise((resolve) => {
@@ -15,9 +17,7 @@ export function getUser(){
     });
 }
 
-export async function getProjectList(folderCheck='') {
-    const user = await getUser(); userName = user;
-    if (userName === null) return;
+export async function getProjectList(userName='', folderCheck='') {
     const contents = { filename: userName, key: 'getProjects', folder_check: folderCheck };
     const data = await jsonLoader('select_project', contents);
     if (data.status === "error") { alert(data.message); return; }

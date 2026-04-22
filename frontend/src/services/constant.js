@@ -1,13 +1,36 @@
 export const CENTER = [62.476969, 6.471598];
 export const ZOOM = 13, L = window.L, n_decimals = 2;
-export const hoverTooltip = L.tooltip({
-    permanent: false, direction: 'bottom', sticky: true, offset: [0, 10], className: 'custom-tooltip'
-});
+
+export const gridId = 'grid-generation-map', 
+    hydMapId = 'new-hyd-map', waqMapId = 'new-waq-map';
 
 export const superscriptMap = {
     '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³',
     '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹'
 };
+
+function toSuperscript(num) {
+    return String(num).split('').map(ch => superscriptMap[ch] || ch).join('');
+}
+
+export function valueFormatter(value, minDiff) {
+    const absVal = Math.abs(value);
+    let decimalPlaces = 2;
+    if (minDiff >= 0.01) decimalPlaces = 2;
+    else if (0.001 <= minDiff < 0.01) decimalPlaces = 3;
+    else if (0.0001 <= minDiff < 0.001) decimalPlaces = 4;
+    else decimalPlaces = 6;
+    if (absVal < 0.01) {
+        const expStr = value.toExponential(n_decimals);
+        const [mantissa, exponent] = expStr.split('e');
+        const expNum = parseInt(exponent, 10);
+        return `${mantissa}×10${toSuperscript(expNum)}`;
+    } else { return value.toFixed(decimalPlaces); }
+}
+
+
+
+
 
 
 // const defaultState = {

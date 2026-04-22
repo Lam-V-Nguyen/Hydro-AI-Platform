@@ -19,7 +19,6 @@ async def init_lakes(request: Request, user=Depends(functions.basic_auth)):
         project_cache = request.app.state.project_cache.setdefault(project_name, None)
         if not project_cache:
             print("Project is not available in memory. Creating a new one...")
-            request.app.state.project_cache = {}
             project_cache_dict = request.app.state.project_cache
             project_cache = project_cache_dict.setdefault(project_name, {})
         if 'lake_db' not in project_cache:
@@ -59,7 +58,6 @@ async def load_lakes(request: Request, user=Depends(functions.basic_auth)):
         project_cache = request.app.state.project_cache.setdefault(project_name, None)
         if project_cache is None:
             print("Project is not available in memory. Creating a new one...")
-            request.app.state.project_cache = {}
             project_cache = request.app.state.project_cache.setdefault(project_name, {})
         lake_db, depth_db = project_cache.get('lake_db', None), project_cache.get('depth_db', None)        
         lake_dir = os.path.join(PROJECT_ROOT, project_name, "lakes")
@@ -108,10 +106,9 @@ async def search_lake(request: Request, user=Depends(functions.basic_auth)):
         project_cache = request.app.state.project_cache.setdefault(project_name, None)
         if project_cache is None:
             print("Project is not available in memory. Creating a new one...")
-            request.app.state.project_cache = {}
             project_cache = request.app.state.project_cache.setdefault(project_name, {})
             path = os.path.normpath(os.path.join(lake_dir, 'lakes.pkl'))
-            if not os.path.exists(lake_path): grid_functions.initLakes(lake_path=path)
+            if not os.path.exists(path): grid_functions.initLakes(lake_path=path)
             with open(lake_path, 'rb') as f: lake_db = pickle.load(f)
             project_cache['lake_db'] = lake_db
         else: lake_db = project_cache.get('lake_db')

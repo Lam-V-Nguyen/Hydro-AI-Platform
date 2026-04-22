@@ -34,8 +34,7 @@ export function projectMaker() {
     });
 }
 
-export async function projectModifier(userName=null, key='open') {
-    if (!userName) return;
+export async function projectModifier(user, key='open') {
     let title = key === 'open' ? 'Open Project' :'Delete Project';
     let btn = key === 'open' ? 'Open' : 'Delete';
     const overlay = document.createElement("div");
@@ -60,9 +59,8 @@ export async function projectModifier(userName=null, key='open') {
     // Get the list of projects
     const projectList = modal.querySelector("#projectList");
     if (!projectList) return;
-    const user = userName.split('/').shift();
     const contents = { 
-        filename: user, key: 'getProjects', folder_check: '' 
+        filename: '', key: 'getProjects', folder_check: '' 
     };
     const data = await jsonLoader('select_project', contents);
     if (data.status === "error") { alert(data.message); return; }

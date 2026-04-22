@@ -70,7 +70,7 @@ async def clone_waq(request: Request, user=Depends(functions.basic_auth)):
             data['folderName'] = new_name.replace('.json', '')
             data['timeTable'] = data['timeTable'].replace(old_name, new_name)
             json.dump(data, open(new_path, 'w', encoding=functions.encoding_detect(new_path)))
-            return JSONResponse({"message": f"Scenario '{new_name}' was cloned successfully!"})
+            return JSONResponse({"message": f"WAQ scenario '{new_name}' was cloned successfully!"})
     except Exception as e:
         print('/clone_waq:\n==============')
         traceback.print_exc()

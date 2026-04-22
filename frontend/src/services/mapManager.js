@@ -1,15 +1,18 @@
-import { CENTER, ZOOM, L, getPendingRequest, clearPendingRequest, hoverTooltip } from "./constant.js";
+import { CENTER, ZOOM, L, getPendingRequest, clearPendingRequest } from "./constant.js";
+import { gridPlotter, polygonPlotter, pointsToPolygon } from "./unstructuredGrid.js";
 
-
-export let currentMap; 
+export let currentMap;
 let currentTileLayer = null, timeCounter = null, html='', markersObs = [], markerCrossSection = [], 
     currentPoints = [], markerBoundary = [], pathCrossSection = null, pathBoundary = null, 
-    currentPointsCross = [], currentPointsBoundary = [], waqObs = [], waqLoads = [];
+    currentPointsCross = [], currentPointsBoundary = [], waqObs = [], waqLoads = [], gridLayer = null,
+    polygonLayer = null, pointLayer = null, orthoLayer = null, tempLine = null;
 const configCrossSectionPoint = {color: 'blue', fillColor: 'yellow', radius: 4, fill: true, fillOpacity: 1},
     configBoundaryPoint = {color: 'red', fillColor: 'green', radius: 4, fill: true, fillOpacity: 1},
     configCrossSectionPath = {color: 'blue', weight: 2, dashArray: '5,5'},
     configBoundaryPath = {color: 'red', weight: 2};
-
+const hoverTooltip = L.tooltip({
+    permanent: false, direction: 'bottom', sticky: true, offset: [0, 10], className: 'custom-tooltip'
+});
 
 function iconAdd(iconUrl, markers, map, pointList) {
     if (!pointList || pointList.length === 0) return;
@@ -94,7 +97,30 @@ export function renderPreview(request=null) {
             waqLoads.forEach(marker => marker.remove()); waqLoads.length = 0; 
             iconAdd(iconUrl, waqLoads, currentMap, request.content.rows);
         }
-        
+    } else if (type === 'gridPlotter') {    
+        const widgetEl = document.querySelector(`[gs-id="${request.content.id}"]`);
+        const colorbar = widgetEl?.querySelector('.custom-colorbar');
+        if (!colorbar) return;
+        gridLayer = clearMap(gridLayer, currentMap);
+        gridLayer = gridPlotter(
+            request.content.legend, request.content.dataLake, 
+            request.content.dataDepth, currentMap, colorbar
+        );
+    } else if (type === 'polygonPlotter') { 
+        polygonLayer = clearMap(polygonLayer, currentMap);
+        polygonLayer = polygonPlotter(
+            request.content.polygon, currentMap, 
+            request.content.entireNorway, request.content.zoom
+        );
+    } else if (type === 'clearGridMap') { 
+        gridLayer = clearMap(gridLayer, currentMap); 
+        polygonLayer = clearMap(polygonLayer, currentMap);
+        pointLayer = clearMap(pointLayer, currentMap); 
+        orthoLayer = clearMap(orthoLayer, currentMap);
+    } else if (type === 'colorbarOption') { 
+        const widgetEl = document.querySelector(`[gs-id="${request.content.id}"]`);
+        const colorbar = widgetEl?.querySelector('.custom-colorbar');
+        if (!colorbar) return; colorbar.style.display = request.content.display;
 
 
 
@@ -145,6 +171,12 @@ export function initMap(mapId='map') {
         } else if (req.requestId === 'pickSource') { html = 'Select a HYD source';
         } else if (req.requestId === 'waqPoint') { html = 'Select a WAQ observation point';
         } else if (req.requestId === 'loadsPoint') { html = 'Select a WAQ load point';
+        } else if (req.requestId === 'drawChecked') { html = 'Draw a polygon using the left mouse button';
+
+
+
+
+
 
 
         } else if (req.requestId === 'updateObsPoint') { 
@@ -181,15 +213,22 @@ export function initMap(mapId='map') {
                 line = L.polyline(latlngs, configPath).addTo(currentMap);
                 if (isCross) { pathCrossSection = line; } else { pathBoundary = line; }
             }
-        // } else if (req.requestId === 'waqPoint') {
-        //     result = e.latlng;
-        //     const marker = L.marker(
-        //         [e.latlng.lat, e.latlng.lng]
-        //     ).addTo(currentMap);
-        //     marker.bindPopup('Observation point');
-        
-
-
+        } else if (req.requestId === 'drawChecked') {
+            html = "Finish drawing with the right mouse button";
+            // Add marker
+            L.circleMarker(e.latlng, {
+                radius: 5, color: 'red', fillColor: 'pink', fillOpacity: 0.9
+            }).addTo(currentMap);
+            currentPoints.push([e.latlng.lat, e.latlng.lng]);
+            // Plot polygon
+            if (tempLine) { tempLine.setLatLngs(pointContainer);
+            } else {
+                tempLine = L.polyline(pointContainer, { 
+                    color: 'red', weight: 2
+                }).addTo(currentMap);
+            }
+            clearPendingRequest();
+            mapContainer.style.cursor = 'grab'; currentMap.closeTooltip(hoverTooltip);
 
 
         }
@@ -210,16 +249,36 @@ export function initMap(mapId='map') {
         // Right-click
         if (req.requestId === 'pickPath') {
             if (currentPoints.length < 2) {
-                alert(`Not enough points selected.\nPlease select at least 02 points.`); return;
+                alert("Not enough points selected.\nPlease select at least 02 points."); return;
             }
             req.source.postMessage({ requestId: req.requestId, result: currentPoints }, '*');
-            clearPendingRequest(); currentPoints.length = 0;
-            mapContainer.style.cursor = 'grab'; currentMap.closeTooltip(hoverTooltip); 
+        } else if (req.requestId === 'drawChecked') {
+            if (currentPoints.length < 3) {
+                alert("Polygon must have at least 3 points."); return;
+            }
+            tempLine = clearMap(tempLine, currentMap);
+            polygonLayer = clearMap(polygonLayer, currentMap);
+            // Plot polygon
+            await pointsToPolygon(
+                req.content.currentProject, currentPoints, polygonLayer, 
+                pointLayer, currentMap, req.content.action
+            ); drawChecked = false;
+
+
+
+
         }
-
-
-
-
-
+        clearPendingRequest(); currentPoints.length = 0;
+        mapContainer.style.cursor = 'grab'; currentMap.closeTooltip(hoverTooltip); 
     });
+}
+
+function clearMap(layer, map) {
+    if (layer) { map.removeLayer(layer); }
+    return null;
+}
+
+export function getColor(id){
+    const hue = (id * 57) % 360;
+    return `hsl(${hue},70%,60%)`;
 }

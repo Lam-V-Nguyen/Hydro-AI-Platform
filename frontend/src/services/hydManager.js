@@ -1,6 +1,7 @@
+import { hydMapId } from "./constant.js";
 import { setupTabs } from "./tabManager.js";
 import { jsonLoader, nameChecker, fillTable, updateTable, iframeConnector, 
-    getDataFromTable, csvUploader, fileUploader, deleteTable, copyPaste, 
+    getDataFromTable, csvUploader, fileUploader, deleteTable, copyPaste, signalSender,
     addRowToTable, removeRowFromTable, pointUpdate, plotTable, getProjectList
 } from "./commonFunctions.js";
 import { timeStepCalculator, saveProject } from "./projectSaver.js";
@@ -66,7 +67,7 @@ const obj = {
 setupTabs(document); projectOptions(); hydManager();
 
 async function projectOptions(){
-    // Create new project
+    // Create new HYD project
     obj.projectCreator.addEventListener('click', async () => {
         const name = obj.projectName.value.trim(); let project = '';
         if (!name || name.trim() === '') { alert('Please define scenario name.'); return; }
@@ -74,9 +75,11 @@ async function projectOptions(){
         if (name.includes('/')) { project = name.split('/').pop(); } else { project = name; }
         const data = await jsonLoader('setup_new_project', { projectName: project });
         obj.controlTab.style.display = "block"; obj.descriptionTab.style.display = "none"; // Show tabs
-        alert(data.message); await getProjectList(); await loadScenario(name); 
+        alert(data.message); const respond = await getProjectList();
+        await projectRender(obj.projectName, obj.projectList, respond);
+        await loadScenario(name); 
     });
-    // Copy project
+    // Copy HYD project
     obj.projectCloner.addEventListener('click', async () => {
         const name = obj.projectName.value.trim();
         if (!name || name === '') { alert('Please select scenario first.'); return; }
@@ -84,21 +87,23 @@ async function projectOptions(){
         const newName = prompt('Please enter a name for the new scenario.\nCloning a scenario will take some time. Please be patient.');
         if (!newName || newName === '') { alert('Please define clone scenario name.'); return; }
         if (nameChecker(newName)) { alert('Name of clone scenario is invalid.'); return;}
-        obj.projectCloner.innerHTML = 'Cloning...';
+        signalSender('showOverlay', `Cloning scenario '${name}' to '${newName}'. Please be patient...`);
         const data = await jsonLoader('copy_project', {oldName: name, newName: newName});
-        alert(data.message); obj.projectName.value = '';
-        obj.projectCloner.innerHTML = 'Clone Scenario';
+        const respond = await getProjectList(); obj.projectName.value = newName;
+        await projectRender(obj.projectName, obj.projectList, respond);
+        signalSender('hideOverlay'); alert(data.message);
     });
-    // Delete project
+    // Delete HYD project
     obj.projectRemover.addEventListener('click', async () => {
         const name = obj.projectName.value.trim();
         if (!name || name.trim() === '') { alert('Please define scenario.'); return; }
         // Ask for confirmation
         if (!confirm(`Are you sure you want to delete scenario '${name}'?`)) { return; }
-        obj.projectRemover.innerHTML = 'Deleting...';
+        signalSender('showOverlay', `Deleting scenario '${name}'. Please be patient...`);
         const data = await jsonLoader('delete_project', {projectName: name});
-        alert(data.message); obj.projectName.value = '';
-        await getProjectList(); obj.projectRemover.innerHTML = 'Delete Scenario';
+        obj.projectName.value = ''; const respond = await getProjectList();
+        await projectRender(obj.projectName, obj.projectList, respond);
+        signalSender('hideOverlay'); alert(data.message); 
     });
 }
 
@@ -125,9 +130,9 @@ async function hydManager(){
     await projectRender(obj.projectName, obj.projectList, respond);
     // Check whether map widget exists
     const layout = localStorage.getItem('grid-layout');
-    const hasMap = layout ? JSON.parse(layout).some(item => item.id === 'hyd-map'):false;
-    const content = { id: 'hyd-map', title: 'Hydrodynamic Scenario Map' };
-    if (!hasMap) window.parent.postMessage({ type: 'addMapWidget', content: content }, '*');
+    const hasMap = layout ? JSON.parse(layout).some(item => item.id === hydMapId):false;
+    const content = { id: hydMapId, title: 'Hydrodynamic Scenario Map' };
+    if (!hasMap) signalSender('addMapWidget', content);
     // Show/Hide tabs
     obj.projectName.addEventListener('input', (e) => { 
         const value = e.target.value.trim();
@@ -238,7 +243,7 @@ async function hydManager(){
     obj.obsPointUpdate.addEventListener('click', () => {
         const content = getDataFromTable(obj.obsPointTable, true);
         if (content.rows.length === 0) {alert('No observation points found.'); return;}
-        window.parent.postMessage({type: 'updateObsPoint', content: content}, '*');
+        signalSender('updateObsPoint', {content: content});
     });
     // Event when user delete table
     obj.crossSectionRemove.addEventListener('click', () => 

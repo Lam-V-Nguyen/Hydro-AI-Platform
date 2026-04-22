@@ -15,25 +15,25 @@ const githubCache = {}, currentProject = 'demo', currentParams = [];
 let isLoaded = false, userName = null; 
 // const exits = ['hyd-plot-source', 'hyd-plot-meteo', 'run-hyd', 'run-waq'];
 
-await login(); await projectChecker(); showNotes(); loadWidget();
+await login(); await projectChecker(); loadWidget();
 widgetMenuManager(); updateComponent(); 
 // showGitHubLastUpdate('Lam-V-Nguyen', 'Hydro-AI-Platform', 'dev'); 
 
 
 async function login() { 
     const data = await jsonLoader('auth_check', {}); 
-    if (data.user === 'admin') { userName = ''; } else { userName = `${ data.user }`; } 
+    if (data.user === 'admin') { userName = ''; } else { userName = data.user; } 
 }
 
 async function projectChecker() { 
     if (userName === 'admin' || userName === null) return; 
     startLoading('Setting up Database.\nThis takes a while (especially the first time). Please wait...'); 
-    // await new Promise(requestAnimationFrame);
+    await new Promise(requestAnimationFrame);
     const data = await jsonLoader('setup_database', { 
         projectName: currentProject, params: currentParams
     }); stopLoading();
     if (data.status === "error") { alert(data.message); return; } 
-    userName = data.user;
+    userName = data.user; showNotes(userName);
 } 
 
 function widgetMenuManager() {
@@ -55,12 +55,12 @@ function widgetMenuManager() {
         const id = item.id; if (!id) return;
         const title = item.textContent.replace(/▸|◂/g, '').trim();
         const url = item.dataset?.url;
-        let w = 11, h = 7;
+        let w = 11, h = 7, user = userName.split('/').shift();
         const closeMenu = () => { menuContainer.style.display = 'none'; saveWidget(); };
         if (hasWidget(id)) { alert('Widget already exists.'); closeMenu(); return; }
         if (id === 'new-project') { projectMaker(); closeMenu(); return; }
-        else if (id === 'open-project') { projectModifier(userName, 'open'); closeMenu(); return; }
-        else if (id === 'delete-project') { projectModifier(userName, 'delete'); closeMenu(); return; }
+        else if (id === 'open-project') { projectModifier(user, 'open'); closeMenu(); return; }
+        else if (id === 'delete-project') { projectModifier(user, 'delete'); closeMenu(); return; }
         else if (id === 'help-docs') { pdfOpener(url); closeMenu(); return; }
         else if (id === 'run-hyd' || id === 'run-waq') { w = 9; h = 3; }
         // else if (id === 'grid-generation') { w = 7; h = 3; }
@@ -71,15 +71,23 @@ function widgetMenuManager() {
     document.addEventListener("click", (e) => { 
         // Close button handler 
         if (e.target.classList.contains("remove-btn")) { 
-            const widget = e.target.closest(".grid-stack-item"); 
-            if (widget) initGrid().removeWidget(widget); 
+            const widget = e.target.closest(".grid-stack-item");
+            if (widget) {
+                const widgetId = widget.getAttribute("gs-id");
+                const mapEl = document.querySelector(`[gs-id=${widgetId}-map]`);
+                if (mapEl !== null) {
+                    const mapEL_btn = mapEl.querySelector('.remove-btn');
+                    if (mapEL_btn !== null) mapEL_btn.click();
+                }
+                initGrid().removeWidget(widget);
+            } 
         } 
         // Edit title handler 
         if (e.target.classList.contains("widget-title")) { 
             const newTitle = prompt("Enter new title:", e.target.textContent); 
             if (newTitle) { e.target.textContent = newTitle; } 
         } 
-        saveWidget(); 
+        setTimeout(() => { saveWidget(); }, 10);
     });
     // // Check whether widget exists and remove
     // const layoutStr = localStorage.getItem('grid-layout');
@@ -103,7 +111,7 @@ function updateComponent() {
         } else if (event.data.type === 'GET_USER') { // Get project destination
             const project = document.querySelector(".project-note");
             if (!project) return;
-            const content = project.textContent.split(':').pop().split('/').shift().trim();
+            const content = project.textContent.split(':').pop();
             event.source.postMessage({ type: 'USER', content: content }, '*');
         } else if (event.data.id === 'hyd-waq') {
             const req = { 
@@ -112,7 +120,7 @@ function updateComponent() {
             };
             setPendingRequest(req); renderPreview(req);
         } else if (event.data.type === 'showOverlay') { 
-            startLoading(event.data.message);
+            startLoading(event.data.content);
             await new Promise(requestAnimationFrame);
         } else if (event.data.type === 'hideOverlay') { 
             stopLoading(); await new Promise(requestAnimationFrame);
@@ -136,11 +144,29 @@ function updateComponent() {
             await new Promise( r => setTimeout(r, 200));
             await chartManager(iframe, chartData, event.data.title, 'Time', 'Value', width, height);
             stopLoading();
-        // } else if (event.data.type === 'init-simulation') { 
-        //     console.log(mode);
-        //     const iframe = await waitForWidgetReady(mode);
-        //     if (!iframe) return;
-        //     await simulationManager(iframe, mode);
+        } else if (event.data.type === 'gridPlotter' || event.data.type === 'polygonPlotter') {
+            const req = {
+                source: event.source, requestId: event.data.type, content: event.data.content
+            };
+            renderPreview(req); //setPendingRequest(req);
+        } else if (event.data.type === 'clearGridMap') { 
+            renderPreview({ source: event.source, requestId: event.data.type });
+        } else if (event.data.type === 'colorbarOption') { 
+            renderPreview({ 
+                source: event.source, content: event.data.content,
+                requestId: event.data.type 
+            });
+
+
+
+
+
+
+
+
+
+
+
 
         }
     });
@@ -177,8 +203,8 @@ async function showGitHubLastUpdate(username, repo, branch = 'main') {
     } catch (err) { console.error(err); displayDiv.textContent = 'Last update: error'; }
 }
 
-function showNotes() {
+export function showNotes(note) {
     const noteDiv = document.querySelector('.project-note');
-    if (!noteDiv || !userName) return;
-    noteDiv.textContent = `Project: ${userName}`;
+    if (!noteDiv) return;
+    noteDiv.textContent = `Project: ${note}`;
 }

@@ -11,12 +11,11 @@ const obj = {
 let currentProject = null, logIntervalHYD = null,
     lastOffsetHYD = 0, HYDRunning = false, activeHYDProject = null;
 
-
 hydComponents();
 
 async function hydComponents() {
-    const respond = await getProjectList('input');
-    if (!respond) { obj.scenarioSelector.innerHTML = `<option value="">--- No projects found ---</option>`; return; }
+    const respond = await getProjectList('', 'input');
+    if (respond.length === 0) { obj.scenarioSelector.innerHTML = `<option value="">--- No projects found ---</option>`; return; }
     const options = respond.map(name => `<option value="${name}">${name}</option>`).join('');
     const defaultOption = `<option value="" selected>--- No selected ---</option>`;
     obj.scenarioSelector.innerHTML = defaultOption + options;

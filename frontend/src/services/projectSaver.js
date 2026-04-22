@@ -1,4 +1,4 @@
-import { jsonLoader, getDataFromTable } from "./commonFunctions.js";
+import { jsonLoader, getDataFromTable, signalSender } from "./commonFunctions.js";
 
 export function toUTC(dateStr){
     const [datePart, timePart] = dateStr.split(' ');
@@ -14,6 +14,7 @@ export function timeStepCalculator(daysString, timeString){
 }
 
 export async function saveProject(elements) {
+    signalSender('showOverlay', 'Saving project. Please wait...');
     const { projectName, latitude, nLayers, gridPathText, startDate, stopDate,
         userTimeSec, nodalTimeSec, obsPointTable, crossSectionName, crossSectionTable, salinity, 
         temperature, initWaterLevel, initSalinity, initTemperature , outputHis, hisInterval, hisStart, 
@@ -163,5 +164,5 @@ export async function saveProject(elements) {
     // Generate MDU file
     const dataObj = Object.fromEntries(data);
     const content = await jsonLoader('generate_mdu', {params: dataObj});
-    alert(content.message);
+    signalSender('hideOverlay'); alert(content.message);
 }

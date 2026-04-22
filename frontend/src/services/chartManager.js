@@ -1,4 +1,4 @@
-import { numberFormatter, formatDateTime, interpolateJet } from "./commonFunctions.js";
+import { numberFormatter, formatDateTime, interpolateJet, signalSender } from "./commonFunctions.js";
 
 let globalChartData = {data: null, titleX: "", titleY: "", validColumns: []};
 
@@ -142,8 +142,7 @@ export async function chartManager(iframe, data, title, titleX, titleY, selected
 
 // Export chart data to new tab as CSV format
 export function viewDatafromPlot(plotDiv) {
-    const message = "Getting data from plot. Please wait...";
-    window.parent.postMessage({type: 'showOverlay', message: message}, '*');
+    signalSender('showOverlay', "Getting data from plot. Please wait...");
     // Get data
     const traces = plotDiv.data;
     if (!traces || traces.length === 0) { alert("No data to view."); return; }
@@ -181,14 +180,13 @@ export function viewDatafromPlot(plotDiv) {
     } else {
         alert("Pop-up blocked. Please allow popups for this site.");
     }
-    window.parent.postMessage({type: 'hideOverlay'}, '*');
+    signalSender('hideOverlay');
 }
 
 // Save to Excel
 export function saveToExcelFromPlot(plotDiv) {
-    const message = "Downloading data as Excel file. Please wait...";
-    window.parent.postMessage({type: 'showOverlay', message: message}, '*');
-     const traces = plotDiv.data;
+    signalSender('showOverlay', "Downloading data as Excel file. Please wait...");
+    const traces = plotDiv.data;
     if (!traces || traces.length === 0) { alert("No data to view."); return; }
     // Get the y values
     const numTraces = plotDiv.data.length;
@@ -217,5 +215,5 @@ export function saveToExcelFromPlot(plotDiv) {
     XLSX.utils.book_append_sheet(workbook, worksheet, "ChartData");
     // Download the Excel file
     XLSX.writeFile(workbook, `${titleY.split(' (')[0]}.xlsx`);
-    window.parent.postMessage({type: 'hideOverlay'}, '*');
+    signalSender('hideOverlay');
 }

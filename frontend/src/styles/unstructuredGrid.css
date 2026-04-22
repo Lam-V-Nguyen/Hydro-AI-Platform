@@ -18,7 +18,7 @@ body {
 .data-source {
     display: flex; align-items: center; 
     justify-content: center; margin: 10px 0 5px 0;
-    font-size: 18px; font-weight: bold; 
+    font-size: 20px; font-weight: bold; 
 }
 .data-source label { margin-right: 10px; }
 
@@ -27,14 +27,13 @@ body {
     justify-content: center; gap: 20px; position: relative;
 }
 #municipality-name {
-    width: 200px; text-align: center;
+    width: 380px; text-align: center; font-size: 18px;
 }
 #municipality-list {
     list-style: none; margin: 0; padding: 0; background: var(--card);
     border: 1px solid var(--border); border-radius: 8px; 
-    max-height: 200px; width: 200px; top: 100%;
+    width: 380px; top: 100%; font-size: 18px; font-weight: normal;
     overflow-y: auto; position: absolute; z-index: 1000;
-    font-size: 15px; font-weight: normal;
 }
 #municipality-list li { padding: 6px 12px; cursor: pointer; }
 #municipality-list li:hover { background-color: rgba(30,136,229,0.2); }
@@ -45,12 +44,12 @@ body {
 }
 .search-input-wrapper { position: relative; width: 250px; gap: 5px; }
 #lake-search {
-    text-align: center; font-size: 14px; width: 180px;
+    text-align: center; font-size: 18px; width: 220px;
 }
 #lake-name-label, #lake-name, #lake-suggestions, 
 #menu-container, #lake-name-label, #lake-name { display: none; }
 #lake-suggestions {
-    position: absolute; top: 100%; left: 0; width: 180px; margin-top: 4px; 
+    position: absolute; top: 100%; left: 0; width: 220px; margin-top: 4px; 
     border: 1px solid #ddd; border-radius: 4px; max-height: 300px;
     overflow-y: auto; z-index: 1000; color: #333; font-size: 15px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.2); background: #e2d8d8;

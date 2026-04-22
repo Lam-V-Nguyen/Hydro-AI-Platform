@@ -144,3 +144,23 @@ h3 {
     padding: 10px 20px; font-size: 14px;
     border-radius: 8px; cursor: pointer;
 }
+
+
+.custom-colorbar {
+  position: absolute; top: 70px; right: 15px; z-index: 1000; display: none;
+}
+.colorbar-wrapper {
+  display: flex; flex-direction: row; align-items: center; gap: 6px;
+  background: rgba(0,0,0,0.6); padding: 8px; border-radius: 6px;
+}
+.colorbar-title {
+  writing-mode: vertical-rl; transform: rotate(180deg); font-size: 15px;
+  font-weight: bold; color: white; text-align: center;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+.colorbar-gradient { width: 20px; height: 200px; border: 1px solid #ccc; background: #e0e0e0; }
+.colorbar-labels {
+  height: 200px; display: flex; flex-direction: column; justify-content: space-between;
+  font-size: 15px; color: white; margin-left: 6px; text-align: left;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
