@@ -3,7 +3,6 @@ import { getUser, fillTable, jsonLoader, deleteTable, addRowToTable,
     signalSender
 } from "./commonFunctions.js";
 import { projectRender } from "./projectManager.js";
-import { gridPlotter } from "./unstructuredGrid.js";
 
 // import { startLoading, stopLoading, jsonLoader, renderProjects, fillTable
 //     } from "./commonFunctions.js"; 
@@ -81,7 +80,7 @@ function unGridManager() {
     const layout = localStorage.getItem('grid-layout');
     const hasMap = layout ? JSON.parse(layout).some(item => item.id === gridId):false;
     const content = { id: gridId, title: 'Unstructured Grid Map' };
-    signalSender('addMapWidget', content);
+    if (!hasMap) signalSender('addMapWidget', content);
     // Change data source 
     document.querySelectorAll('input[type="radio"]').forEach(opt => { 
         opt.addEventListener('change', () => { 
@@ -108,6 +107,46 @@ function unGridManager() {
         if (!input.contains(e.target) && !suggestion.contains(e.target)) { 
             suggestion.style.display = "none"; 
         }
+    });
+    // Show/Hide objects
+    obj.polygonCheckbox.addEventListener('change', (e) => {
+        const content = { 
+            layer: 'polygonGrid', checked: e.target.checked, polygon: dataLake
+        };
+        signalSender('gridOptions', content);
+    });
+    obj.depthCheckbox.addEventListener('change', async (e) => {
+        if (e.target.checked && drawSelection) { e.target.checked = false; return; } 
+        const content = { 
+            layer: 'depthGrid', checked: e.target.checked, 
+            polygon: dataLake, id: gridId, legend: 'Depth (m)', 
+            dataLake: dataLake, dataDepth: dataDepth
+        };
+        signalSender('gridOptions', content);
+    });
+    obj.refinementCheckbox.addEventListener('change', (e) => {
+        if (e.target.checked) { 
+//             if (pointLayer === null) { 
+//                 alert("Select the button 'Get/Reset Vertexes' to create vertexes first.");
+//                 e.target.checked = false; return;
+//             }
+            refineChecked = true; obj.depthCheckbox.checked = false;
+            obj.moveCheckbox.checked = false; moveChecked = false;
+            obj.depthCheckbox.dispatchEvent(new Event('change'));
+            obj.orthoCheckbox.checked = false; 
+            //obj.orthoCheckbox.dispatchEvent(new Event('change'));
+            // orthoLayer = clearMap(orthoLayer, lakeMap); 
+            pointContainer = []; //gridLayer = clearMap(gridLayer, lakeMap);
+            obj.refinementContainer.style.display = 'flex';
+            deleteChecked = false; obj.deleteCheckbox.checked = false;
+            deleteChecked = false; ///obj.deleteCheckbox.dispatchEvent(new Event('change'));
+            const content = { 
+                layer: 'vertexGrid', checked: true, 
+                // polygon: dataLake, id: gridId, legend: 'Depth (m)', 
+                // dataLake: dataLake, dataDepth: dataDepth
+            };
+        signalSender('gridOptions', content);
+        } else { obj.refinementContainer.style.display = 'none'; refineChecked = false; }
     });
 
 
@@ -430,82 +469,8 @@ async function createLakeMap() {
 // }
 
 // async function dataPreparationManager(){
-//     baseMap = document.getElementById("base-map-select");
-//     if (!lakeMap) { createLakeMap(); }; polygonLayer = clearMap(polygonLayer, lakeMap);
-//     regionName().addEventListener('change', async () => {
-//         const selectedLake = regionName().value.trim(); entireNorway = false;
-//         if (!selectedLake || selectedLake === "") { return; }
-//         if (selectedLake === "All Municipalities" ) {
-//             startLoading('Loading Lakes for entire Norway. Please wait...'); entireNorway = true;
-//             const response = await sendQuery('load_lakes', { projectName: getState().currentProject, lakeName: 'all' }); stopLoading();
-//             if (response.status === "error") { alert(response.message);  return; }
-//             tableContent().style.display = "none"; menuContent().style.display = "none";
-//             colorbar_container_grid().style.display = 'none'; lakeSelector().style.display = "none";
-//             dataLake = response.content.lake; dataDepth = response.content.depth;
-//             polygonLayer = clearMap(polygonLayer, lakeMap); polygonLayer = polygonPlotter(dataLake, true); 
-//             orthoLayer = clearMap(orthoLayer, lakeMap); return;
-//         }
-//         lakeSelector().innerHTML = lakesData[selectedLake].map(name => `<option value="${name}">${name}</option>`).join('');
-//         lakeSelector().value = lakesData[selectedLake][0]; lakeSelector().dispatchEvent(new Event('change'));
-//     });
-//     lakeSelector().addEventListener('change', async () => {
-//         const lakeName = lakeSelector().value; if (!lakeName) return;
-//         gridLayer = clearMap(gridLayer, lakeMap); polygonLayer = clearMap(polygonLayer, lakeMap);
-//         pointLayer = clearMap(pointLayer, lakeMap); orthoLayer = clearMap(orthoLayer, lakeMap);
-//         startLoading(`Loading data for lake: ${lakeName}`);
-//         const response = await sendQuery('load_lakes', { projectName: getState().currentProject, lakeName: lakeName }); stopLoading();
-//         if (response.status === "error") { alert(response.message); return; }
-//         dataLake = response.content.lake; dataDepth = response.content.depth;
-//         createLakeMap(); const data = dataLake.features[0].properties;
-//         const contents = [[data.name, data.region, data.area, data.perimeter, data.min, data.max, data.avg]];
-//         tableContent().style.display = "block"; menuContent().style.display = "flex";
-//         fillTable(contents, lakeTable(), true); lakeSelector().style.display = 'flex';
-//         depthCheckbox().checked = true; polygonCheckbox().checked = true; orthoCheckbox().checked = false;
-//         // Plot lake and depth on map
-//         window.depthGridLayer = clearMap(window.depthGridLayer, lakeMap);
-//         window.depthGridLayer = gridPlotter(dataLake, dataDepth);
-//         polygonLayer = clearMap(polygonLayer, lakeMap); polygonLayer = polygonPlotter(dataLake, true);
-//     });
-//     // Search lake
-//     lakeSearcher().addEventListener('click', (e) => { 
-//         addItems(e.target.value.trim()); regionList().style.display = "none";
-//         lakeSelector().style.display = 'none'; regionName().value = '';
-//     });
-//     lakeSearcher().addEventListener('input', (e) => {
-//         clearTimeout(timeOut); addItems(e.target.value.trim()); regionName().value = '';
-//         regionList().style.display = "none"; lakeSelector().style.display = 'none'; resetMap();
-//     });
-//     document.addEventListener('click', (e) => { 
-//         const input = lakeSearcher(), suggestion = sugesstionLake();
-//         if (!input.contains(e.target) && !suggestion.contains(e.target)) {
-//             suggestion.style.display = "none";
-//         }
-//     });
-//     polygonCheckbox().addEventListener('change', (e) => {
-//         if (e.target.checked) { 
-//             if (polygonLayer === null) { polygonLayer = polygonPlotter(dataLake, true); }
-//         } else { polygonLayer = clearMap(polygonLayer, lakeMap); }
-//     });
-//     depthCheckbox().addEventListener('change', async (e) => {
-//         if (e.target.checked) {
-//             if (drawSelection) { e.target.checked = false; return; } 
-//             if (window.depthGridLayer === null) {
-//                 startLoading('Plotting depth grid. Please wait...');
-//                 await new Promise(resolve => setTimeout(resolve, 0));
-//                 window.depthGridLayer = gridPlotter(dataLake, dataDepth);
-//                 stopLoading();
-//             }
-//         } else {
-//             window.depthGridLayer = clearMap(window.depthGridLayer, lakeMap);
-//             colorbar_container_grid().style.display = 'none';
-//         }
-//     });
-//     baseMap.addEventListener('change', () => {
-//         const url = baseMap.value.trim(); currentTileLayer = clearMap(currentTileLayer, lakeMap);
-//         currentTileLayer = L.tileLayer(url, {zIndex: 0});
-//         currentTileLayer.addTo(lakeMap);
-//         setTimeout(() => { lakeMap.invalidateSize(); }, 0);
-//     });
+
+
 //     vertexesBtn().addEventListener('click', async () => {
 //         gridLayer = clearMap(gridLayer, lakeMap); polygonLayer = clearMap(polygonLayer, lakeMap);
 //         colorbar_container_grid().style.display = 'none';
@@ -521,23 +486,7 @@ async function createLakeMap() {
 //         refinementCheckbox().dispatchEvent(new Event('change'));
 //         depthCheckbox().checked = false; depthCheckbox().dispatchEvent(new Event('change'));
 //     });
-//     refinementCheckbox().addEventListener('change', (e) => {
-//         if (e.target.checked) { 
-//             if (pointLayer === null) { 
-//                 alert("Select the button 'Get/Reset Vertexes' to create vertexes first.");
-//                 e.target.checked = false; return;
-//             }
-//             refineChecked = true; depthCheckbox().checked = false;
-//             moveCheckbox().checked = false; moveChecked = false;
-//             depthCheckbox().dispatchEvent(new Event('change'));
-//             orthoLayer = clearMap(orthoLayer, lakeMap); deleteChecked = false;
-//             orthoCheckbox().checked = false; orthoCheckbox().dispatchEvent(new Event('change'));
-//             pointContainer = []; gridLayer = clearMap(gridLayer, lakeMap);
-//             refinementContainer().style.display = 'flex';
-//             deleteChecked = false; deleteCheckbox().checked = false;
-//             deleteCheckbox().dispatchEvent(new Event('change'));
-//         } else { refinementContainer().style.display = 'none'; refineChecked = false; }
-//     });
+
 //     moveCheckbox().addEventListener('change', async (e) => { 
 //         const value = e.target.checked, pointCollection = [];
 //         if (value) {

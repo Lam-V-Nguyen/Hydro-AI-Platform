@@ -1,5 +1,6 @@
 import { CENTER, ZOOM, L, getPendingRequest, clearPendingRequest } from "./constant.js";
 import { gridPlotter, polygonPlotter, pointsToPolygon } from "./unstructuredGrid.js";
+import { signalSender } from "./commonFunctions.js";
 
 export let currentMap;
 let currentTileLayer = null, timeCounter = null, html='', markersObs = [], markerCrossSection = [], 
@@ -121,6 +122,43 @@ export function renderPreview(request=null) {
         const widgetEl = document.querySelector(`[gs-id="${request.content.id}"]`);
         const colorbar = widgetEl?.querySelector('.custom-colorbar');
         if (!colorbar) return; colorbar.style.display = request.content.display;
+    } else if (type === 'gridOptions') {
+        const layer = request.content.layer;
+        const checked = request.content.checked;
+        if (layer === 'polygonGrid') {
+            polygonLayer = clearMap(polygonLayer, currentMap);
+            if (checked) polygonLayer = polygonPlotter(
+                request.content.polygon, currentMap, false, true
+            );
+        } else if (layer === 'depthGrid') {
+            const widgetEl = document.querySelector(`[gs-id="${request.content.id}"]`);
+            const colorbar = widgetEl?.querySelector('.custom-colorbar');
+            if (!colorbar) return;
+            gridLayer = clearMap(gridLayer, currentMap);
+            colorbar.style.display = 'none';
+            if (checked) {
+                signalSender('showOverlay', 'Plotting depth grid. Please wait...');
+                gridLayer = gridPlotter(
+                    request.content.legend, request.content.dataLake, 
+                    request.content.dataDepth, currentMap, colorbar
+                );
+                signalSender('hideOverlay');
+            }
+        } else if (layer === 'vertexGrid') {
+
+
+
+
+
+        }
+
+
+
+
+
+
+
+
 
 
 
@@ -243,7 +281,7 @@ export function initMap(mapId='map') {
             mapContainer.style.cursor = 'grab'; currentMap.closeTooltip(hoverTooltip);
         }
     });
-    currentMap.on('contextmenu', (e) => { 
+    currentMap.on('contextmenu', async (e) => { 
         e.originalEvent.preventDefault();
         const req = getPendingRequest(); if (!req) return;
         // Right-click

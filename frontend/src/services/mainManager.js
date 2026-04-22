@@ -156,8 +156,11 @@ function updateComponent() {
                 source: event.source, content: event.data.content,
                 requestId: event.data.type 
             });
-
-
+        } else if (event.data.type === 'gridOptions') { 
+            renderPreview({ 
+                source: event.source, requestId: event.data.type,
+                content: event.data.content
+            });
 
 
 
