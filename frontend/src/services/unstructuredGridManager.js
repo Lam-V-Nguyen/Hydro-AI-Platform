@@ -117,7 +117,8 @@ function unGridManager() {
     obj.polygonCheckbox.addEventListener('change', (e) => {
         const content = { 
             layer: 'polygonGrid', polygon: dataLake,
-            checked: e.target.checked
+            id: gridId, checked: e.target.checked, 
+            entireNorway: entireNorway, zoom: true
         };
         signalSender('gridPlot', content);
     });
@@ -125,36 +126,48 @@ function unGridManager() {
         if (e.target.checked && drawSelection) { e.target.checked = false; return; } 
         const content = { 
             layer: 'depthGrid', checked: e.target.checked, 
-            polygon: dataLake, id: gridId, legend: 'Depth (m)', 
-            dataLake: dataLake, dataDepth: dataDepth
+            polygon: dataLake, id: gridId, 
+            legend: 'Depth (m)', dataDepth: dataDepth
         };
         signalSender('gridPlot', content);
     });
+    obj.vertexesBtn.addEventListener('click', async () => {
+        signalSender('clearGridMap');
+        signalSender('colorbarOption', { display: 'none', id: gridId });
+        signalSender('showOverlay', 'Generating Vertexes. Please wait...');
+        const response = await jsonLoader('vertex_generator', { projectName: currentProject }); 
+        signalSender('hideOverlay');
+        if (response.status === "error") { alert(response.message); return; }
+        const content = {
+            layer: 'vertexGrid', key: 'moveChecked',
+            currentProject: currentProject,
+            points: response.content, move: false,
+        }
+        await sendRequest('gridOptions', content);
+        if (!obj.polygonCheckbox.checked) { obj.polygonCheckbox.checked = true; }
+        obj.polygonCheckbox.dispatchEvent(new Event('change'));
+        obj.orthoCheckbox.checked = false; obj.orthoCheckbox.dispatchEvent(new Event('change'));
+        refineChecked = false; obj.refinementCheckbox.checked = false;
+        obj.refinementCheckbox.dispatchEvent(new Event('change'));
+        obj.depthCheckbox.checked = false; obj.depthCheckbox.dispatchEvent(new Event('change'));
+    });
     obj.refinementCheckbox.addEventListener('change', async (e) => {
-//         if (e.target.checked) { 
-//             const content = { 
-//                 layer: 'vertexGrid', checked: true, 
-//                 // polygon: dataLake, id: gridId, legend: 'Depth (m)', 
-//                 // dataLake: dataLake, dataDepth: dataDepth
-//             };
-//             await signalSender('gridOptions', content);
-//             if (isPointLayer) { 
-//                 alert("Select the button 'Get/Reset Vertexes' to create vertexes first.");
-//                 e.target.checked = false; return;
-//             }
-//             refineChecked = true; obj.depthCheckbox.checked = false;
-//             obj.moveCheckbox.checked = false; moveChecked = false;
-//             obj.depthCheckbox.dispatchEvent(new Event('change'));
-//             obj.orthoCheckbox.checked = false; 
-//             //obj.orthoCheckbox.dispatchEvent(new Event('change'));
-//             // orthoLayer = clearMap(orthoLayer, lakeMap); 
-//             pointContainer = []; //gridLayer = clearMap(gridLayer, lakeMap);
-//             obj.refinementContainer.style.display = 'flex';
-//             deleteChecked = false; obj.deleteCheckbox.checked = false;
-//             deleteChecked = false; ///obj.deleteCheckbox.dispatchEvent(new Event('change'));
-
-//         } 
-//         else { obj.refinementContainer.style.display = 'none'; refineChecked = false; }
+        if (e.target.checked) { 
+            const content = { 
+                layer: 'refineGrid', key: 'refineChecked',
+            };
+            const response = await sendRequest('gridOptions', content);
+            isPointLayer = response.isPointLayer;
+            if (!isPointLayer) { 
+                alert("Select the button 'Get/Reset Vertexes' to create vertexes first.");
+                e.target.checked = false; return;
+            }
+            obj.moveCheckbox.checked = false; obj.deleteCheckbox.checked = false;
+            obj.depthCheckbox.checked = false; obj.depthCheckbox.dispatchEvent(new Event('change'));
+            obj.orthoCheckbox.checked = false; obj.orthoCheckbox.dispatchEvent(new Event('change'));
+            obj.refinementContainer.style.display = 'flex';
+            obj.deleteCheckbox.dispatchEvent(new Event('change'));
+        } else { obj.refinementContainer.style.display = 'none'; refineChecked = false; }
     });
 //     obj.orthoCheckbox.addEventListener('change', async (e) => {
 //         const content = { 
@@ -206,26 +219,7 @@ function unGridManager() {
 //             e.target.value = '1.0'; return; 
 //         }
 //     });
-    obj.vertexesBtn.addEventListener('click', async () => {
-        signalSender('clearGridMap');
-        signalSender('colorbarOption', { display: 'none', id: gridId });
-        signalSender('showOverlay', 'Generating Vertexes. Please wait...');
-        const response = await jsonLoader('vertex_generator', { projectName: currentProject }); 
-        signalSender('hideOverlay');
-        if (response.status === "error") { alert(response.message); return; }
-        const content = {
-            layer: 'vertexGrid', key: 'moveChecked',
-            currentProject: currentProject,
-            points: response.content, move: true,
-        }
-        const result = await sendRequest('gridOptions', content);
-        if (!obj.polygonCheckbox.checked) { obj.polygonCheckbox.checked = true; }
-        obj.polygonCheckbox.dispatchEvent(new Event('change'));
-        obj.orthoCheckbox.checked = false; obj.orthoCheckbox.dispatchEvent(new Event('change'));
-        refineChecked = false; obj.refinementCheckbox.checked = false;
-        obj.refinementCheckbox.dispatchEvent(new Event('change'));
-        obj.depthCheckbox.checked = false; obj.depthCheckbox.dispatchEvent(new Event('change'));
-    });
+
 
 
     obj.createGrid.addEventListener('click', async () => {
@@ -249,7 +243,7 @@ function unGridManager() {
         if (response.status === "error") { alert(response.message); return; }
 //         gridLayer = clearMap(gridLayer, lakeMap); orthoLayer = clearMap(orthoLayer, lakeMap);
 //         gridLayer = await plotUnstructuredGrid(response.content, lakeMap);
-        moveChecked = false; obj.moveCheckbox.checked = false;
+        obj.moveCheckbox.checked = false;
         refineChecked = false; obj.refinementCheckbox.checked = false;
         obj.refinementCheckbox.dispatchEvent(new Event('change'));
         obj.gridOptimizationCheckbox.checked = false;
@@ -368,8 +362,8 @@ async function lakeOptions() {
         obj.orthoCheckbox.checked = false; 
         // Plot depth grid on map
         const dataGrid = { 
-            layer: 'depthGrid', legend: 'Depth (m)', 
-            dataLake: dataLake, dataDepth: dataDepth, id: gridId
+            layer: 'depthGrid', legend: 'Depth (m)', checked: true, 
+            polygon: dataLake, dataDepth: dataDepth, id: gridId
         };
         signalSender('gridPlot', dataGrid);
         // Plot polygon on map
@@ -411,8 +405,8 @@ async function dataBaseOptions() {
             dataLake = response.content.lake; dataDepth = response.content.depth;
             signalSender('clearGridMap');
             const dataPolygon = { 
-                layer: 'polygonGrid', polygon: dataLake, id: gridId, 
-                entireNorway: entireNorway, zoom: true 
+                layer: 'polygonGrid', polygon: dataLake,
+                entireNorway: entireNorway, zoom: true, checked: true 
             };
             signalSender('gridPlot', dataPolygon); return;
         }
@@ -481,33 +475,33 @@ async function dataBaseOptions() {
     });
 }
 
-function updateLog(project, progress_bar, progress_text, seconds){
-    activeProject = project; isRunning = true;
-    logInterval = setInterval(async () => {
-        if (activeProject !== project) { clearInterval(logInterval); logInterval = null; }
-        try {
-            const statusRes = await jsonLoader('check_grid_optimization', {projectName: project});
-            progress_text.innerText = statusRes.message; progress_bar.value = statusRes.progress;
-            if (statusRes.status === "finished" || statusRes.status === "stopped") {
-                clearInterval(logInterval); logInterval = null; isRunning = false;
-                if (statusRes.grid) { 
-                    // gridLayer = clearMap(gridLayer, lakeMap);
-                    // gridLayer = await plotUnstructuredGrid(statusRes.grid, lakeMap);
-                    orthoCheckbox().checked = true; orthoCheckbox().dispatchEvent(new Event('change'));
-                } else { alert('No grid has been found. Consider running the optimization again.'); }
-                optimizeCloseBtn().innerText = "Close and Plot Grid"; return;
-            }
-            if (statusRes.status === "failed") {
-                clearInterval(logInterval); logInterval = null; isRunning = false;
-                alert(statusRes.message); return;
-            }
-            // Plotting Orthogonality
-            await orthoPlotter(statusRes.his, chartDiv(), 'Step', 'Orthogonality', 'Orthogonality History');
-        } catch (error) { 
-            alert("Polling error:", error); clearInterval(logInterval); logInterval = null; 
-        }
-    }, seconds * 1000);
-}
+// function updateLog(project, progress_bar, progress_text, seconds){
+//     activeProject = project; isRunning = true;
+//     logInterval = setInterval(async () => {
+//         if (activeProject !== project) { clearInterval(logInterval); logInterval = null; }
+//         try {
+//             const statusRes = await jsonLoader('check_grid_optimization', {projectName: project});
+//             progress_text.innerText = statusRes.message; progress_bar.value = statusRes.progress;
+//             if (statusRes.status === "finished" || statusRes.status === "stopped") {
+//                 clearInterval(logInterval); logInterval = null; isRunning = false;
+//                 if (statusRes.grid) { 
+//                     // gridLayer = clearMap(gridLayer, lakeMap);
+//                     // gridLayer = await plotUnstructuredGrid(statusRes.grid, lakeMap);
+//                     orthoCheckbox().checked = true; orthoCheckbox().dispatchEvent(new Event('change'));
+//                 } else { alert('No grid has been found. Consider running the optimization again.'); }
+//                 optimizeCloseBtn().innerText = "Close and Plot Grid"; return;
+//             }
+//             if (statusRes.status === "failed") {
+//                 clearInterval(logInterval); logInterval = null; isRunning = false;
+//                 alert(statusRes.message); return;
+//             }
+//             // Plotting Orthogonality
+//             await orthoPlotter(statusRes.his, chartDiv(), 'Step', 'Orthogonality', 'Orthogonality History');
+//         } catch (error) { 
+//             alert("Polling error:", error); clearInterval(logInterval); logInterval = null; 
+//         }
+//     }, seconds * 1000);
+// }
 
 function resetMap(){
     signalSender('clearGridMap'); signalSender('colorbarOption', { display: 'none', id: gridId });

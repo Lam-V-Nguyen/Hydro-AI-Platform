@@ -29,6 +29,44 @@ export function polygonPlotter(polygon, map, entireNorway=false, zoom = false) {
     return tempLayer;
 }
 
+export function gridPlotter(legend, polygon, points, map, colorBarObj, colorbarKey='depth') {
+    if (points === null || points.features === null 
+        || points.features.length === 0) { return null; }
+    // Make grid points colored by depth
+    const colorbar_title = colorBarObj.querySelector('.colorbar-title');
+    const colorbar_label = colorBarObj.querySelector('.colorbar-labels');
+    const colorbar_color = colorBarObj.querySelector('.colorbar-gradient');
+    const lakePolygon = polygon.features[0];
+    const cellSize = getAdaptiveCellSize(lakePolygon, 800);
+    colorBarObj.style.display = 'block';
+    const grid = turf.squareGrid(turf.bbox(lakePolygon), cellSize, {units: 'meters'});
+    grid.features.forEach(cell => {
+        const center = turf.center(cell);
+        if (!turf.booleanPointInPolygon(center , lakePolygon)) return;
+        let num = 0, den = 0;
+        points.features.forEach(p => {
+            const d = turf.distance(center , p, {units: 'meters'});
+            const w = 1 / Math.max(d, 1);
+            num += w * p.properties.depth; den += w;
+        });
+        if (den > 0) { cell.properties.value = num / den; }
+    });
+    const vmin = lakePolygon.properties.min, vmax = lakePolygon.properties.max;
+    const tempGrid = L.geoJSON(grid, {
+        filter: f => f.properties.value !== undefined,
+        style: f => {
+            const value = f.properties.value;
+            const { r, g, b, a } = getColorFromValue(value, vmin, vmax, colorbarKey);
+            return { fill: true, fillColor: `rgb(${r},${g},${b})`, 
+                fillOpacity: a, weight: 0, opacity: 1, stroke: false };
+        }
+    }).addTo(map);
+    map.fitBounds(tempGrid.getBounds());
+    updateColorbar(vmin, vmax, legend, colorbarKey, colorbar_color, colorbar_title, colorbar_label);
+    return tempGrid;
+}
+
+
 export async function pointsToPolygon(currentProject, pointList, polygon, pointLayer, map, key) {
     signalSender('showOverlay', 'Drawing Polygon from Points. Please wait...');
     const content = { projectName: currentProject, points: pointList };
@@ -50,10 +88,6 @@ export function addPointLayer(currentProject, points, map, key, checkMove=false)
     //     isPointLayer: false,
     //     refinement: true,
     //     triggerRefinementChange: true
-    // });
-    // const hoverTooltip = L.tooltip({
-    //     permanent: false, direction: 'bottom', sticky: true, 
-    //     offset: [0, 10], className: 'custom-tooltip'
     // });
     const pointType = checkMove ? 'point-marker-move' : 'point-marker-default';
     const tempLayer = L.geoJSON(points, {
@@ -124,42 +158,7 @@ export function addPointLayer(currentProject, points, map, key, checkMove=false)
 }
 
 
-export function gridPlotter(legend, polygon, points, map, colorBarObj, colorbarKey='depth') {
-    if (points === null || points.features === null 
-        || points.features.length === 0) { return null; }
-    // Make grid points colored by depth
-    const colorbar_title = colorBarObj.querySelector('.colorbar-title');
-    const colorbar_label = colorBarObj.querySelector('.colorbar-labels');
-    const colorbar_color = colorBarObj.querySelector('.colorbar-gradient');
-    const lakePolygon = polygon.features[0];
-    const cellSize = getAdaptiveCellSize(lakePolygon, 800);
-    colorBarObj.style.display = 'block';
-    const grid = turf.squareGrid(turf.bbox(lakePolygon), cellSize, {units: 'meters'});
-    grid.features.forEach(cell => {
-        const center = turf.center(cell);
-        if (!turf.booleanPointInPolygon(center , lakePolygon)) return;
-        let num = 0, den = 0;
-        points.features.forEach(p => {
-            const d = turf.distance(center , p, {units: 'meters'});
-            const w = 1 / Math.max(d, 1);
-            num += w * p.properties.depth; den += w;
-        });
-        if (den > 0) { cell.properties.value = num / den; }
-    });
-    const vmin = lakePolygon.properties.min, vmax = lakePolygon.properties.max;
-    const tempGrid = L.geoJSON(grid, {
-        filter: f => f.properties.value !== undefined,
-        style: f => {
-            const value = f.properties.value;
-            const { r, g, b, a } = getColorFromValue(value, vmin, vmax, colorbarKey);
-            return { fill: true, fillColor: `rgb(${r},${g},${b})`, 
-                fillOpacity: a, weight: 0, opacity: 1, stroke: false };
-        }
-    }).addTo(map);
-    map.fitBounds(tempGrid.getBounds());
-    updateColorbar(vmin, vmax, legend, colorbarKey, colorbar_color, colorbar_title, colorbar_label);
-    return tempGrid;
-}
+
 
 export function updateColorbar(min, max, title, colorbarKey, bar_color, bar_title, bar_label) {
     bar_title.innerHTML = title.replace(/\n/g, '<br>');

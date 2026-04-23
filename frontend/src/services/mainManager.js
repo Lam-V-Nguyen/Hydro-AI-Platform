@@ -146,11 +146,6 @@ function updateComponent() {
             await new Promise( r => setTimeout(r, 200));
             await chartManager(iframe, chartData, event.data.title, 'Time', 'Value', width, height);
             stopLoading();
-        // } else if (event.data.type === 'gridPlotter' || event.data.type === 'polygonPlotter') {
-        //     const req = {
-        //         source: event.source, requestId: event.data.type, content: event.data.content
-        //     };
-        //     renderPreview(req); //setPendingRequest(req);
         } else if (event.data.type === 'clearGridMap') { 
             renderPreview({ source: event.source, requestId: event.data.type });
         } else if (event.data.type === 'colorbarOption') { 

@@ -5,16 +5,19 @@ import { gridPlotter, polygonPlotter, pointsToPolygon, updateColorbar,
 import { jsonLoader, signalSender } from "./commonFunctions.js";
 
 export let currentMap;
-let currentTileLayer = null, timeCounter = null, html='', markersObs = [], markerCrossSection = [], 
-    currentPoints = [], markerBoundary = [], pathCrossSection = null, pathBoundary = null, 
-    currentPointsCross = [], currentPointsBoundary = [], waqObs = [], waqLoads = [], gridLayer = null,
+let currentTileLayer = null, timeCounter = null, html='', markersObs = [], 
+    markerCrossSection = [], currentPoints = [], markerBoundary = [], 
+    pathCrossSection = null, pathBoundary = null, currentPointsCross = [], 
+    currentPointsBoundary = [], waqObs = [], waqLoads = [], gridLayer = null,
     polygonLayer = null, pointLayer = null, orthoLayer = null, tempLine = null;
-const configCrossSectionPoint = {color: 'blue', fillColor: 'yellow', radius: 4, fill: true, fillOpacity: 1},
-    configBoundaryPoint = {color: 'red', fillColor: 'green', radius: 4, fill: true, fillOpacity: 1},
-    configCrossSectionPath = {color: 'blue', weight: 2, dashArray: '5,5'},
+const configCrossSectionPoint = { color: 'blue', fillColor: 'yellow', radius: 4, fill: true, fillOpacity: 1 }, 
+    configBoundaryPoint = { color: 'red', fillColor: 'green', radius: 4, fill: true, fillOpacity: 1 }, 
+    configCrossSectionPath = { color: 'blue', weight: 2, dashArray: '5,5' }, 
     configBoundaryPath = {color: 'red', weight: 2};
+
 const hoverTooltip = L.tooltip({
-    permanent: false, direction: 'bottom', sticky: true, offset: [0, 10], className: 'custom-tooltip'
+    permanent: false, direction: 'bottom', sticky: true, 
+    offset: [0, 10], className: 'custom-tooltip'
 });
 
 function iconAdd(iconUrl, markers, map, pointList) {
@@ -127,56 +130,43 @@ export async function renderPreview(request=null) {
         const checked = request.content.checked;
         if (layer === 'polygonGrid') {
             polygonLayer = clearMap(polygonLayer, currentMap);
-        //     if (checked) polygonLayer = polygonPlotter(
-        //         request.content.polygon, currentMap, false, true
-        //     );
+            if (checked) polygonLayer = polygonPlotter(
+                request.content.polygon, currentMap, 
+                request.content.entireNorway, request.content.zoom
+            );
         } else if (layer === 'depthGrid') {
-        //     const widgetEl = document.querySelector(`[gs-id="${request.content.id}"]`);
-        //     const colorbar = widgetEl?.querySelector('.custom-colorbar');
-        //     if (!colorbar) return;
-        //     gridLayer = clearMap(gridLayer, currentMap);
-        //     colorbar.style.display = 'none';
-        //     if (checked) {
-        //         signalSender('showOverlay', 'Plotting depth grid. Please wait...');
-        //         gridLayer = gridPlotter(
-        //             request.content.legend, request.content.dataLake, 
-        //             request.content.dataDepth, currentMap, colorbar
-        //         );
-        //         signalSender('hideOverlay');
-        //     }
+            const widgetEl = document.querySelector(`[gs-id="${request.content.id}"]`);
+            const colorbar = widgetEl?.querySelector('.custom-colorbar');
+            if (!colorbar) return;
+            gridLayer = clearMap(gridLayer, currentMap);
+            colorbar.style.display = 'none';
+            if (checked) {
+                signalSender('showOverlay', 'Plotting depth grid. Please wait...');
+                gridLayer = gridPlotter(
+                    request.content.legend, request.content.polygon, 
+                    request.content.dataDepth, currentMap, colorbar
+                );
+                signalSender('hideOverlay');
+            }
         }
     } else if (type === 'gridOptions') {
         const layer = request.content.layer;
         if (layer === 'vertexGrid') {
+            pointLayer = clearMap(pointLayer, currentMap);
             pointLayer = addPointLayer(
                 request.content.currentProject, request.content.points, 
                 currentMap, request.content.key, request.content.move
             );
-            signalSender('updateUIState', {
-                isPointLayer: true, requestId: request.content.requestId
+            signalSender('updateUIState', { requestId: request.content.requestId });
+        } else if (layer === 'refineGrid') {
+            const isPointLayer = pointLayer !== null ? true : false;
+            if (isPointLayer) {
+                orthoLayer = clearMap(orthoLayer, currentMap);
+                gridLayer = clearMap(gridLayer, currentMap);
+            }
+            signalSender('updateUIState', { 
+                requestId: request.content.requestId, isPointLayer: isPointLayer
             });
-        }
-        
-        
-
-            // console.log(pointLayer);
-            // pointLayer = addPointLayer(
-            //     // request.content.projectName, request.content.point, 
-            //     // request.content.pointList, request.content.polygon, 
-            //     // pointLayer, currentMap, request.content.key, request.content.update
-            // );
-            
-            //     pointLayer = clearMap(pointLayer, currentMap);
-
-
-
-
-        //     signalSender('updateUIState', {
-        //         polygon: false,
-        //         refinement: true,
-        //         triggerRefinementChange: true
-        //     });
-
         } else if (layer === 'orthoGrid') {
             const widgetEl = document.querySelector(`[gs-id="${request.content.id}"]`);
             const colorbar = widgetEl?.querySelector('.custom-colorbar');
@@ -259,7 +249,7 @@ export async function renderPreview(request=null) {
 
 
 
-        // }
+        }
 
 
 
@@ -329,8 +319,9 @@ export function initMap(mapId='map') {
 
 
             } else {
-                mapContainer.style.cursor = 'grab'; 
-                currentMap.closeTooltip(hoverTooltip); 
+                mapContainer.style.cursor = ''; 
+                currentMap.closeTooltip(hoverTooltip);
+                currentMap.removeLayer(hoverTooltip);
             }
             
 
