@@ -1,10 +1,11 @@
-import traceback, os, pickle, json
+import traceback, os, pickle, json, threading
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import JSONResponse
 from services import functions, grid_functions
 from config import PROJECT_ROOT
-from shapely.geometry import Polygon
-import numpy as np
+from shapely.geometry import Point, Polygon
+import numpy as np, geopandas as gpd
+from meshkernel import MeshKernel, GeometryList
 
 
 router, processes = APIRouter(), {}
@@ -120,11 +121,222 @@ async def search_lake(request: Request, user=Depends(functions.basic_auth)):
     result = data if name == '' else [x for x in data if name.lower() in x.lower()]
     return JSONResponse({'content': result})
 
+@router.post("/grid_checker")
+async def grid_checker(request: Request, user=Depends(functions.basic_auth)):
+    body = await request.json()
+    project_name, _ = functions.project_definer(body.get('projectName'), user)
+    grid_dir = os.path.join(PROJECT_ROOT, project_name, "grids")
+    if not os.path.exists(grid_dir): os.makedirs(grid_dir)
+    grid_path = os.path.normpath(os.path.join(grid_dir, body.get('gridName')))
+    if not os.path.exists(grid_path): return JSONResponse({'status': 'ok'})
+    else: return JSONResponse({'status': 'error'})
+
+@router.post("/grid_stop")
+async def grid_stop(request: Request, user=Depends(functions.basic_auth)):
+    try:
+        body = await request.json()
+        project_name, _ = functions.project_definer(body.get('projectName'), user)
+        if project_name in processes:
+            info = processes[project_name]
+            if info["status"] == "running":
+                info["stop"], message = True,f"Optimization stopped by user. The grid will be created with the current best parameters."
+                return JSONResponse({"status": "error", "message": message})
+        return JSONResponse({"status": "ok"})
+    except Exception as e:
+        print('/grid_stop:\n==============')
+        traceback.print_exc()
+        return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
+
+@router.post("/check_grid_optimization")
+async def check_grid_optimization(request: Request, user=Depends(functions.basic_auth)):
+    body = await request.json()
+    project_name, _ = functions.project_definer(body.get('projectName'), user)
+    info = processes.get(project_name)
+    if not info: 
+        return JSONResponse({"status": "not_started", "progress": 0, "message": 'No optimization running.', "his": []})
+    if info["status"] in ("finished", "stopped"):
+        response = {"status": "finished", "progress": 100, "message": info["message"], "his": info["history"], "grid": info["grid"]}
+        processes.pop(project_name, None)
+        return JSONResponse(response)
+    if info["status"] == "failed":
+        response = {"status": "failed", "progress": info["progress"], "message": info["message"], "his": []}
+        processes.pop(project_name, None)
+        return JSONResponse(response)
+    return JSONResponse({"status": info["status"], "progress": info["progress"], "message": info["message"], "his": info["history"]})
+
+# Start a optimization
+@router.post("/start_grid_optimization")
+async def start_grid_optimization(request: Request, user=Depends(functions.basic_auth)):
+    try:
+        body = await request.json()
+        project_name, project_id = functions.project_definer(body.get('projectName'), user)
+        project_cache = request.app.state.project_cache.setdefault(project_name)
+        if not project_cache: return JSONResponse({"status": "error", "message": "Project is not available in memory."})
+        redis, depth = request.app.state.redis, project_cache.get('depth', None)
+        lock = redis.lock(f"{project_id}:grid_optimization", timeout=1000, blocking_timeout=10)
+        async with lock:
+            # Check if optimization already running
+            if project_name in processes and processes[project_name]["status"] == "running":
+                info = processes[project_name]
+                return JSONResponse({"status": info["status"], "progress": info["progress"], "message": info["message"], "his": info["history"]})
+            iterations, points = int(body.get('iterations')), np.array(body.get('pointCollection'))
+            level_from, level_to = float(body.get('levelFrom')), float(body.get('levelTo'))
+            gdf = gpd.GeoDataFrame(geometry=gpd.points_from_xy(points[:, 1], points[:, 0]), crs="EPSG:4326")
+            crs = depth.estimate_utm_crs()
+            gdf, depth = gdf.to_crs(crs), depth.to_crs(crs)
+            polygon = GeometryList(gdf.geometry.x, gdf.geometry.y)
+            params = {
+                "level": [level_from, level_to], 'mode': ['auto', 'custom'],
+                "outer_iterations": [1, 10], "boundary_iterations": [1, 50],
+                "inner_iterations": [1, 50], "smoothing_factor": [0, 1]
+            }
+            processes[project_name] = {"status": "running", "progress": 0.0, "history": [], "grid": None,
+                                       "message": 'Preparing data for optimization ...', "stop": False}
+            # Run the process
+            def run():
+                try:
+                    def update_progress(iteration, min_value, mean_value, best_type, best_level, current_ortho, best_ortho):
+                        info = processes[project_name]
+                        if not info: return
+                        progress = round(iteration / iterations * 100, 2)
+                        message = f"Completed: {progress:.1f}% ({iteration}/{iterations}) - Current orthogonality: {current_ortho:.4f}"
+                        message += f" [Best orthogonality: {best_ortho:.4f} (mode: '{best_type:^6}' - level: {best_level:.2f})]."
+                        info["progress"], info["message"] = progress, message
+                        info["history"].append({"iteration": iteration, "min": min_value, "mean": mean_value, "max": current_ortho})
+                    def stop_checker():
+                        info = processes.get(project_name)
+                        return info.get("stop", False) if info else True
+                    best_params = grid_functions.Bayesian_Optimization(polygon, params, iterations, 
+                                    progress_callback=update_progress, stop_checker=stop_checker)
+                    info = processes.get(project_name)
+                    if not info: return
+                    notice = info["message"].split("[")[1].split("(")[0]
+                    info["status"], info["message"] = 'finalizing', "Generating final grid..."
+                    mk = grid_functions.mk_from_params(best_params, polygon)
+                    project_cache["mk"] = mk
+                    grid_uds = grid_functions.netCDF_creator(mk, depth, crs)
+                    best_grid = functions.unstructuredGridCreator(grid_uds)
+                    info["grid"] = json.loads(best_grid.to_json())
+                    best_params["level"] = f'{best_params["level"]:.3f}'
+                    best_params["mode"] = f'{best_params["mode"]:^6}'
+                    best_params["outer_iterations"] = f'{best_params["outer_iterations"]:.3f}'
+                    best_params["boundary_iterations"] = f'{best_params["boundary_iterations"]:.3f}'
+                    best_params["inner_iterations"] = f'{best_params["inner_iterations"]:.3f}'
+                    best_params["smoothing_factor"] = f'{best_params["smoothing_factor"]:.3f}'
+                    notice += f" - Best parameters: {best_params})"
+                    if info.get("stop"): info["status"], info["message"] = "stopped", notice
+                    else: info["status"], info["message"] = "finished", notice
+                except Exception as e:
+                    info = processes.get(project_name)
+                    if info: info["status"], info["message"], info["grid"] = "failed", f"Error: {e}", None
+            threading.Thread(target=run, daemon=True).start()
+        return JSONResponse({"status": "ok", "message": f"Grid optimization started."})
+    except Exception as e:
+        print('/start_grid_optimization:\n==============')
+        traceback.print_exc()
+        return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
+
+@router.post("/grid_creator")
+async def grid_creator(request: Request, user=Depends(functions.basic_auth)):
+    try:
+        body = await request.json()
+        project_name, _ = functions.project_definer(body.get('projectName'), user)
+        project_cache = request.app.state.project_cache.setdefault(project_name)
+        if not project_cache: return JSONResponse({"status": "error", "message": "Project is not available in memory."})
+        points, level = np.array(body.get('pointCollection')), body.get('levelValue')
+        gdf = gpd.GeoDataFrame(geometry=gpd.points_from_xy(points[:, 1], points[:, 0]), crs="EPSG:4326")
+        mk, depth_db = MeshKernel(), project_cache.get('depth')
+        crs = depth_db.estimate_utm_crs()
+        depth_db, gdf = depth_db.to_crs(crs), gdf.to_crs(crs)
+        polygon = GeometryList(gdf.geometry.x, gdf.geometry.y)
+        if level == '': mk.mesh2d_make_triangular_mesh_from_polygon(polygon)
+        else: mk.mesh2d_make_triangular_mesh_from_polygon(polygon, scale_factor=float(level))
+        grid_uds = grid_functions.netCDF_creator(mk, depth_db, crs)
+        project_cache['grid_uds'], project_cache['mk'] = grid_uds, mk
+        grid = functions.unstructuredGridCreator(grid_uds)
+        return JSONResponse({'status': 'ok', 'content': json.loads(grid.to_json())})
+    except Exception as e:
+        print('/grid_creator:\n==============')
+        traceback.print_exc()
+        return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
+
+@router.post("/vertex_generator")
+async def vertex_generator(request: Request, user=Depends(functions.basic_auth)):
+    try:
+        body = await request.json()
+        project_name, _ = functions.project_definer(body.get('projectName'), user)
+        project_cache = request.app.state.project_cache.setdefault(project_name)
+        if not project_cache: return JSONResponse({"status": "error", "message": "Project is not available in memory."})
+        lake_db = project_cache.get('lake')
+        project_cache['polygon'], coords, polygon = lake_db, [], lake_db["geometry"].iloc[0]
+        if polygon.geom_type == "Polygon": coords = list(polygon.exterior.coords)
+        elif polygon.geom_type == "MultiPolygon":
+            for poly in polygon.geoms:
+                coords.extend(list(poly.exterior.coords))
+        vertices = [{"id": i, "coord": Point((coord[0], coord[1]))} for i, coord in enumerate(coords)]
+        point = gpd.GeoDataFrame(vertices, geometry="coord", crs=lake_db.crs)
+        return JSONResponse({'status': 'ok', 'content': json.loads(point.to_json())})
+    except Exception as e:
+        print('/vertex_generator:\n==============')
+        traceback.print_exc()
+        return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
+
+@router.post("/vertex_mover")
+async def vertex_mover(request: Request, user=Depends(functions.basic_auth)):
+    try:
+        body = await request.json()
+        project_name, _ = functions.project_definer(body.get('projectName'), user)
+        project_cache = request.app.state.project_cache.setdefault(project_name)
+        if not project_cache: return JSONResponse({"status": "error", "message": "Project is not available in memory."})
+        points = np.array(body.get('pointCollection'))
+        vertices = [{"id": i, "geometry": Point((coord[1], coord[0]))} for i, coord in enumerate(points)]
+        point = gpd.GeoDataFrame(vertices, geometry="geometry", crs="EPSG:4326")
+        poly = Polygon([(p.x, p.y) for p in point['geometry'].values])
+        gdf = gpd.GeoDataFrame(geometry=[poly], crs="EPSG:4326")
+        contents = {"polygon": json.loads(gdf.to_json()), "point": json.loads(point.to_json())}
+        return JSONResponse({'status': 'ok', 'content': contents})
+    except Exception as e:
+        print('/vertex_mover:\n==============')
+        traceback.print_exc()
+        return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
 
 
 
+@router.post("/grid_ortho")
+async def grid_ortho(request: Request, user=Depends(functions.basic_auth)):
+    try:
+        body = await request.json()
+        project_name, _ = functions.project_definer(body.get('projectName'), user)
+        project_cache = request.app.state.project_cache.setdefault(project_name)
+        if not project_cache: return JSONResponse({"status": "error", "message": "Project is not available in memory."}) 
+        mk, lake_db = project_cache.get('mk', None), project_cache.get('lake')
+        if mk is None: return JSONResponse({"status": "error", "message": "Unstructured grid is not available in memory."})
+        mesh, crs = mk.mesh2d_get(), lake_db.estimate_utm_crs()
+        gdf = gpd.GeoDataFrame(geometry=gpd.points_from_xy(mesh.edge_x, mesh.edge_y), crs=crs).to_crs("EPSG:4326")
+        gdf['orth'] = np.round(mk.mesh2d_get_orthogonality().values, 4)
+        gdf = gdf[gdf.orth != -999]
+        values = gdf['orth'].values
+        min, max = np.min(values), np.max(values)
+        return JSONResponse({'status': 'ok', 'content': {"min": min, "max": max, "data": json.loads(gdf.to_json())}})
+    except Exception as e:
+        print('/grid_ortho:\n==============')
+        traceback.print_exc()
+        return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
 
 
-
-
-
+@router.post("/grid_saver")
+async def grid_saver(request: Request, user=Depends(functions.basic_auth)):
+    try:
+        body = await request.json()
+        project_name, _ = functions.project_definer(body.get('projectName'), user)
+        project_cache = request.app.state.project_cache.setdefault(project_name)
+        if not project_cache: return JSONResponse({"status": "error", "message": "Project is not available in memory."}) 
+        grid_uds = project_cache.get('grid_uds')
+        grid_dir = os.path.join(PROJECT_ROOT, project_name, "grids")
+        grid_path = os.path.normpath(os.path.join(grid_dir, body.get('gridName')))
+        grid_uds.to_netcdf(grid_path)
+        return JSONResponse({'status': 'ok', 'message': f'Grid saved successfully: {grid_path.replace(PROJECT_ROOT, "...")}'})
+    except Exception as e:
+        print('/grid_saver:\n==============')
+        traceback.print_exc()
+        return JSONResponse({'status': 'error', 'message': f"Error: {e}"})

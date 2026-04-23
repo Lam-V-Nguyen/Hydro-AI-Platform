@@ -1,6 +1,8 @@
 import { valueFormatter, L } from "./constant.js";
 import { signalSender, jsonLoader } from "./commonFunctions.js";
 
+let pointLayer = null, polygonLayer = null;
+
 export function polygonPlotter(polygon, map, entireNorway=false, zoom = false) {
     // Draw polygon
     const tempLayer = L.geoJSON(polygon, {
@@ -43,7 +45,16 @@ export async function pointsToPolygon(currentProject, pointList, polygon, pointL
     pointLayer = addPointLayer(currentProject, point, pointList, polygon, pointLayer, map, key, true);
 }
 
-function addPointLayer(currentProject, points, pointContainer, polygon, pointLayer, map, key, checkMove=false) {
+export function addPointLayer(currentProject, points, map, key, checkMove=false) {
+    // signalSender('updateUIState', {
+    //     isPointLayer: false,
+    //     refinement: true,
+    //     triggerRefinementChange: true
+    // });
+    // const hoverTooltip = L.tooltip({
+    //     permanent: false, direction: 'bottom', sticky: true, 
+    //     offset: [0, 10], className: 'custom-tooltip'
+    // });
     const pointType = checkMove ? 'point-marker-move' : 'point-marker-default';
     const tempLayer = L.geoJSON(points, {
         pointToLayer: (_, latlng) => {
@@ -58,7 +69,7 @@ function addPointLayer(currentProject, points, pointContainer, polygon, pointLay
         },
         onEachFeature: (feature, layer) => {
             layer.on('click', async () => { 
-                 map.getContainer().style.cursor = "auto";
+                map.getContainer().style.cursor = "auto";
                 if (key === 'refineChecked') {
                     if (!pointContainer.includes(feature.properties.id)) { 
                         pointContainer.push(feature.properties.id); 
@@ -96,12 +107,11 @@ function addPointLayer(currentProject, points, pointContainer, polygon, pointLay
                 const response = await jsonLoader('vertex_mover', contents); 
                 signalSender('hideOverlay');
                 if (response.status === "error") { alert(response.message); return; }
-//                 if (!polygonCheckbox().checked) { polygonCheckbox().checked = true; }
-                map.eachLayer((layer) => { if (!(layer instanceof L.TileLayer)) map.removeLayer(layer); });
-                polygon = polygonPlotter(response.content.polygon); 
+                if (pointLayer) map.removeLayer(pointLayer);
+                if (polygonLayer) map.removeLayer(polygonLayer);
+                polygonLayer = polygonPlotter(response.content.polygon, map);
                 pointLayer = addPointLayer(
-                    currentProject, response.content.point, 
-                    pointContainer, polygon, map, key, checkMove
+                    currentProject, response.content.point, map, key, checkMove
                 );
             });
             layer.bindTooltip(`Id: ${feature.properties.id}`, {
@@ -109,6 +119,7 @@ function addPointLayer(currentProject, points, pointContainer, polygon, pointLay
             });
         }
     }).addTo(map);
+    pointLayer = tempLayer;
     return tempLayer;
 }
 
@@ -262,4 +273,95 @@ function getAdaptiveCellSize(polygon, targetCells = 50) {
     return Math.sqrt(cellArea);
 }
 
+export function toggleMoveMode(targetLayer, enable) {
+    targetLayer.eachLayer(layer => {
+        if (layer.dragging) {
+            enable ? layer.dragging.enable() : layer.dragging.disable();
+        }
+    });
+}
 
+// async function polygonRefinement(pointIds) {
+//     const refineValue = Number(refinementValue().value); gridLayer = clearMap(gridLayer, lakeMap);
+//     if (!Number.isFinite(refineValue) || refineValue <= 0) { alert("Please enter a valid non-negative value."); return; }
+//     if (pointLayer === null) { alert("No polygon has been found. Select the button 'Get/Reset Vertexes' to draw the original polygon first."); return; }
+//     const pointCollection = [];
+//     pointLayer.eachLayer(layer => {
+//         const latlng = layer.getLatLng();
+//         pointCollection.push([latlng.lat, latlng.lng]);
+//     });
+//     if (pointCollection.length < 2) { alert("No point has been found. Select the button 'Get/Reset Vertexes' to create vertexes first."); return; }
+//     startLoading('Refining Vertexes. Please wait...');
+//     const contents = {
+//         projectName: getState().currentProject, distance: refineValue, polygon: pointCollection,
+//         startPoint: pointIds[0], endPoint: pointIds[pointIds.length - 1]
+//     }
+//     const response = await sendQuery('vertex_refiner', contents); stopLoading();
+//     if (response.status === "error") { alert(response.message);  return; }
+//     const polygon = response.content.polygon, point = response.content.point; dataLake = polygon;
+//     if (!polygonCheckbox().checked) { polygonCheckbox().checked = true; }
+//     lakeMap.eachLayer((layer) => { if (!(layer instanceof L.TileLayer)) lakeMap.removeLayer(layer); });
+//     polygonLayer = polygonPlotter(polygon); pointLayer = addPointLayer(point, false);
+//     orthoCheckbox().checked = false; orthoCheckbox().dispatchEvent(new Event('change'));
+// }
+
+// async function pointRemoval(pointIds) {
+//     if (pointLayer === null) { alert("No polygon has been found. Select the button 'Get/Reset Vertexes' to draw the original polygon first."); return; }
+//     const pointCollection = []; deleteChecked = true;
+//     pointLayer.eachLayer(layer => {
+//         const latlng = layer.getLatLng();
+//         pointCollection.push([latlng.lat, latlng.lng]);
+//     });
+//     if (pointCollection.length < 2) { alert("No point has been found. Select the button 'Get/Reset Vertexes' to draw the original polygon first."); return; }
+//     startLoading('Deleting Vertexes. Please wait...');
+//     const contents = {
+//         projectName: getState().currentProject, polygon: pointCollection,
+//         startPoint: pointIds[0], endPoint: pointIds[pointIds.length - 1]
+//     }
+//     await new Promise(resolve => setTimeout(resolve, 0));
+//     const response = await sendQuery('vertex_remover', contents); stopLoading();
+//     if (response.status === "error") { alert(response.message); return; }
+//     const polygon = response.content.polygon, point = response.content.point;
+//     lakeMap.eachLayer((layer) => { if (!(layer instanceof L.TileLayer)) lakeMap.removeLayer(layer); });
+//     polygonLayer = polygonPlotter(polygon, false); pointLayer = addPointLayer(point, false);
+//     orthoCheckbox().checked = false; orthoCheckbox().dispatchEvent(new Event('change'));
+// }
+
+// async function orthoPlotter(data, plotDiv, titleX, titleY, chartTitle) {
+//     if (!plotDiv) { alert("plotDiv is null"); return; }
+//     if (!data || data.length === 0) return;
+//     // Delete existing plot
+//     Plotly.purge(plotDiv); plotDiv.innerHTML = "";
+//     const x = data.map(d => d.iteration), minVals = data.map(d => d.min);
+//     const meanVals = data.map(d => d.mean), maxVals = data.map(d => d.max);
+//     const traces = [{x: x, y: minVals, mode: 'lines', type: 'scatter', name: 'Min', line: { width: 2 }},
+//         { x: x, y: meanVals, mode: 'lines', type: 'scatter', name: 'Mean', line: { width: 2 } },
+//         { x: x, y: maxVals, mode: 'lines', type: 'scatter', name: 'Max', line: { width: 2 } }
+//     ];
+//     const layout = {
+//         title: { text: chartTitle, font: { size: 20, color: 'black', weight: 'bold' } },
+//         paper_bgcolor: 'rgb(245, 240, 240)', plot_bgcolor: 'rgb(247, 243, 243)', showlegend: true,
+//         xaxis: {  title: titleX, type: 'linear', showline: true, mirror: true, ticks: 'outside', font: { color: 'black', size: 18 } },
+//         yaxis: { title: titleY, showline: true, mirror: true, ticks: 'outside', font: { color: 'black', size: 18 } },
+//         margin: { l: 70, r: 30, t: 50, b: 50 }, 
+//     };
+//     Plotly.react(plotDiv, traces, layout, { responsive: true });
+// }
+
+
+
+export async function plotUnstructuredGrid(obj, map) {
+    const tempLayer = L.geoJSON(obj, {
+        style: feature => {
+            switch (feature.geometry.type) {
+                case 'LineString': 
+                case 'MultiLineString': return { color: 'black', weight: 0.5 };
+                case 'Polygon':
+                case 'MultiPolygon':
+                    return { color: 'black', fillColor: 'darkcyan', fillOpacity: 0.5, weight: 0.5 };
+                default: return {};
+            }
+        }
+    }).addTo(map);
+    return tempLayer;
+}

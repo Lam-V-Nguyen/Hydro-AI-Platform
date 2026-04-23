@@ -1,6 +1,8 @@
-import { CENTER, ZOOM, L, getPendingRequest, clearPendingRequest } from "./constant.js";
-import { gridPlotter, polygonPlotter, pointsToPolygon } from "./unstructuredGrid.js";
-import { signalSender } from "./commonFunctions.js";
+import { CENTER, ZOOM, L, getPendingRequest, clearPendingRequest, origin } from "./constant.js";
+import { gridPlotter, polygonPlotter, pointsToPolygon, updateColorbar,
+    getColorFromValue, toggleMoveMode, addPointLayer
+} from "./unstructuredGrid.js";
+import { jsonLoader, signalSender } from "./commonFunctions.js";
 
 export let currentMap;
 let currentTileLayer = null, timeCounter = null, html='', markersObs = [], markerCrossSection = [], 
@@ -50,7 +52,7 @@ function lineAdd(pointContainer, map, lineType) {
     }
 }
 
-export function renderPreview(request=null) {
+export async function renderPreview(request=null) {
     currentPoints.length = 0; if (!request) return;
     const type = request.requestId;
     if (type === 'pickPoint' || type === 'updateObsPoint') {
@@ -98,21 +100,19 @@ export function renderPreview(request=null) {
             waqLoads.forEach(marker => marker.remove()); waqLoads.length = 0; 
             iconAdd(iconUrl, waqLoads, currentMap, request.content.rows);
         }
-    } else if (type === 'gridPlotter') {    
-        const widgetEl = document.querySelector(`[gs-id="${request.content.id}"]`);
-        const colorbar = widgetEl?.querySelector('.custom-colorbar');
-        if (!colorbar) return;
-        gridLayer = clearMap(gridLayer, currentMap);
-        gridLayer = gridPlotter(
-            request.content.legend, request.content.dataLake, 
-            request.content.dataDepth, currentMap, colorbar
-        );
-    } else if (type === 'polygonPlotter') { 
-        polygonLayer = clearMap(polygonLayer, currentMap);
-        polygonLayer = polygonPlotter(
-            request.content.polygon, currentMap, 
-            request.content.entireNorway, request.content.zoom
-        );
+    // } else if (type === 'gridPlotter') {    
+    //     const widgetEl = document.querySelector(`[gs-id="${request.content.id}"]`);
+    //     const colorbar = widgetEl?.querySelector('.custom-colorbar');
+    //     if (!colorbar) return;
+    //     gridLayer = gridPlotter(
+    //         request.content.legend, request.content.dataLake, 
+    //         request.content.dataDepth, currentMap, colorbar
+    //     );
+    // } else if (type === 'polygonPlotter') { 
+    //     polygonLayer = polygonPlotter(
+    //         request.content.polygon, currentMap, 
+    //         request.content.entireNorway, request.content.zoom
+    //     );
     } else if (type === 'clearGridMap') { 
         gridLayer = clearMap(gridLayer, currentMap); 
         polygonLayer = clearMap(polygonLayer, currentMap);
@@ -122,35 +122,144 @@ export function renderPreview(request=null) {
         const widgetEl = document.querySelector(`[gs-id="${request.content.id}"]`);
         const colorbar = widgetEl?.querySelector('.custom-colorbar');
         if (!colorbar) return; colorbar.style.display = request.content.display;
-    } else if (type === 'gridOptions') {
+    } else if (type === 'gridPlot') {
         const layer = request.content.layer;
         const checked = request.content.checked;
         if (layer === 'polygonGrid') {
             polygonLayer = clearMap(polygonLayer, currentMap);
-            if (checked) polygonLayer = polygonPlotter(
-                request.content.polygon, currentMap, false, true
-            );
+        //     if (checked) polygonLayer = polygonPlotter(
+        //         request.content.polygon, currentMap, false, true
+        //     );
         } else if (layer === 'depthGrid') {
+        //     const widgetEl = document.querySelector(`[gs-id="${request.content.id}"]`);
+        //     const colorbar = widgetEl?.querySelector('.custom-colorbar');
+        //     if (!colorbar) return;
+        //     gridLayer = clearMap(gridLayer, currentMap);
+        //     colorbar.style.display = 'none';
+        //     if (checked) {
+        //         signalSender('showOverlay', 'Plotting depth grid. Please wait...');
+        //         gridLayer = gridPlotter(
+        //             request.content.legend, request.content.dataLake, 
+        //             request.content.dataDepth, currentMap, colorbar
+        //         );
+        //         signalSender('hideOverlay');
+        //     }
+        }
+    } else if (type === 'gridOptions') {
+        const layer = request.content.layer;
+        if (layer === 'vertexGrid') {
+            pointLayer = addPointLayer(
+                request.content.currentProject, request.content.points, 
+                currentMap, request.content.key, request.content.move
+            );
+            signalSender('updateUIState', {
+                isPointLayer: true, requestId: request.content.requestId
+            });
+        }
+        
+        
+
+            // console.log(pointLayer);
+            // pointLayer = addPointLayer(
+            //     // request.content.projectName, request.content.point, 
+            //     // request.content.pointList, request.content.polygon, 
+            //     // pointLayer, currentMap, request.content.key, request.content.update
+            // );
+            
+            //     pointLayer = clearMap(pointLayer, currentMap);
+
+
+
+
+        //     signalSender('updateUIState', {
+        //         polygon: false,
+        //         refinement: true,
+        //         triggerRefinementChange: true
+        //     });
+
+        } else if (layer === 'orthoGrid') {
             const widgetEl = document.querySelector(`[gs-id="${request.content.id}"]`);
             const colorbar = widgetEl?.querySelector('.custom-colorbar');
             if (!colorbar) return;
-            gridLayer = clearMap(gridLayer, currentMap);
-            colorbar.style.display = 'none';
+            const colorbar_title = colorbar.querySelector('.colorbar-title');
+            const colorbar_label = colorbar.querySelector('.colorbar-labels');
+            const colorbar_color = colorbar.querySelector('.colorbar-gradient');
             if (checked) {
-                signalSender('showOverlay', 'Plotting depth grid. Please wait...');
-                gridLayer = gridPlotter(
-                    request.content.legend, request.content.dataLake, 
-                    request.content.dataDepth, currentMap, colorbar
-                );
+                if (gridLayer === null) { 
+                    alert("Please generate grid first."); 
+//                 orthoCheckbox().checked = false; return; 
+                }
+                signalSender('showOverlay', 'Generating Orthogonality Grid. Please wait...');
+                const contents = { projectName: request.content.currentProject };
+                const response = await jsonLoader('grid_ortho', contents);
                 signalSender('hideOverlay');
+                if (response.status === "error") { alert(response.message); return; }
+                gridLayer = clearMap(gridLayer, currentMap);
+                orthoLayer = clearMap(orthoLayer, currentMap); 
+                // depthCheckbox().checked = false;
+                const vmin = response.content.min, vmax = response.content.max, colorKey = 'ortho';
+                orthoLayer = L.geoJSON(response.content.data, {
+                    pointToLayer: (feature, latlng) => {
+                        const value = Number(feature.properties.orth);
+                        const { r, g, b, a } = getColorFromValue(value, vmin, vmax, colorKey);
+                        const col = `rgb(${r},${g},${b})`;
+                        return L.circleMarker(latlng, {
+                            color: col, fillColor: col, radius: 2, fillOpacity: a
+                        });
+                    },
+                    onEachFeature: (feature, layer) => {
+                        layer.bindTooltip(`Orthogonality: ${feature.properties.orth}`, {
+                            sticky: true, permanent: false, direction: 'center', opacity: 1
+                        });
+                    }
+                }).addTo(currentMap);
+                updateColorbar(
+                    vmin, vmax, 'Orthogonality', colorKey, 
+                    colorbar_color, colorbar_title, colorbar_label
+                ); colorbar.style.display = 'block';
+            } else {
+                orthoLayer = clearMap(orthoLayer, currentMap);
+                if (gridLayer === null) colorbar.style.display = 'none';
             }
-        } else if (layer === 'vertexGrid') {
+//         } else if (layer === 'moveGrid') {
+//             if (checked) {
+//                 currentPoints = [];
+//                 if (pointLayer === null) {
+//                     alert("Select the button 'Get/Reset Vertexes' to create vertexes first.");
+// //                 e.target.checked = false;
+//                     return;
+//                 }
+//                 toggleMoveMode(pointLayer, true);
+//                 pointLayer.eachLayer(layer => {
+//                     const latlng = layer.getLatLng();
+//                     currentPoints.push([latlng.lat, latlng.lng]);
+//                 });
+//                 if (currentPoints.length === 0) { alert("No vertexes found."); return; }
+//                 currentPoints.push(currentPoints[0]);
+// //             moveChecked = true; refineChecked = false; deleteChecked = false;
+// //             deleteCheckbox().checked = false; refinementCheckbox().checked = false;
+//                 signalSender('showOverlay', 'Regenerating vertexes. Please wait...');
+//                 const contents = { projectName: request.content.currentProject, pointCollection: currentPoints };
+//                 const response = await jsonLoader('vertex_mover', contents); 
+//                 signalSender('hideOverlay');
+//                 if (response.status === "error") { alert(response.message); return; }
+// //             if (!polygonCheckbox().checked) { polygonCheckbox().checked = true; }
+//                 polygonLayer = clearMap(polygonLayer, currentMap);
+//                 polygonLayer = polygonPlotter(request.content.polygon, currentMap);
+//                 pointLayer = clearMap(pointLayer, lakeMap);
+//                 pointLayer = addPointLayer(
+//                     request.content.currentProject, response.content.point, currentPoints,
+//                     request.content.polygon, pointLayer, currentMap, 'moveChecked', true
+//                 );
+//             } else {
+//                 // moveChecked = false; 
+//                 toggleMoveMode(pointLayer, false);
+//             }
 
 
 
 
-
-        }
+        // }
 
 
 
@@ -210,6 +319,20 @@ export function initMap(mapId='map') {
         } else if (req.requestId === 'waqPoint') { html = 'Select a WAQ observation point';
         } else if (req.requestId === 'loadsPoint') { html = 'Select a WAQ load point';
         } else if (req.requestId === 'drawChecked') { html = 'Draw a polygon using the left mouse button';
+        } else if (req.requestId === 'gridOptions') { 
+            if (req.content.key === 'moveChecked' && req.content.move && req.content.layer === 'vertexGrid') {
+                mapContainer.style.cursor = 'move';
+                html = 'Move a vertex using the left mouse button';
+
+
+
+
+
+            } else {
+                mapContainer.style.cursor = 'grab'; 
+                currentMap.closeTooltip(hoverTooltip); 
+            }
+            
 
 
 
@@ -222,6 +345,28 @@ export function initMap(mapId='map') {
         }
         hoverTooltip.setLatLng(e.latlng).setContent(html);
         currentMap.openTooltip(hoverTooltip);
+
+//     lakeMap.on('mousemove', function (e) { 
+//         mapContainer.style.cursor = "grab";
+//         if (refineChecked) {
+//             if (pointContainer.length === 0) { html = "Select start point to refine."; }
+//             hoverTooltip.setLatLng(e.latlng).setContent(html);
+//             lakeMap.openTooltip(hoverTooltip);
+//         }
+//         if (deleteChecked) {
+//             if (pointContainer.length === 0) { html = "Select start point to delete."; }
+//             hoverTooltip.setLatLng(e.latlng).setContent(html);
+//             lakeMap.openTooltip(hoverTooltip);
+//         }
+
+
+//     });
+
+
+
+
+
+
     });
     currentMap.on('click', (e) => { 
         let result = null;
@@ -251,22 +396,22 @@ export function initMap(mapId='map') {
                 line = L.polyline(latlngs, configPath).addTo(currentMap);
                 if (isCross) { pathCrossSection = line; } else { pathBoundary = line; }
             }
-        } else if (req.requestId === 'drawChecked') {
-            html = "Finish drawing with the right mouse button";
-            // Add marker
-            L.circleMarker(e.latlng, {
-                radius: 5, color: 'red', fillColor: 'pink', fillOpacity: 0.9
-            }).addTo(currentMap);
-            currentPoints.push([e.latlng.lat, e.latlng.lng]);
-            // Plot polygon
-            if (tempLine) { tempLine.setLatLngs(pointContainer);
-            } else {
-                tempLine = L.polyline(pointContainer, { 
-                    color: 'red', weight: 2
-                }).addTo(currentMap);
-            }
-            clearPendingRequest();
-            mapContainer.style.cursor = 'grab'; currentMap.closeTooltip(hoverTooltip);
+        // } else if (req.requestId === 'drawChecked') {
+        //     html = "Finish drawing with the right mouse button";
+        //     // Add marker
+        //     L.circleMarker(e.latlng, {
+        //         radius: 5, color: 'red', fillColor: 'pink', fillOpacity: 0.9
+        //     }).addTo(currentMap);
+        //     currentPoints.push([e.latlng.lat, e.latlng.lng]);
+        //     // Plot polygon
+        //     if (tempLine) { tempLine.setLatLngs(pointContainer);
+        //     } else {
+        //         tempLine = L.polyline(pointContainer, { 
+        //             color: 'red', weight: 2
+        //         }).addTo(currentMap);
+        //     }
+        //     clearPendingRequest();
+        //     mapContainer.style.cursor = 'grab'; currentMap.closeTooltip(hoverTooltip);
 
 
         }
@@ -276,7 +421,7 @@ export function initMap(mapId='map') {
 
 
         if (req.requestId !== 'pickPath') {
-            req.source.postMessage({ requestId: req.requestId, result: result }, '*');
+            req.source.postMessage({ requestId: req.requestId, result: result }, origin);
             clearPendingRequest();
             mapContainer.style.cursor = 'grab'; currentMap.closeTooltip(hoverTooltip);
         }
@@ -289,18 +434,19 @@ export function initMap(mapId='map') {
             if (currentPoints.length < 2) {
                 alert("Not enough points selected.\nPlease select at least 02 points."); return;
             }
-            req.source.postMessage({ requestId: req.requestId, result: currentPoints }, '*');
-        } else if (req.requestId === 'drawChecked') {
-            if (currentPoints.length < 3) {
-                alert("Polygon must have at least 3 points."); return;
-            }
-            tempLine = clearMap(tempLine, currentMap);
-            polygonLayer = clearMap(polygonLayer, currentMap);
-            // Plot polygon
-            await pointsToPolygon(
-                req.content.currentProject, currentPoints, polygonLayer, 
-                pointLayer, currentMap, req.content.action
-            ); drawChecked = false;
+            req.source.postMessage({ requestId: req.requestId, result: currentPoints }, origin);
+        // } else if (req.requestId === 'drawChecked') {
+        //     if (currentPoints.length < 3) {
+        //         alert("Polygon must have at least 3 points."); return;
+        //     }
+        //     tempLine = clearMap(tempLine, currentMap);
+        //     polygonLayer = clearMap(polygonLayer, currentMap);
+        //     // Plot polygon
+        //     await pointsToPolygon(
+        //         req.content.currentProject, currentPoints, polygonLayer, 
+        //         pointLayer, currentMap, req.content.action
+        //     ); 
+        //     // drawChecked = false;
 
 
 

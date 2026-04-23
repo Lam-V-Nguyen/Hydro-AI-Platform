@@ -1,8 +1,10 @@
+export const origin = '*';
 export const CENTER = [62.476969, 6.471598];
 export const ZOOM = 13, L = window.L, n_decimals = 2;
 
 export const gridId = 'grid-generation-map', 
     hydMapId = 'new-hyd-map', waqMapId = 'new-waq-map';
+
 
 export const superscriptMap = {
     '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³',

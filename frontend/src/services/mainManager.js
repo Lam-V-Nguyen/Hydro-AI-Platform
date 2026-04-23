@@ -3,7 +3,7 @@ import { projectMaker, projectModifier, pdfOpener } from "./projectManager.js";
 import { initGrid, addWidget, loadWidget, saveWidget, hasWidget } from "./widgetFunctions.js"; 
 import { startLoading, stopLoading, jsonLoader, htmlLoader, 
     waitForWidgetReady } from "./commonFunctions.js"; 
-import { setPendingRequest, clearPendingRequest } from "./constant.js";
+import { setPendingRequest, clearPendingRequest, origin } from "./constant.js";
 import { renderPreview } from "./mapManager.js";
 import { chartManager } from "./chartManager.js";
 
@@ -13,6 +13,8 @@ const menuContainer = document.getElementById('menu-container');
 
 const githubCache = {}, currentProject = 'demo', currentParams = [];
 let isLoaded = false, userName = null; 
+const pendingRequests = new Map();
+
 // const exits = ['hyd-plot-source', 'hyd-plot-meteo', 'run-hyd', 'run-waq'];
 
 await login(); await projectChecker(); loadWidget();
@@ -112,7 +114,7 @@ function updateComponent() {
             const project = document.querySelector(".project-note");
             if (!project) return;
             const content = project.textContent.split(':').pop();
-            event.source.postMessage({ type: 'USER', content: content }, '*');
+            event.source.postMessage({ type: 'USER', content: content }, origin);
         } else if (event.data.id === 'hyd-waq') {
             const req = { 
                 source: event.source, lineType: event.data.lineType,
@@ -144,11 +146,11 @@ function updateComponent() {
             await new Promise( r => setTimeout(r, 200));
             await chartManager(iframe, chartData, event.data.title, 'Time', 'Value', width, height);
             stopLoading();
-        } else if (event.data.type === 'gridPlotter' || event.data.type === 'polygonPlotter') {
-            const req = {
-                source: event.source, requestId: event.data.type, content: event.data.content
-            };
-            renderPreview(req); //setPendingRequest(req);
+        // } else if (event.data.type === 'gridPlotter' || event.data.type === 'polygonPlotter') {
+        //     const req = {
+        //         source: event.source, requestId: event.data.type, content: event.data.content
+        //     };
+        //     renderPreview(req); //setPendingRequest(req);
         } else if (event.data.type === 'clearGridMap') { 
             renderPreview({ source: event.source, requestId: event.data.type });
         } else if (event.data.type === 'colorbarOption') { 
@@ -156,11 +158,19 @@ function updateComponent() {
                 source: event.source, content: event.data.content,
                 requestId: event.data.type 
             });
-        } else if (event.data.type === 'gridOptions') { 
+        } else if (event.data.type === 'gridPlot') { 
             renderPreview({ 
                 source: event.source, requestId: event.data.type,
                 content: event.data.content
             });
+        } else if (event.data.type === 'gridOptions') { 
+            const requestId = event.data.content?.requestId;
+            if (requestId) pendingRequests.set(requestId, { source: event.source });
+            const req = { 
+                source: event.source, requestId: event.data.type,
+                content: event.data.content
+            }
+            renderPreview(req); setPendingRequest(req);
 
 
 
@@ -170,7 +180,15 @@ function updateComponent() {
 
 
 
-
+        } else if (event.data.type === 'updateUIState') {
+            const requestId = event.data.content?.requestId;
+            if (requestId && pendingRequests.has(requestId)) {
+                const { source } = pendingRequests.get(requestId);
+                source.postMessage({ type: 'updateReturn', 
+                    content: event.data.content, requestId: requestId
+                }, origin);
+                pendingRequests.delete(requestId);
+            }
         }
     });
 

@@ -1,7 +1,9 @@
 import { toUTC } from "./projectSaver.js";
+import { origin } from "./constant.js";
+const pendingRequests = new Map();
 
 export function signalSender(key, contents={}) {
-    window.parent.postMessage({type: key, content: contents}, '*');
+    window.parent.postMessage({type: key, content: contents}, origin);
 }
 
 export function getUser(){
@@ -66,7 +68,7 @@ export function iframeConnector(objBtn, objtarget, type, content = null, lineTyp
             const contents = {
                 id: 'hyd-waq', requestId: type, content: freshData, lineType
             }
-            window.parent.postMessage( contents, '*');
+            window.parent.postMessage( contents, origin);
         });
         if (type === 'pickLocation') { objtarget.value = result; 
         } else if (type === 'pickPoint' || type === 'pickSource') {
@@ -212,7 +214,7 @@ export async function updateTable(table, comboBox, projectName, key='') {
 export function deleteTable(table, name=null, type=''){
     const tbody = table.querySelector("tbody"); tbody.innerHTML = ""; 
     if (name != null) name.value = '';
-    if (type != '') window.parent.postMessage({type: type}, '*');
+    if (type != '') window.parent.postMessage({type: type}, origin);
 }
 
 export async function htmlLoader(functionName){
@@ -297,14 +299,14 @@ export async function csvUploader(event, targetText, table,
 
 export async function fileUploader(targetFile, targetText, projectName, gridName, message, type){
     if (projectName === '') return;
-    window.parent.postMessage({type: 'showOverlay', message: message}, '*');
+    window.parent.postMessage({type: 'showOverlay', message: message}, origin);
     const file = targetFile.files[0], formData = new FormData();
     formData.append('file', file); formData.append('projectName', projectName);
     formData.append('fileName', gridName); formData.append('type', type);
     if (targetText !== null) {targetText.value = file?.name || "";}
     const response = await fetch('/upload_data', { method: 'POST', body: formData });
     const data = await response.json();
-    window.parent.postMessage({type: 'hideOverlay'}, '*');
+    window.parent.postMessage({type: 'hideOverlay'}, origin);
     if (data.status === "error") {
         if (targetText !== null) {targetText.value = '';}
         alert(data.message); targetFile.value = ''; return;
@@ -397,7 +399,7 @@ export function plotTable(table, sourceName, id){
     window.parent.postMessage({
         type: 'plotSource', columns: columns, rows: rows,
         id: id, title: title, titleWindow: titleWindow
-    }, '*');
+    }, origin);
 }
 
 export function interpolateJet(t) {
@@ -435,10 +437,30 @@ export function formatDateTime(value) {
         `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-
-
-
-
+export function sendRequest(type, content) {
+    return new Promise((resolve, reject) => {
+        const requestId = Math.random().toString(36).substr(2);
+        pendingRequests.set(requestId, { resolve, reject });
+        signalSender(type, { ...content, requestId });
+        setTimeout(() => {
+            if (pendingRequests.has(requestId)) {
+                pendingRequests.delete(requestId);
+                reject(new Error('Timeout'));
+            }
+        }, 10000);
+    });
+}
+export function initRequestListener() {
+    window.addEventListener('message', (e) => {
+        if (e.data?.type === 'updateReturn' && e.data.requestId) {
+            const pending = pendingRequests.get(e.data.requestId);
+            if (pending) {
+                pending.resolve(e.data.content);
+                pendingRequests.delete(e.data.requestId);
+            }
+        }
+    });
+}
 
 
 
