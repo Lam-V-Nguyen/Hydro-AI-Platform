@@ -6,7 +6,7 @@ from meshkernel import MeshKernel, GeometryList, OrthogonalizationParameters
 from meshkernel.errors import MeshKernelError
 from services import functions
 import xarray as xr, dask.array as da
-# import dfm_tools as dfmt
+from pyproj import CRS
 warnings.filterwarnings("ignore")
 optuna.logging.set_verbosity(optuna.logging.ERROR)
 
@@ -54,7 +54,7 @@ def sort_face_ccw(nodes, x, y):
     angles = np.arctan2(ys - cy, xs - cx)
     return nodes[np.argsort(angles)]
 
-def meshkernel_to_Ugrid(mk: MeshKernel, crs=None):
+def meshkernel_to_Ugrid(mk: MeshKernel, crs: str):
     mesh = mk.mesh2d_get()
     node_x = np.asarray(mesh.node_x, dtype=np.float64)
     node_y = np.asarray(mesh.node_y, dtype=np.float64)
@@ -65,9 +65,9 @@ def meshkernel_to_Ugrid(mk: MeshKernel, crs=None):
     nodes_per_face = mesh.nodes_per_face.astype(np.int32)
     face_x = np.asarray(mesh.face_x, dtype=np.float64)
     face_y = np.asarray(mesh.face_y, dtype=np.float64)
-    nNodes, nEdges, nFaces = node_x.size, edge_x.size, face_x.size
+    nEdges, nFaces = edge_x.size, face_x.size
     max_n = int(nodes_per_face.max()) if nFaces > 0 else 0
-    face_nodes = np.full((nFaces, max_n), -1, dtype=np.int32)
+    face_nodes = np.full((nFaces, max_n), np.nan, dtype=np.float64)
     if nFaces > 0:
         offset = np.zeros(nFaces, dtype=int)
         offset[1:] = np.cumsum(nodes_per_face[:-1])
@@ -79,7 +79,7 @@ def meshkernel_to_Ugrid(mk: MeshKernel, crs=None):
             nodes = nodes[np.sort(idx)]
             if nodes.size < 3: continue
             nodes = sort_face_ccw(nodes, node_x, node_y)
-            face_nodes[i, :nodes.size] = nodes 
+            face_nodes[i, :nodes.size] = nodes + 1
     edge_faces = np.full((nEdges, 2), -1, dtype=np.int32)
     if nEdges > 0 and nFaces > 0:
         edge_dict = {tuple(sorted(edge_nodes[i])): i for i in range(nEdges)}
@@ -96,51 +96,72 @@ def meshkernel_to_Ugrid(mk: MeshKernel, crs=None):
                 if edge_faces[eidx, 0] == -1: edge_faces[eidx, 0] = fidx
                 elif edge_faces[eidx, 1] == -1: edge_faces[eidx, 1] = fidx
     ds = xr.Dataset()
-    ds["mesh2d_node_x"] = (("mesh2d_nNodes",), da.from_array(node_x))
-    ds["mesh2d_node_y"] = (("mesh2d_nNodes",), da.from_array(node_y))
+    crs_obj = CRS.from_user_input(crs)
+    if crs_obj.is_geographic: grid_mapping_name = 'latitude_longitude'
+    else: grid_mapping_name = 'transverse_mercator'
+    ds["crs"] = xr.DataArray(0,
+        attrs={
+            "grid_mapping_name": grid_mapping_name,
+            "crs_wkt": crs_obj.to_wkt(),
+        }
+    )
     ds["mesh2d_edge_x"] = (("mesh2d_nEdges",), da.from_array(edge_x))
     ds["mesh2d_edge_y"] = (("mesh2d_nEdges",), da.from_array(edge_y))
+    ds["mesh2d_edge_nodes"] = (("mesh2d_nEdges", "Two"), da.from_array(edge_nodes))
+    ds["mesh2d_face_nodes"] = ( ("mesh2d_nFaces", "mesh2d_nMax_face_nodes"), da.from_array(face_nodes))
+    ds["mesh2d_edge_faces"] = (("mesh2d_nEdges", "Two"), da.from_array(edge_faces))    
     ds["mesh2d_face_x"] = (("mesh2d_nFaces",), da.from_array(face_x))
     ds["mesh2d_face_y"] = (("mesh2d_nFaces",), da.from_array(face_y))
-    ds["mesh2d_edge_nodes"] = (("mesh2d_nEdges", "two"), da.from_array(edge_nodes),)
-    ds["mesh2d_edge_faces"] = (("mesh2d_nEdges", "two"), da.from_array(edge_faces),)
-    ds["mesh2d_face_nodes"] = ( ("mesh2d_nFaces", "mesh2d_nMax_face_nodes"), da.from_array(face_nodes),)
+    ds["mesh2d_node_x"] = (("mesh2d_nNodes",), da.from_array(node_x))
+    ds["mesh2d_node_y"] = (("mesh2d_nNodes",), da.from_array(node_y))
+    ds["mesh2d_node_x"].attrs["grid_mapping"] = "crs"
+    ds["mesh2d_node_y"].attrs["grid_mapping"] = "crs"
     x_bnd = np.full_like(face_nodes, np.nan, dtype=np.float64)
     y_bnd = np.full_like(face_nodes, np.nan, dtype=np.float64)
     for i in range(nFaces):
         fn = face_nodes[i]
-        valid = fn >= 0
+        valid = ~np.isnan(fn)
         if valid.sum() < 3: continue
-        idx = fn[valid]
+        idx = fn[valid].astype(int) - 1
         x_bnd[i, valid] = node_x[idx]
         y_bnd[i, valid] = node_y[idx]
-    ds["mesh2d_face_x_bnd"] = (("mesh2d_nFaces", "mesh2d_nMax_face_nodes"), da.from_array(x_bnd),)
-    ds["mesh2d_face_y_bnd"] = (("mesh2d_nFaces", "mesh2d_nMax_face_nodes"), da.from_array(y_bnd),)
+    ds["mesh2d_face_x_bnd"] = (("mesh2d_nFaces", "mesh2d_nMax_face_nodes"), da.from_array(x_bnd))
+    ds["mesh2d_face_y_bnd"] = (("mesh2d_nFaces", "mesh2d_nMax_face_nodes"), da.from_array(y_bnd))
     # ---- UGRID topology variable ----
     ds["mesh2d"] = xr.DataArray(0,
         attrs={
             "cf_role": "mesh_topology", "topology_dimension": 2,
+            "long_name": "Topology data of 2D mesh",
             "node_coordinates": "mesh2d_node_x mesh2d_node_y",
+            "node dimensions": "mesh2d_nNodes", 
+            "max_face_nodes_dimension": "mesh2d_nMax_face_nodes",
             "edge_node_connectivity": "mesh2d_edge_nodes",
+            "edge_dimensions": "mesh2d_nEdges",
             "face_node_connectivity": "mesh2d_face_nodes",
             "edge_face_connectivity": "mesh2d_edge_faces",
+            "face_dimension": "mesh2d_nFaces",
             "face_coordinates": "mesh2d_face_x mesh2d_face_y",
             "edge_coordinates": "mesh2d_edge_x mesh2d_edge_y",
         },
     )
-    if crs is not None: ds.attrs['crs'] = crs
+    ds["mesh2d"].attrs["grid_mapping"] = "crs"
+    ds = ds.set_coords(["mesh2d_node_x", "mesh2d_node_y"])
     return ds
 
-def netCDF_creator(mk: MeshKernel, depth: gpd.GeoDataFrame=None, crs=None):
+def netCDF_creator(mk: MeshKernel, depth: gpd.GeoDataFrame=None):
     mesh = mk.mesh2d_get()
     node_x, node_y = mesh.node_x, mesh.node_y
+    crs = depth.crs if depth is not None else "EPSG:4326"
     if depth is not None:
-        if depth.crs == 'EPSG:4326': depth = depth.to_crs(depth.estimate_utm_crs())
+        if depth.crs == 'EPSG:4326': depth = depth.to_crs(crs)
         temp_grid = gpd.GeoDataFrame(geometry=gpd.points_from_xy(node_x, node_y), crs=depth.crs)
-        node_z = functions.interpolation_Z(temp_grid, depth["geometry"].x, depth["geometry"].y, depth["depth"].values, n_neighbors=2, geo_type='point')
+        node_z = functions.interpolation_Z(
+            temp_grid, depth["geometry"].x, depth["geometry"].y, 
+            depth["depth"].values, n_neighbors=2, geo_type='point'
+        )
     else: node_z = np.zeros(len(node_x))
     # Convert to Ugrid
-    grid_uds = meshkernel_to_Ugrid(mk, crs=crs)
+    grid_uds = meshkernel_to_Ugrid(mk, crs)
     grid_uds['mesh2d_node_z'] = (("mesh2d_nNodes",), da.from_array(node_z.astype(np.float64)))    
     grid_uds.attrs.update({ "institution": 'Private', "references": 'vanlnNTNU@gmail.com'})
     return grid_uds

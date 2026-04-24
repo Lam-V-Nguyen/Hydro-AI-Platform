@@ -7,7 +7,6 @@ from shapely.geometry import Point, Polygon
 import numpy as np, geopandas as gpd
 from meshkernel import MeshKernel, GeometryList
 
-
 router, processes = APIRouter(), {}
 
 @router.post("/init_lakes")
@@ -200,7 +199,7 @@ async def start_grid_optimization(request: Request, user=Depends(functions.basic
                         if not info: return
                         progress = round(iteration / iterations * 100, 2)
                         message = f"Completed: {progress:.1f}% ({iteration}/{iterations}) - Current orthogonality: {current_ortho:.4f}"
-                        message += f" [Best orthogonality: {best_ortho:.4f} (mode: '{best_type:^6}' - level: {best_level:.2f})]."
+                        message += f" [Best orthogonality: {best_ortho:.4f} (mode: '{best_type:^6}' - level: {best_level:.2f})]"
                         info["progress"], info["message"] = progress, message
                         info["history"].append({"iteration": iteration, "min": min_value, "mean": mean_value, "max": current_ortho})
                     def stop_checker():
@@ -214,7 +213,7 @@ async def start_grid_optimization(request: Request, user=Depends(functions.basic
                     info["status"], info["message"] = 'finalizing', "Generating final grid..."
                     mk = grid_functions.mk_from_params(best_params, polygon)
                     project_cache["mk"] = mk
-                    grid_uds = grid_functions.netCDF_creator(mk, depth, crs)
+                    grid_uds = grid_functions.netCDF_creator(mk, depth)
                     best_grid = functions.unstructuredGridCreator(grid_uds)
                     info["grid"] = json.loads(best_grid.to_json())
                     best_params["level"] = f'{best_params["level"]:.3f}'
@@ -248,13 +247,16 @@ async def grid_creator(request: Request, user=Depends(functions.basic_auth)):
         mk, depth_db = MeshKernel(), project_cache.get('depth')
         crs = depth_db.estimate_utm_crs()
         depth_db, gdf = depth_db.to_crs(crs), gdf.to_crs(crs)
-        polygon = GeometryList(gdf.geometry.x, gdf.geometry.y)
+        x, y = np.array(gdf.geometry.x), np.array(gdf.geometry.y)
+        if x[0] != x[-1] or y[0] != y[-1]:
+            x, y = np.append(x, x[0]), np.append(y, y[0])
+        polygon = GeometryList(x, y)
         if level == '': mk.mesh2d_make_triangular_mesh_from_polygon(polygon)
         else: mk.mesh2d_make_triangular_mesh_from_polygon(polygon, scale_factor=float(level))
-        grid_uds = grid_functions.netCDF_creator(mk, depth_db, crs)
+        grid_uds = grid_functions.netCDF_creator(mk, depth_db)
         project_cache['grid_uds'], project_cache['mk'] = grid_uds, mk
         grid = functions.unstructuredGridCreator(grid_uds)
-        return JSONResponse({'status': 'ok', 'content': json.loads(grid.to_json())})
+        return JSONResponse({'content': json.loads(grid.to_json())})
     except Exception as e:
         print('/grid_creator:\n==============')
         traceback.print_exc()
@@ -300,7 +302,107 @@ async def vertex_mover(request: Request, user=Depends(functions.basic_auth)):
         traceback.print_exc()
         return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
 
+@router.post("/vertex_refiner")
+async def vertex_refiner(request: Request, user=Depends(functions.basic_auth)):
+    try:
+        body = await request.json()
+        project_name, _ = functions.project_definer(body.get('projectName'), user)
+        project_cache = request.app.state.project_cache.setdefault(project_name, None)
+        if not project_cache:
+            print("Project is not available in memory. Creating a new one...")
+            project_cache_dict = request.app.state.project_cache
+            project_cache = project_cache_dict.setdefault(project_name, {})
+        if 'lake_db' not in project_cache: project_cache['lake_db'] = None
+        if 'depth_db' not in project_cache: project_cache['depth_db'] = None
+        start_point, end_point = int(body.get('startPoint')), int(body.get('endPoint'))
+        polygon, distance = body.get('polygon', None), body.get('distance')
+        if not polygon or len(polygon) < 3:
+            return JSONResponse({"status": "error", "message": "Invalid polygon"})
+        poly = Polygon([(p[1], p[0]) for p in polygon])
+        polygon_wgs84 = gpd.GeoDataFrame(geometry=[poly], crs="EPSG:4326")        
+        crs = polygon_wgs84.estimate_utm_crs()
+        polygon_xy = polygon_wgs84.to_crs(crs)        
+        boundary = polygon_xy["geometry"].iloc[0].exterior        
+        boundary_coords = list(boundary.coords)
+        n = len(boundary_coords) - 1
+        if not (0 <= start_point < n and 0 <= end_point < n):
+            return JSONResponse({"status": "error", "message": "Invalid start or end index"})
+        if start_point == end_point:
+            return JSONResponse({"status": "error", "message": "Start and end point must be different"})
+        start_dis = boundary.project(Point(boundary_coords[start_point]))
+        end_dis = boundary.project(Point(boundary_coords[end_point]))
+        total_length = boundary.length
+        if end_dis < start_dis:
+            distances = np.concatenate([
+                np.arange(start_dis, total_length, distance),
+                np.arange(0, end_dis, distance)
+            ])
+        else: distances = np.arange(start_dis, end_dis, distance)
+        if len(distances) == 0:
+            return JSONResponse({"status": "error", "message": "Distance too large for selected segment."})
+        # Interpolate points
+        points = [boundary.interpolate(d) for d in distances]
+        new_point_xy = [Point((p.x, p.y)) for p in points]
+        temp = gpd.GeoDataFrame(geometry=new_point_xy, crs=crs).to_crs("EPSG:4326")
+        new_point_wgs84 = [[p.y, p.x] for p in temp['geometry'].values]
+        # Insert the new point at the specified index
+        if start_point < end_point: polygon_new = (polygon[:start_point] + new_point_wgs84 + polygon[end_point:])
+        else: polygon_new = (new_point_wgs84 + polygon[end_point:start_point])
+        if polygon_new[0] != polygon_new[-1]: polygon_new.append(polygon_new[0])
+        vertices = [{"id": i, "geometry": Point((coord[1], coord[0]))} for i, coord in enumerate(polygon_new)]
+        point = gpd.GeoDataFrame(vertices, geometry="geometry", crs="EPSG:4326")
+        poly_new = Polygon([(p.x, p.y) for p in point['geometry'].values])
+        lake_db = gpd.GeoDataFrame(geometry=[poly_new], crs="EPSG:4326")
+        project_cache['lake_db'] = lake_db
+        return JSONResponse({'content': {
+            "polygon": json.loads(lake_db.to_json()), "point": json.loads(point.to_json())
+        }})
+    except Exception as e:
+        print('/vertex_refiner:\n==============')
+        traceback.print_exc()
+        return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
 
+@router.post("/polygon_generator")
+async def polygon_generator(request: Request):
+    try:
+        body = await request.json()
+        points = body.get('points', None)
+        vertices = [{"id": i, "geometry": Point((coord[1], coord[0]))} for i, coord in enumerate(points)]
+        point = gpd.GeoDataFrame(vertices, geometry="geometry", crs="EPSG:4326")
+        coords = [(lon, lat) for lat, lon in points]
+        data = { "Name": ["Unknown"], "Region": ["Unknown"], "max": ["Unknown"],
+            "min": ["Unknown"], "avg": ["Unknown"]}
+        gdf = gpd.GeoDataFrame(data=data, geometry=[Polygon(coords)], crs="EPSG:4326")
+        temp_gdf = gdf.to_crs(gdf.estimate_utm_crs())
+        gdf['perimeter'] = round(temp_gdf['geometry'].iloc[0].length, 2)
+        gdf['area'] = round(temp_gdf['geometry'].iloc[0].area, 2)
+        result = {"polygon": json.loads(gdf.to_json()), "point": json.loads(point.to_json())}
+        return JSONResponse({'status': 'ok', 'content': result})
+    except Exception as e:
+        print('/polygon_generator:\n==============')
+        traceback.print_exc()
+        return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
+
+@router.post("/vertex_remover")
+async def vertex_remover(request: Request, user=Depends(functions.basic_auth)):
+    try:
+        body = await request.json()
+        project_name, _ = functions.project_definer(body.get('projectName'), user)
+        project_cache = request.app.state.project_cache.setdefault(project_name)
+        if not project_cache: return JSONResponse({"status": "error", "message": "Project is not available in memory."})
+        start_point, end_point = int(body.get('startPoint')), int(body.get('endPoint'))
+        polygon = body.get('polygon', None)
+        polygon_new = polygon[:start_point] + polygon[end_point+1:]
+        vertices = [{"id": i, "geometry": Point((coord[1], coord[0]))} for i, coord in enumerate(polygon_new)]
+        point = gpd.GeoDataFrame(vertices, geometry="geometry", crs="EPSG:4326")
+        poly_new = Polygon([(p.x, p.y) for p in point['geometry'].values])
+        gdf = gpd.GeoDataFrame(geometry=[poly_new], crs="EPSG:4326")
+        contents = {"polygon": json.loads(gdf.to_json()), "point": json.loads(point.to_json())}
+        return JSONResponse({'status': 'ok', 'content': contents})
+    except Exception as e:
+        print('/vertex_remover:\n==============')
+        traceback.print_exc()
+        return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
 
 @router.post("/grid_ortho")
 async def grid_ortho(request: Request, user=Depends(functions.basic_auth)):
@@ -322,7 +424,6 @@ async def grid_ortho(request: Request, user=Depends(functions.basic_auth)):
         print('/grid_ortho:\n==============')
         traceback.print_exc()
         return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
-
 
 @router.post("/grid_saver")
 async def grid_saver(request: Request, user=Depends(functions.basic_auth)):

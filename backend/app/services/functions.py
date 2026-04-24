@@ -3,6 +3,7 @@ from config import ALLOWED_USERS
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi import Depends, HTTPException, status
 from redis.asyncio.lock import Lock
+from scipy.spatial import cKDTree
 from config import PROJECT_ROOT
 from uuid import uuid4
 import numpy as np, xarray as xr
@@ -59,7 +60,46 @@ def append_log(log_path, text):
     with open(log_path, "a", encoding=encoding_detect(log_path), errors="replace") as f:
         f.write(text.strip() + "\n")
         f.flush()
-        
+
+def numberFormatter(arr: np.array, decimals: int=2) -> list:
+    """
+    Format the numbers in the array to a specified number of decimal places.
+
+    Parameters:
+    ----------
+    arr: np.array
+        The array containing the numbers to be formatted.
+    decimals: int
+        The number of decimal places to format the numbers to.
+
+    Returns:
+    -------
+    list
+        The list with formatted numbers.
+    """
+    try:
+        arr = np.asarray(arr, dtype=float)
+        result = np.empty(arr.shape, dtype=object)
+        finite_mask = np.isfinite(arr)
+        abs_arr = np.abs(arr)
+        # Make a mask for large numbers
+        large_mask = finite_mask & (abs_arr >= 1)
+        result[large_mask] = np.round(arr[large_mask], decimals)
+        # Make a mask for small numbers
+        small_mask = finite_mask & (abs_arr < 1) & (arr != 0)
+        fmt = f"%.{decimals}e"
+        result[small_mask] = [float(fmt % v) for v in arr[small_mask]]
+        # Make a mask for zero
+        zero_mask = finite_mask & (arr == 0)
+        result[zero_mask] = 0.0
+        # NaN -> None
+        nan_mask = ~finite_mask
+        result[nan_mask] = None
+        return np.reshape(result, arr.shape)
+    except:
+        print("Input array contains non-numeric values")
+        return list(arr)
+
 def safe_remove(path, retries=10, delay=1):
     for _ in range(retries):
         try:
@@ -112,6 +152,42 @@ def unstructuredGridCreator(data_map: xr.Dataset) -> gpd.GeoDataFrame:
     else: grid = gpd.GeoDataFrame(geometry=polygons, crs="EPSG:4326")
     return grid
 
+def interpolation_Z(grid_net: gpd.GeoDataFrame, x_coords: np.ndarray, y_coords: np.ndarray,
+        z_values: np.ndarray, n_neighbors: int=2, geo_type: str='polygon') -> np.ndarray:
+    """
+    Interpolate or extrapolate z values for grid from known points
+    using Inverse Distance Weighting (IDW) method 
+    (in a 'plane' coordinate system like EPSG:32632 - WGS 84 / UTM zone 32N).
+
+    Parameters:
+    ----------
+    grid_net: gpd.GeoDataFrame
+        The GeoDataFrame containing the grid.
+    x_coords: np.ndarray
+        The x coordinates of known points.
+    y_coords: np.ndarray
+        The y coordinates of known points.
+    z_values: np.ndarray
+        The z values of known points.
+    n_neighbors: int
+        The number of neighbors (stations) to consider.
+    geo_type: str
+        The type of geometry, accepted values are: 'polygon' or 'point'.
+
+    Returns:
+    -------
+    np.ndarray
+        The interpolated z values.
+    """
+    gdf_known = gpd.GeoDataFrame(geometry=gpd.points_from_xy(x_coords, y_coords), crs = grid_net.crs)
+    gdf_known = gdf_known.to_crs(gdf_known.estimate_utm_crs())
+    gdf_points = grid_net.copy().to_crs(grid_net.estimate_utm_crs())
+    if geo_type == 'polygon': gdf_points['geometry'] = gdf_points['geometry'].centroid
+    tree = cKDTree(list(zip(gdf_known['geometry'].x, gdf_known['geometry'].y)))
+    dists, idx = tree.query(list(zip(gdf_points['geometry'].x, gdf_points['geometry'].y)), k = n_neighbors)
+    weight = 1 / (dists + 1e-10)**2
+    value = np.sum(weight * z_values[idx], axis=1)/np.sum(weight, axis=1)
+    return numberFormatter(value)
 
 def fileWriter(template_path: str, params: dict) -> str:
     """

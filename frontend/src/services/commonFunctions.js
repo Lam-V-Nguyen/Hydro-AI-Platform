@@ -40,18 +40,18 @@ function waitForWidget(id, timeout = 3000) {
         }, 50);
     });
 }
-function waitForIframeLoad(iframe) {
-    return new Promise(resolve => {
-        if (iframe.contentDocument?.readyState === 'complete') {
-            resolve();
-        } else { iframe.onload = () => resolve(); }
-    });
-}
-export async function waitForWidgetReady(id) {
-    const iframe = await waitForWidget(id);
-    await waitForIframeLoad(iframe);
-    return iframe;
-}
+// function waitForIframeLoad(iframe) {
+//     return new Promise(resolve => {
+//         if (iframe.contentDocument?.readyState === 'complete') {
+//             resolve();
+//         } else { iframe.onload = () => resolve(); }
+//     });
+// }
+// export async function waitForWidgetReady(id) {
+//     const iframe = await waitForWidget(id);
+//     await waitForIframeLoad(iframe);
+//     return iframe;
+// }
 
 export function iframeConnector(objBtn, objtarget, type, content = null, lineType='crossSection') {
     if (objBtn.__handler) objBtn.removeEventListener('click', objBtn.__handler);
@@ -388,20 +388,6 @@ export function pointUpdate(target, table, isExist=true, objList=[]){
     });
 }
 
-export function plotTable(table, sourceName, id){
-    // Get data from table
-    const {columns, rows} = getDataFromTable(table, true);
-    let title = sourceName.value.slice(0, -4), titleWindow = '';
-    if (rows.length === 0) { alert('No data to plot. Please check the table.'); return; }
-    if (id === 'hyd-plot-source') { titleWindow = 'Hydrological Time-Series Graph';
-    } else { titleWindow = 'Meteorological Time-Series Graph'; }
-    // Plot: Send message to parent
-    window.parent.postMessage({
-        type: 'plotSource', columns: columns, rows: rows,
-        id: id, title: title, titleWindow: titleWindow
-    }, origin);
-}
-
 export function interpolateJet(t) {
     const jetColors = [
         [0.0, [0, 0, 128]], [0.35, [0, 255, 255]],
@@ -461,8 +447,3 @@ export function initRequestListener() {
         }
     });
 }
-
-
-
-
-

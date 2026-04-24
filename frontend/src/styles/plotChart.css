@@ -24,7 +24,7 @@ html, body {
  
 }
 .plot-controls button:hover, .checkbox-list label:hover { 
-    background-color: #019475; 
+  background-color: #019475; 
 }
 .button-group {
   margin-left: auto; display: flex; gap: 10px;

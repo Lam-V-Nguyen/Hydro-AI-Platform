@@ -1,15 +1,11 @@
 import { CENTER, ZOOM, L, getPendingRequest, clearPendingRequest, origin } from "./constant.js";
-import { gridPlotter, polygonPlotter, pointsToPolygon, updateColorbar,
-    getColorFromValue, toggleMoveMode, addPointLayer
-} from "./unstructuredGrid.js";
 import { jsonLoader, signalSender } from "./commonFunctions.js";
 
 export let currentMap;
 let currentTileLayer = null, timeCounter = null, html='', markersObs = [], 
     markerCrossSection = [], currentPoints = [], markerBoundary = [], 
     pathCrossSection = null, pathBoundary = null, currentPointsCross = [], 
-    currentPointsBoundary = [], waqObs = [], waqLoads = [], gridLayer = null,
-    polygonLayer = null, pointLayer = null, orthoLayer = null, tempLine = null;
+    currentPointsBoundary = [], waqObs = [], waqLoads = [];
 const configCrossSectionPoint = { color: 'blue', fillColor: 'yellow', radius: 4, fill: true, fillOpacity: 1 }, 
     configBoundaryPoint = { color: 'red', fillColor: 'green', radius: 4, fill: true, fillOpacity: 1 }, 
     configCrossSectionPath = { color: 'blue', weight: 2, dashArray: '5,5' }, 
@@ -103,162 +99,27 @@ export async function renderPreview(request=null) {
             waqLoads.forEach(marker => marker.remove()); waqLoads.length = 0; 
             iconAdd(iconUrl, waqLoads, currentMap, request.content.rows);
         }
-    // } else if (type === 'gridPlotter') {    
-    //     const widgetEl = document.querySelector(`[gs-id="${request.content.id}"]`);
-    //     const colorbar = widgetEl?.querySelector('.custom-colorbar');
-    //     if (!colorbar) return;
-    //     gridLayer = gridPlotter(
-    //         request.content.legend, request.content.dataLake, 
-    //         request.content.dataDepth, currentMap, colorbar
-    //     );
-    // } else if (type === 'polygonPlotter') { 
-    //     polygonLayer = polygonPlotter(
-    //         request.content.polygon, currentMap, 
-    //         request.content.entireNorway, request.content.zoom
-    //     );
-    } else if (type === 'clearGridMap') { 
-        gridLayer = clearMap(gridLayer, currentMap); 
-        polygonLayer = clearMap(polygonLayer, currentMap);
-        pointLayer = clearMap(pointLayer, currentMap); 
-        orthoLayer = clearMap(orthoLayer, currentMap);
-    } else if (type === 'colorbarOption') { 
-        const widgetEl = document.querySelector(`[gs-id="${request.content.id}"]`);
-        const colorbar = widgetEl?.querySelector('.custom-colorbar');
-        if (!colorbar) return; colorbar.style.display = request.content.display;
-    } else if (type === 'gridPlot') {
-        const layer = request.content.layer;
-        const checked = request.content.checked;
-        if (layer === 'polygonGrid') {
-            polygonLayer = clearMap(polygonLayer, currentMap);
-            if (checked) polygonLayer = polygonPlotter(
-                request.content.polygon, currentMap, 
-                request.content.entireNorway, request.content.zoom
-            );
-        } else if (layer === 'depthGrid') {
-            const widgetEl = document.querySelector(`[gs-id="${request.content.id}"]`);
-            const colorbar = widgetEl?.querySelector('.custom-colorbar');
-            if (!colorbar) return;
-            gridLayer = clearMap(gridLayer, currentMap);
-            colorbar.style.display = 'none';
-            if (checked) {
-                signalSender('showOverlay', 'Plotting depth grid. Please wait...');
-                gridLayer = gridPlotter(
-                    request.content.legend, request.content.polygon, 
-                    request.content.dataDepth, currentMap, colorbar
-                );
-                signalSender('hideOverlay');
-            }
-        }
-    } else if (type === 'gridOptions') {
-        const layer = request.content.layer;
-        if (layer === 'vertexGrid') {
-            pointLayer = clearMap(pointLayer, currentMap);
-            pointLayer = addPointLayer(
-                request.content.currentProject, request.content.points, 
-                currentMap, request.content.key, request.content.move
-            );
-            signalSender('updateUIState', { requestId: request.content.requestId });
-        } else if (layer === 'refineGrid') {
-            const isPointLayer = pointLayer !== null ? true : false;
-            if (isPointLayer) {
-                orthoLayer = clearMap(orthoLayer, currentMap);
-                gridLayer = clearMap(gridLayer, currentMap);
-            }
-            signalSender('updateUIState', { 
-                requestId: request.content.requestId, isPointLayer: isPointLayer
-            });
-        } else if (layer === 'orthoGrid') {
-            const widgetEl = document.querySelector(`[gs-id="${request.content.id}"]`);
-            const colorbar = widgetEl?.querySelector('.custom-colorbar');
-            if (!colorbar) return;
-            const colorbar_title = colorbar.querySelector('.colorbar-title');
-            const colorbar_label = colorbar.querySelector('.colorbar-labels');
-            const colorbar_color = colorbar.querySelector('.colorbar-gradient');
-            if (checked) {
-                if (gridLayer === null) { 
-                    alert("Please generate grid first."); 
-//                 orthoCheckbox().checked = false; return; 
-                }
-                signalSender('showOverlay', 'Generating Orthogonality Grid. Please wait...');
-                const contents = { projectName: request.content.currentProject };
-                const response = await jsonLoader('grid_ortho', contents);
-                signalSender('hideOverlay');
-                if (response.status === "error") { alert(response.message); return; }
-                gridLayer = clearMap(gridLayer, currentMap);
-                orthoLayer = clearMap(orthoLayer, currentMap); 
-                // depthCheckbox().checked = false;
-                const vmin = response.content.min, vmax = response.content.max, colorKey = 'ortho';
-                orthoLayer = L.geoJSON(response.content.data, {
-                    pointToLayer: (feature, latlng) => {
-                        const value = Number(feature.properties.orth);
-                        const { r, g, b, a } = getColorFromValue(value, vmin, vmax, colorKey);
-                        const col = `rgb(${r},${g},${b})`;
-                        return L.circleMarker(latlng, {
-                            color: col, fillColor: col, radius: 2, fillOpacity: a
-                        });
-                    },
-                    onEachFeature: (feature, layer) => {
-                        layer.bindTooltip(`Orthogonality: ${feature.properties.orth}`, {
-                            sticky: true, permanent: false, direction: 'center', opacity: 1
-                        });
-                    }
-                }).addTo(currentMap);
-                updateColorbar(
-                    vmin, vmax, 'Orthogonality', colorKey, 
-                    colorbar_color, colorbar_title, colorbar_label
-                ); colorbar.style.display = 'block';
-            } else {
-                orthoLayer = clearMap(orthoLayer, currentMap);
-                if (gridLayer === null) colorbar.style.display = 'none';
-            }
-//         } else if (layer === 'moveGrid') {
-//             if (checked) {
-//                 currentPoints = [];
-//                 if (pointLayer === null) {
-//                     alert("Select the button 'Get/Reset Vertexes' to create vertexes first.");
-// //                 e.target.checked = false;
-//                     return;
-//                 }
-//                 toggleMoveMode(pointLayer, true);
-//                 pointLayer.eachLayer(layer => {
-//                     const latlng = layer.getLatLng();
-//                     currentPoints.push([latlng.lat, latlng.lng]);
-//                 });
-//                 if (currentPoints.length === 0) { alert("No vertexes found."); return; }
-//                 currentPoints.push(currentPoints[0]);
-// //             moveChecked = true; refineChecked = false; deleteChecked = false;
-// //             deleteCheckbox().checked = false; refinementCheckbox().checked = false;
-//                 signalSender('showOverlay', 'Regenerating vertexes. Please wait...');
-//                 const contents = { projectName: request.content.currentProject, pointCollection: currentPoints };
-//                 const response = await jsonLoader('vertex_mover', contents); 
-//                 signalSender('hideOverlay');
-//                 if (response.status === "error") { alert(response.message); return; }
-// //             if (!polygonCheckbox().checked) { polygonCheckbox().checked = true; }
-//                 polygonLayer = clearMap(polygonLayer, currentMap);
-//                 polygonLayer = polygonPlotter(request.content.polygon, currentMap);
-//                 pointLayer = clearMap(pointLayer, lakeMap);
-//                 pointLayer = addPointLayer(
-//                     request.content.currentProject, response.content.point, currentPoints,
-//                     request.content.polygon, pointLayer, currentMap, 'moveChecked', true
-//                 );
-//             } else {
-//                 // moveChecked = false; 
-//                 toggleMoveMode(pointLayer, false);
-//             }
+    // } else if (type === 'gridOptions') {
+    //     const layer = request.content.layer;
+    //     if (layer === 'vertexGrid') {
+    //         pointLayer = clearMap(pointLayer, currentMap);
+    //         pointLayer = addPointLayer(
+    //             request.content.currentProject, request.content.points, 
+    //             currentMap, request.content.key, request.content.move
+    //         );
+    //         signalSender('updateUIState', { requestId: request.content.requestId });
+    //     } else if (layer === 'refineGrid') {
+    //         const isPointLayer = pointLayer !== null ? true : false;
+    //         if (isPointLayer) {
+    //             orthoLayer = clearMap(orthoLayer, currentMap);
+    //             gridLayer = clearMap(gridLayer, currentMap);
+    //         } else currentPoints = [];
+    //         refinedChecked = request.content.checked;
+    //         signalSender('updateUIState', { 
+    //             requestId: request.content.requestId, isPointLayer: isPointLayer
+    //         });
 
-
-
-
-        }
-
-
-
-
-
-
-
-
-
+    //     }
 
 
     }
@@ -309,53 +170,27 @@ export function initMap(mapId='map') {
         } else if (req.requestId === 'waqPoint') { html = 'Select a WAQ observation point';
         } else if (req.requestId === 'loadsPoint') { html = 'Select a WAQ load point';
         } else if (req.requestId === 'drawChecked') { html = 'Draw a polygon using the left mouse button';
-        } else if (req.requestId === 'gridOptions') { 
-            if (req.content.key === 'moveChecked' && req.content.move && req.content.layer === 'vertexGrid') {
-                mapContainer.style.cursor = 'move';
-                html = 'Move a vertex using the left mouse button';
+        // } else if (req.requestId === 'gridOptions') { 
+        //     if (req.content.key === 'moveChecked' && req.content.move && req.content.layer === 'vertexGrid') {
+        //         mapContainer.style.cursor = 'move';
+        //         html = 'Move a vertex using the left mouse button';
+        //     } else if (refinedChecked) {
+        //         if (currentPoints.length === 0) { html = "Select start point to refine."; }
 
 
 
-
-
-            } else {
-                mapContainer.style.cursor = ''; 
-                currentMap.closeTooltip(hoverTooltip);
-                currentMap.removeLayer(hoverTooltip);
-            }
+        //     } else {
+        //         mapContainer.style.cursor = ''; 
+        //         currentMap.closeTooltip(hoverTooltip);
+        //         currentMap.removeLayer(hoverTooltip);
+        //     }
             
-
-
-
-
-
-
 
         } else if (req.requestId === 'updateObsPoint') { 
             mapContainer.style.cursor = 'grab'; return;
         }
         hoverTooltip.setLatLng(e.latlng).setContent(html);
         currentMap.openTooltip(hoverTooltip);
-
-//     lakeMap.on('mousemove', function (e) { 
-//         mapContainer.style.cursor = "grab";
-//         if (refineChecked) {
-//             if (pointContainer.length === 0) { html = "Select start point to refine."; }
-//             hoverTooltip.setLatLng(e.latlng).setContent(html);
-//             lakeMap.openTooltip(hoverTooltip);
-//         }
-//         if (deleteChecked) {
-//             if (pointContainer.length === 0) { html = "Select start point to delete."; }
-//             hoverTooltip.setLatLng(e.latlng).setContent(html);
-//             lakeMap.openTooltip(hoverTooltip);
-//         }
-
-
-//     });
-
-
-
-
 
 
     });
@@ -387,27 +222,20 @@ export function initMap(mapId='map') {
                 line = L.polyline(latlngs, configPath).addTo(currentMap);
                 if (isCross) { pathCrossSection = line; } else { pathBoundary = line; }
             }
-        // } else if (req.requestId === 'drawChecked') {
-        //     html = "Finish drawing with the right mouse button";
-        //     // Add marker
-        //     L.circleMarker(e.latlng, {
-        //         radius: 5, color: 'red', fillColor: 'pink', fillOpacity: 0.9
-        //     }).addTo(currentMap);
-        //     currentPoints.push([e.latlng.lat, e.latlng.lng]);
-        //     // Plot polygon
-        //     if (tempLine) { tempLine.setLatLngs(pointContainer);
-        //     } else {
-        //         tempLine = L.polyline(pointContainer, { 
-        //             color: 'red', weight: 2
-        //         }).addTo(currentMap);
-        //     }
-        //     clearPendingRequest();
-        //     mapContainer.style.cursor = 'grab'; currentMap.closeTooltip(hoverTooltip);
-
+        } else if (req.requestId === 'gridOptions') {
+            // if (req.content.key === 'refineChecked' && req.content.checked) {
+            //     // if (!currentPoints.includes(feature.properties.id)) { pointContainer.push(feature.properties.id); }
+            //     // if (currentPoints.length === 1) { html = "Select end point to refine."; }
+            //     // if (currentPoints.length === 2) { 
+            //     //     await polygonRefinement(currentPoints); currentPoints = []; 
+            //     //     refinementCheckbox().dispatchEvent(new Event('change'));
+            //     //     if (hoverTooltip) lakeMap.closeTooltip(hoverTooltip); return; 
+            //     // }
+            // }
+            // console.log(req);
+    
 
         }
-
-
 
 
 
@@ -448,7 +276,7 @@ export function initMap(mapId='map') {
     });
 }
 
-function clearMap(layer, map) {
+export function clearMap(layer, map) {
     if (layer) { map.removeLayer(layer); }
     return null;
 }

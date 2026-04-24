@@ -597,9 +597,33 @@
             <button class="tab-btn center" id="save-btn">Save Scenario</button>
         </section>
     </div>
-
+    <!-- Time-series window -->
+    <div class="time-series-window" id="plot-container">
+        <div id="plot-header">
+            <span id="plot-title">Plot Window</span>
+            <span class="close-plot-btn" id="close-plot-btn">×</span>
+        </div>
+        <div class="plot-controls">
+            <label for="select-object">Select:</label>
+            <div class="select-object">
+                <div class="select-box">
+                    <span class="label-text">Select one or more options</span>
+                    <span class="arrow">▼</span>
+                </div>
+              <div class="checkbox-list"></div>
+            </div>
+            <div class="button-group">
+                <button type="button" id="viewDataBtn">View Data</button>
+                <button type="button" id="downloadExcel">Download as Excel File</button>                
+            </div>
+        </div>
+        <div class="plot-area">
+            <div id="myChart"></div>
+        </div>
+    </div>
   <script src="/src_frontend/services/tooltipManager.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.plot.ly/plotly-2.26.1.min.js"></script>
   <script>
     flatpickr(".datetime-interval", { 
         noCalendar: true, enableSeconds: true, time_24hr: true,

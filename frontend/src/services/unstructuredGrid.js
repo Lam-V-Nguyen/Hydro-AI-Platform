@@ -1,198 +1,26 @@
 import { valueFormatter, L } from "./constant.js";
 import { signalSender, jsonLoader } from "./commonFunctions.js";
 
-let pointLayer = null, polygonLayer = null;
-
-export function polygonPlotter(polygon, map, entireNorway=false, zoom = false) {
-    // Draw polygon
-    const tempLayer = L.geoJSON(polygon, {
-        style: { color: 'blue', weight: 2, fillColor: 'cyan', fillOpacity: 0 },
-        // Add tooltips or popups if needed
-        onEachFeature: (feature, layer) => {
-            if (feature.properties && entireNorway) {
-                let tooltip = `
-                    <div style="font-weight: bold; text-align: center;">${feature.properties.name}</div>
-                    <hr style="margin: 5px 0 5px 0;">
-                    <strong>• Municipality:</strong> ${feature.properties.region}<br>
-                    <strong>• Area:</strong> ${feature.properties.area} (m²)<br>
-                    <strong>• Perimeter:</strong> ${feature.properties.perimeter} (m)
-                `;
-                layer.bindTooltip(tooltip, {sticky: true});
-            }
-        }
-    }).addTo(map);
-    // Fit map to lake bounds
-    const bounds = tempLayer.getBounds();
-    if (bounds.isValid() && zoom) { 
-        setTimeout(() => { map.invalidateSize(); map.fitBounds(bounds); }, 0);
-    }
-    return tempLayer;
+function getAdaptiveCellSize(polygon, targetCells = 50) {
+    const bbox = turf.bbox(polygon); // [minX, minY, maxX, maxY]
+    // Approx width & height (meters)
+    const width = turf.distance(
+        [bbox[0], bbox[1]], [bbox[2], bbox[1]], { units: 'meters' }
+    );
+    const height = turf.distance(
+        [bbox[0], bbox[1]], [bbox[0], bbox[3]], { units: 'meters' }
+    );
+    const bboxArea = width * height;
+    const cellArea = bboxArea / targetCells;
+    return Math.sqrt(cellArea);
 }
 
-export function gridPlotter(legend, polygon, points, map, colorBarObj, colorbarKey='depth') {
-    if (points === null || points.features === null 
-        || points.features.length === 0) { return null; }
-    // Make grid points colored by depth
-    const colorbar_title = colorBarObj.querySelector('.colorbar-title');
-    const colorbar_label = colorBarObj.querySelector('.colorbar-labels');
-    const colorbar_color = colorBarObj.querySelector('.colorbar-gradient');
-    const lakePolygon = polygon.features[0];
-    const cellSize = getAdaptiveCellSize(lakePolygon, 800);
-    colorBarObj.style.display = 'block';
-    const grid = turf.squareGrid(turf.bbox(lakePolygon), cellSize, {units: 'meters'});
-    grid.features.forEach(cell => {
-        const center = turf.center(cell);
-        if (!turf.booleanPointInPolygon(center , lakePolygon)) return;
-        let num = 0, den = 0;
-        points.features.forEach(p => {
-            const d = turf.distance(center , p, {units: 'meters'});
-            const w = 1 / Math.max(d, 1);
-            num += w * p.properties.depth; den += w;
-        });
-        if (den > 0) { cell.properties.value = num / den; }
+export function toggleMoveMode(targetLayer, enable) {
+    targetLayer.eachLayer(layer => {
+        if (layer.dragging) {
+            enable ? layer.dragging.enable() : layer.dragging.disable();
+        }
     });
-    const vmin = lakePolygon.properties.min, vmax = lakePolygon.properties.max;
-    const tempGrid = L.geoJSON(grid, {
-        filter: f => f.properties.value !== undefined,
-        style: f => {
-            const value = f.properties.value;
-            const { r, g, b, a } = getColorFromValue(value, vmin, vmax, colorbarKey);
-            return { fill: true, fillColor: `rgb(${r},${g},${b})`, 
-                fillOpacity: a, weight: 0, opacity: 1, stroke: false };
-        }
-    }).addTo(map);
-    map.fitBounds(tempGrid.getBounds());
-    updateColorbar(vmin, vmax, legend, colorbarKey, colorbar_color, colorbar_title, colorbar_label);
-    return tempGrid;
-}
-
-
-export async function pointsToPolygon(currentProject, pointList, polygon, pointLayer, map, key) {
-    signalSender('showOverlay', 'Drawing Polygon from Points. Please wait...');
-    const content = { projectName: currentProject, points: pointList };
-    const response = await jsonLoader('polygon_generator', content);
-    signalSender('hideOverlay');
-    if (response.status === "error") { alert(response.message); return; }
-    const polyTemp = response.content.polygon, point = response.content.point;
-    const data = polyTemp.features[0].properties;
-    const contents = [[data.name, data.region, data.area, data.perimeter, data.min, data.max, data.avg]];
-    // fillTable(contents, lakeTable(), true); depthCheckbox().checked = false;
-//     polygonCheckbox().checked = true;
-    map.eachLayer(layer => { if (!(layer instanceof L.TileLayer)) map.removeLayer(layer); });
-    polygon = polygonPlotter(polyTemp, map); 
-    pointLayer = addPointLayer(currentProject, point, pointList, polygon, pointLayer, map, key, true);
-}
-
-export function addPointLayer(currentProject, points, map, key, checkMove=false) {
-    // signalSender('updateUIState', {
-    //     isPointLayer: false,
-    //     refinement: true,
-    //     triggerRefinementChange: true
-    // });
-    const pointType = checkMove ? 'point-marker-move' : 'point-marker-default';
-    const tempLayer = L.geoJSON(points, {
-        pointToLayer: (_, latlng) => {
-            const marker = L.marker(latlng, {
-                draggable: checkMove,
-                icon: L.divIcon({
-                    className: "", html: `<div class="${pointType}"></div>`,
-                    iconSize: [10, 10], iconAnchor: [5, 5]
-                }),
-            });
-            return marker;
-        },
-        onEachFeature: (feature, layer) => {
-            layer.on('click', async () => { 
-                map.getContainer().style.cursor = "auto";
-                if (key === 'refineChecked') {
-                    if (!pointContainer.includes(feature.properties.id)) { 
-                        pointContainer.push(feature.properties.id); 
-                    }
-                    if (pointContainer.length === 1) { html = "Select end point to refine."; }
-                    if (pointContainer.length === 2) { 
-                        // await polygonRefinement(pointContainer); pointContainer = []; 
-                        // refinementCheckbox().dispatchEvent(new Event('change'));
-                        // if (hoverTooltip) lakeMap.closeTooltip(hoverTooltip); 
-                        return;
-                    }
-                } else if (key === 'deleteChecked') {
-                    if (!pointContainer.includes(feature.properties.id)) { 
-                        pointContainer.push(feature.properties.id); 
-                    }
-                    if (pointContainer.length === 1) { html = "Select end point to delete."; }
-                    if (pointContainer.length === 2) { 
-//                         await pointRemoval(pointContainer); pointContainer = []; 
-//                         deleteCheckbox().dispatchEvent(new Event('change'));
-//                         if (hoverTooltip) lakeMap.closeTooltip(hoverTooltip); 
-                        return;
-                    }
-                }
-            });
-            layer.on('dragend', async function (e) {
-                const pos = e.target.getLatLng(), pointCollection = [];
-                // Update point
-                layer.feature.geometry.coordinates = [pos.lng, pos.lat];
-                pointLayer.eachLayer(layer => {
-                    const latlng = layer.getLatLng();
-                    pointCollection.push([latlng.lat, latlng.lng]);
-                });
-                signalSender('showOverlay', 'Regenerating vertexes. Please wait...');
-                const contents = { projectName: currentProject, pointCollection: pointCollection };
-                const response = await jsonLoader('vertex_mover', contents); 
-                signalSender('hideOverlay');
-                if (response.status === "error") { alert(response.message); return; }
-                if (pointLayer) map.removeLayer(pointLayer);
-                if (polygonLayer) map.removeLayer(polygonLayer);
-                polygonLayer = polygonPlotter(response.content.polygon, map);
-                pointLayer = addPointLayer(
-                    currentProject, response.content.point, map, key, checkMove
-                );
-            });
-            layer.bindTooltip(`Id: ${feature.properties.id}`, {
-                sticky: true, permanent: false, direction: 'center', opacity: 1
-            });
-        }
-    }).addTo(map);
-    pointLayer = tempLayer;
-    return tempLayer;
-}
-
-
-
-
-export function updateColorbar(min, max, title, colorbarKey, bar_color, bar_title, bar_label) {
-    bar_title.innerHTML = title.replace(/\n/g, '<br>');
-    // Generate 5 color stops
-    const colorStops = [], numStops = 5;
-    // Minimum difference
-    const minDiff = 1e-2, epsilon = 1e-6;
-    if (max - min < minDiff) max = min + minDiff;
-    // Update 5 labels
-    const labels = bar_label.children;
-    for (let i = 0; i < numStops; i++) {
-        const percent = i / 4; // 0,0.25,0.5,0.75,1
-        let value;
-        if (min + epsilon > 0 && max + epsilon > 0) {
-            const logMin = Math.log(min + epsilon);
-            const logMax = Math.log(max + epsilon);
-            value = Math.exp(logMin + percent * (logMax - logMin));
-        } else { value = min + percent * (max - min);}
-        labels[numStops - i - 1].textContent = valueFormatter(value, minDiff);
-    }
-    // Generate color for colorbar
-    for (let i = 0; i < numStops; i++) {
-        const t = i / (numStops - 1);
-        let value;
-        if (min + epsilon > 0 && max + epsilon > 0) {
-            const logMin = Math.log(min + epsilon);
-            const logMax = Math.log(max + epsilon);
-            value = Math.exp(logMin + t * (logMax - logMin));
-        } else { value = min + t * (max - min); }
-        const color = getColorFromValue(value, min, max, colorbarKey);
-        colorStops.push(`rgb(${color.r}, ${color.g}, ${color.b}) ${(t * 100).toFixed(1)}%`);
-    }
-    // Update gradient
-    bar_color.style.background = `linear-gradient(to top, ${colorStops.join(", ")})`;
 }
 
 export function getColorFromValue(value, vmin, vmax, colorbarKey) {
@@ -258,96 +86,103 @@ export function getColorFromValue(value, vmin, vmax, colorbarKey) {
     return { r, g, b, a: 1 };
 }
 
-function getAdaptiveCellSize(polygon, targetCells = 50) {
-    const bbox = turf.bbox(polygon); // [minX, minY, maxX, maxY]
-    // Approx width & height (meters)
-    const width = turf.distance(
-        [bbox[0], bbox[1]], [bbox[2], bbox[1]], { units: 'meters' }
-    );
-    const height = turf.distance(
-        [bbox[0], bbox[1]], [bbox[0], bbox[3]], { units: 'meters' }
-    );
-    const bboxArea = width * height;
-    const cellArea = bboxArea / targetCells;
-    return Math.sqrt(cellArea);
+export function updateColorbar(min, max, title, colorbarKey, bar_color, bar_title, bar_label) {
+    bar_title.innerHTML = title.replace(/\n/g, '<br>');
+    // Generate 5 color stops
+    const colorStops = [], numStops = 5;
+    // Minimum difference
+    const minDiff = 1e-2, epsilon = 1e-6;
+    if (max - min < minDiff) max = min + minDiff;
+    // Update 5 labels
+    const labels = bar_label.children;
+    for (let i = 0; i < numStops; i++) {
+        const percent = i / 4; // 0,0.25,0.5,0.75,1
+        let value;
+        if (min + epsilon > 0 && max + epsilon > 0) {
+            const logMin = Math.log(min + epsilon);
+            const logMax = Math.log(max + epsilon);
+            value = Math.exp(logMin + percent * (logMax - logMin));
+        } else { value = min + percent * (max - min);}
+        labels[numStops - i - 1].textContent = valueFormatter(value, minDiff);
+    }
+    // Generate color for colorbar
+    for (let i = 0; i < numStops; i++) {
+        const t = i / (numStops - 1);
+        let value;
+        if (min + epsilon > 0 && max + epsilon > 0) {
+            const logMin = Math.log(min + epsilon);
+            const logMax = Math.log(max + epsilon);
+            value = Math.exp(logMin + t * (logMax - logMin));
+        } else { value = min + t * (max - min); }
+        const color = getColorFromValue(value, min, max, colorbarKey);
+        colorStops.push(`rgb(${color.r}, ${color.g}, ${color.b}) ${(t * 100).toFixed(1)}%`);
+    }
+    // Update gradient
+    bar_color.style.background = `linear-gradient(to top, ${colorStops.join(", ")})`;
 }
 
-export function toggleMoveMode(targetLayer, enable) {
-    targetLayer.eachLayer(layer => {
-        if (layer.dragging) {
-            enable ? layer.dragging.enable() : layer.dragging.disable();
-        }
+export function gridPlotter(legend, polygon, points, map, colorBarObj, colorbarKey='depth') {
+    if (points === null || points.features === null 
+        || points.features.length === 0) { return null; }
+    // Make grid points colored by depth
+    const colorbar_title = colorBarObj.querySelector('.colorbar-title');
+    const colorbar_label = colorBarObj.querySelector('.colorbar-labels');
+    const colorbar_color = colorBarObj.querySelector('.colorbar-gradient');
+    const lakePolygon = polygon.features[0];
+    const cellSize = getAdaptiveCellSize(lakePolygon, 800);
+    colorBarObj.style.display = 'block';
+    const grid = turf.squareGrid(turf.bbox(lakePolygon), cellSize, {units: 'meters'});
+    grid.features.forEach(cell => {
+        const center = turf.center(cell);
+        if (!turf.booleanPointInPolygon(center , lakePolygon)) return;
+        let num = 0, den = 0;
+        points.features.forEach(p => {
+            const d = turf.distance(center , p, {units: 'meters'});
+            const w = 1 / Math.max(d, 1);
+            num += w * p.properties.depth; den += w;
+        });
+        if (den > 0) { cell.properties.value = num / den; }
     });
+    const vmin = lakePolygon.properties.min, vmax = lakePolygon.properties.max;
+    const tempGrid = L.geoJSON(grid, {
+        filter: f => f.properties.value !== undefined,
+        style: f => {
+            const value = f.properties.value;
+            const { r, g, b, a } = getColorFromValue(value, vmin, vmax, colorbarKey);
+            return { fill: true, fillColor: `rgb(${r},${g},${b})`, 
+                fillOpacity: a, weight: 0, opacity: 1, stroke: false };
+        }
+    }).addTo(map);
+    map.fitBounds(tempGrid.getBounds());
+    updateColorbar(vmin, vmax, legend, colorbarKey, colorbar_color, colorbar_title, colorbar_label);
+    return tempGrid;
 }
 
-// async function polygonRefinement(pointIds) {
-//     const refineValue = Number(refinementValue().value); gridLayer = clearMap(gridLayer, lakeMap);
-//     if (!Number.isFinite(refineValue) || refineValue <= 0) { alert("Please enter a valid non-negative value."); return; }
-//     if (pointLayer === null) { alert("No polygon has been found. Select the button 'Get/Reset Vertexes' to draw the original polygon first."); return; }
-//     const pointCollection = [];
-//     pointLayer.eachLayer(layer => {
-//         const latlng = layer.getLatLng();
-//         pointCollection.push([latlng.lat, latlng.lng]);
-//     });
-//     if (pointCollection.length < 2) { alert("No point has been found. Select the button 'Get/Reset Vertexes' to create vertexes first."); return; }
-//     startLoading('Refining Vertexes. Please wait...');
-//     const contents = {
-//         projectName: getState().currentProject, distance: refineValue, polygon: pointCollection,
-//         startPoint: pointIds[0], endPoint: pointIds[pointIds.length - 1]
-//     }
-//     const response = await sendQuery('vertex_refiner', contents); stopLoading();
-//     if (response.status === "error") { alert(response.message);  return; }
-//     const polygon = response.content.polygon, point = response.content.point; dataLake = polygon;
-//     if (!polygonCheckbox().checked) { polygonCheckbox().checked = true; }
-//     lakeMap.eachLayer((layer) => { if (!(layer instanceof L.TileLayer)) lakeMap.removeLayer(layer); });
-//     polygonLayer = polygonPlotter(polygon); pointLayer = addPointLayer(point, false);
-//     orthoCheckbox().checked = false; orthoCheckbox().dispatchEvent(new Event('change'));
-// }
-
-// async function pointRemoval(pointIds) {
-//     if (pointLayer === null) { alert("No polygon has been found. Select the button 'Get/Reset Vertexes' to draw the original polygon first."); return; }
-//     const pointCollection = []; deleteChecked = true;
-//     pointLayer.eachLayer(layer => {
-//         const latlng = layer.getLatLng();
-//         pointCollection.push([latlng.lat, latlng.lng]);
-//     });
-//     if (pointCollection.length < 2) { alert("No point has been found. Select the button 'Get/Reset Vertexes' to draw the original polygon first."); return; }
-//     startLoading('Deleting Vertexes. Please wait...');
-//     const contents = {
-//         projectName: getState().currentProject, polygon: pointCollection,
-//         startPoint: pointIds[0], endPoint: pointIds[pointIds.length - 1]
-//     }
-//     await new Promise(resolve => setTimeout(resolve, 0));
-//     const response = await sendQuery('vertex_remover', contents); stopLoading();
-//     if (response.status === "error") { alert(response.message); return; }
-//     const polygon = response.content.polygon, point = response.content.point;
-//     lakeMap.eachLayer((layer) => { if (!(layer instanceof L.TileLayer)) lakeMap.removeLayer(layer); });
-//     polygonLayer = polygonPlotter(polygon, false); pointLayer = addPointLayer(point, false);
-//     orthoCheckbox().checked = false; orthoCheckbox().dispatchEvent(new Event('change'));
-// }
-
-// async function orthoPlotter(data, plotDiv, titleX, titleY, chartTitle) {
-//     if (!plotDiv) { alert("plotDiv is null"); return; }
-//     if (!data || data.length === 0) return;
-//     // Delete existing plot
-//     Plotly.purge(plotDiv); plotDiv.innerHTML = "";
-//     const x = data.map(d => d.iteration), minVals = data.map(d => d.min);
-//     const meanVals = data.map(d => d.mean), maxVals = data.map(d => d.max);
-//     const traces = [{x: x, y: minVals, mode: 'lines', type: 'scatter', name: 'Min', line: { width: 2 }},
-//         { x: x, y: meanVals, mode: 'lines', type: 'scatter', name: 'Mean', line: { width: 2 } },
-//         { x: x, y: maxVals, mode: 'lines', type: 'scatter', name: 'Max', line: { width: 2 } }
-//     ];
-//     const layout = {
-//         title: { text: chartTitle, font: { size: 20, color: 'black', weight: 'bold' } },
-//         paper_bgcolor: 'rgb(245, 240, 240)', plot_bgcolor: 'rgb(247, 243, 243)', showlegend: true,
-//         xaxis: {  title: titleX, type: 'linear', showline: true, mirror: true, ticks: 'outside', font: { color: 'black', size: 18 } },
-//         yaxis: { title: titleY, showline: true, mirror: true, ticks: 'outside', font: { color: 'black', size: 18 } },
-//         margin: { l: 70, r: 30, t: 50, b: 50 }, 
-//     };
-//     Plotly.react(plotDiv, traces, layout, { responsive: true });
-// }
-
-
+export function polygonPlotter(polygon, map, entireNorway=false, zoom = false) {
+    // Draw polygon
+    const tempLayer = L.geoJSON(polygon, {
+        style: { color: 'blue', weight: 2, fillColor: 'cyan', fillOpacity: 0 },
+        // Add tooltips or popups if needed
+        onEachFeature: (feature, layer) => {
+            if (feature.properties && entireNorway) {
+                let tooltip = `
+                    <div style="font-weight: bold; text-align: center;">${feature.properties.name}</div>
+                    <hr style="margin: 5px 0 5px 0;">
+                    <strong>• Municipality:</strong> ${feature.properties.region}<br>
+                    <strong>• Area:</strong> ${feature.properties.area} (m²)<br>
+                    <strong>• Perimeter:</strong> ${feature.properties.perimeter} (m)
+                `;
+                layer.bindTooltip(tooltip, {sticky: true});
+            }
+        }
+    }).addTo(map);
+    // Fit map to lake bounds
+    const bounds = tempLayer.getBounds();
+    if (bounds.isValid() && zoom) { 
+        setTimeout(() => { map.invalidateSize(); map.fitBounds(bounds); }, 0);
+    }
+    return tempLayer;
+}
 
 export async function plotUnstructuredGrid(obj, map) {
     const tempLayer = L.geoJSON(obj, {
@@ -364,3 +199,27 @@ export async function plotUnstructuredGrid(obj, map) {
     }).addTo(map);
     return tempLayer;
 }
+
+export async function orthoPlotter(data, plotDiv, titleX, titleY, chartTitle) {
+    if (!plotDiv) { alert("plotDiv is null"); return; }
+    if (!data || data.length === 0) return;
+    // Delete existing plot
+    Plotly.purge(plotDiv); plotDiv.innerHTML = "";
+    const x = data.map(d => d.iteration), minVals = data.map(d => d.min);
+    const meanVals = data.map(d => d.mean), maxVals = data.map(d => d.max);
+    const traces = [{x: x, y: minVals, mode: 'lines', type: 'scatter', name: 'Min', line: { width: 2 }},
+        { x: x, y: meanVals, mode: 'lines', type: 'scatter', name: 'Mean', line: { width: 2 } },
+        { x: x, y: maxVals, mode: 'lines', type: 'scatter', name: 'Max', line: { width: 2 } }
+    ];
+    const layout = {
+        title: { text: chartTitle, font: { size: 20, color: 'black', weight: 'bold' } },
+        paper_bgcolor: 'rgb(245, 240, 240)', plot_bgcolor: 'rgb(247, 243, 243)', showlegend: true,
+        xaxis: {  title: titleX, type: 'linear', showline: true, mirror: true, ticks: 'outside', font: { color: 'black', size: 18 } },
+        yaxis: { title: titleY, showline: true, mirror: true, ticks: 'outside', font: { color: 'black', size: 18 } },
+        margin: { l: 70, r: 30, t: 50, b: 50 }, 
+    };
+    Plotly.react(plotDiv, traces, layout, { responsive: true });
+}
+
+
+

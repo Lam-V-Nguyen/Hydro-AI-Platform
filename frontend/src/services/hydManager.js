@@ -1,11 +1,12 @@
 import { hydMapId } from "./constant.js";
 import { setupTabs } from "./tabManager.js";
 import { jsonLoader, nameChecker, fillTable, updateTable, iframeConnector, 
-    getDataFromTable, csvUploader, fileUploader, deleteTable, copyPaste, signalSender,
-    addRowToTable, removeRowFromTable, pointUpdate, plotTable, getProjectList
+    getDataFromTable, csvUploader, fileUploader, deleteTable, copyPaste,
+    addRowToTable, removeRowFromTable, pointUpdat, getProjectList, signalSender
 } from "./commonFunctions.js";
 import { timeStepCalculator, saveProject } from "./projectSaver.js";
 import { projectRender } from "./projectManager.js";
+import { plotTimeSeries } from "./chartManager.js";
 
 const $ = (id) => document.getElementById(id);
 const obj = {
@@ -13,6 +14,10 @@ const obj = {
     projectList: $('project-list'), projectName: $('project-name'),
     projectCreator: $('create-btn'), projectCloner: $('duplicate-btn'),
     projectRemover: $('remove-btn'), projectSaver: $('save-btn'),
+    plotContainer: $('plot-container'), plotHeader: $('plot-header'),
+    closePlotBtn: $('close-plot-btn'), plotTitle: $('plot-title'),
+
+
     latitude: $('latitude'), getLocation: $('location'),
     nLayers: $('n-layer'), gridPathText: $('grid-text'), 
     gridPathFile: $('grid-file'), startDate: $('start-date'), 
@@ -63,6 +68,8 @@ const obj = {
     outputWQ: $('write-water-quality-file'), wqStart: $('water-quality-output-start'), wqStop: $('water-quality-output-end'),
     outputRestart: $('write-restart-file'), rstStart: $('restart-start'), rstStop: $('restart-end'),
 }
+
+let dragging = false, offsetX = 0, offsetY = 0;
 
 setupTabs(document); projectOptions(); hydManager();
 
@@ -140,6 +147,25 @@ async function hydManager(){
             obj.controlTab.style.display = "none"; 
             obj.descriptionTab.style.display = "block"; 
         }
+    });
+    // Moving window
+    obj.plotHeader.addEventListener('mousedown', (e) => {
+        dragging = true;
+        offsetX = e.clientX - obj.plotContainer.offsetLeft;
+        offsetY = e.clientY - obj.plotContainer.offsetTop;
+    });
+    document.addEventListener('mousemove', (e) => {
+        if (!dragging) return;
+        const x = e.clientX - offsetX; const y = e.clientY - offsetY;
+        obj.plotContainer.style.left = `${x}px`; 
+        obj.plotContainer.style.top = `${y}px`;
+    });
+    document.addEventListener('mouseup', () => { 
+        dragging = false; offsetX = 0; offsetY = 0;
+    });
+    // Close plot
+    obj.closePlotBtn.addEventListener('click', () => { 
+        obj.plotContainer.style.display = "none";
     });
     // Update location
     iframeConnector(obj.getLocation, obj.latitude, 'pickLocation');
@@ -352,11 +378,14 @@ async function hydManager(){
     });
     // Plot chart
     obj.sourcePlotBtn.addEventListener('click', () => { 
-        plotTable(obj.sourceTable, obj.sourceName, 'hyd-plot-source');
+        const data = getDataFromTable(obj.sourceTable, true);
+        plotTimeSeries(obj.plotContainer, data, obj.sourceName, 'hyd-plot-source');
     });
-    obj.meteoPlotBtn.addEventListener('click', (e) => {
-        plotTable(obj.meteoTable, obj.meteoUploadText, 'hyd-plot-meteo');
-    })
+    obj.meteoPlotBtn.addEventListener('click', () => {
+        const data = getDataFromTable(obj.meteoTable, true);
+        plotTimeSeries(obj.plotContainer, data, obj.meteoUploadText, 'hyd-plot-meteo');
+    });
+
     // Working on hydrological option
     const hydrologicalOption = (e) => {
         sourceChange(

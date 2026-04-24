@@ -1,8 +1,7 @@
 import { menuManager } from "./menuManager.js";
 import { projectMaker, projectModifier, pdfOpener } from "./projectManager.js";
 import { initGrid, addWidget, loadWidget, saveWidget, hasWidget } from "./widgetFunctions.js"; 
-import { startLoading, stopLoading, jsonLoader, htmlLoader, 
-    waitForWidgetReady } from "./commonFunctions.js"; 
+import { startLoading, stopLoading, jsonLoader, htmlLoader } from "./commonFunctions.js"; 
 import { setPendingRequest, clearPendingRequest, origin } from "./constant.js";
 import { renderPreview } from "./mapManager.js";
 import { chartManager } from "./chartManager.js";
@@ -65,7 +64,7 @@ function widgetMenuManager() {
         else if (id === 'delete-project') { projectModifier(user, 'delete'); closeMenu(); return; }
         else if (id === 'help-docs') { pdfOpener(url); closeMenu(); return; }
         else if (id === 'run-hyd' || id === 'run-waq') { w = 9; h = 3; }
-        // else if (id === 'grid-generation') { w = 7; h = 3; }
+        else if (id === 'grid-generation') { w = 10; h = 8; }
         else if (id === 'visualization') { w = 12; h = 9; }
         else if (id === 'about') { w = 8; h = 5; }
         addWidget(w, h, title, id, url); closeMenu();
@@ -136,16 +135,6 @@ function updateComponent() {
             renderPreview({ requestId: event.data.type });
         } else if (event.data.type === 'clearBoundary') { 
             renderPreview({ requestId: event.data.type });
-        } else if (event.data.type === 'plotSource') {
-            startLoading('Initializing data for time series graph. Please wait...');
-            const rows = event.data.rows, columns = event.data.columns;
-            const chartData = { columns, data: rows }, id = event.data.id;
-            const width = 1200, height = 300, iframeSource = '/src_frontend/htmls/timeSeriesUI.html';
-            if (!hasWidget(id)) addWidget(9, 7, event.data.titleWindow, id, iframeSource);
-            const iframe = await waitForWidgetReady(id);
-            await new Promise( r => setTimeout(r, 200));
-            await chartManager(iframe, chartData, event.data.title, 'Time', 'Value', width, height);
-            stopLoading();
         } else if (event.data.type === 'clearGridMap') { 
             renderPreview({ source: event.source, requestId: event.data.type });
         } else if (event.data.type === 'colorbarOption') { 
@@ -158,14 +147,14 @@ function updateComponent() {
                 source: event.source, requestId: event.data.type,
                 content: event.data.content
             });
-        } else if (event.data.type === 'gridOptions') { 
-            const requestId = event.data.content?.requestId;
-            if (requestId) pendingRequests.set(requestId, { source: event.source });
-            const req = { 
-                source: event.source, requestId: event.data.type,
-                content: event.data.content
-            }
-            renderPreview(req); setPendingRequest(req);
+        // } else if (event.data.type === 'gridOptions') { 
+        //     const requestId = event.data.content?.requestId;
+        //     if (requestId) pendingRequests.set(requestId, { source: event.source });
+        //     const req = { 
+        //         source: event.source, requestId: event.data.type,
+        //         content: event.data.content
+        //     }
+        //     setPendingRequest(req); renderPreview(req);
 
 
 
@@ -175,15 +164,15 @@ function updateComponent() {
 
 
 
-        } else if (event.data.type === 'updateUIState') {
-            const requestId = event.data.content?.requestId;
-            if (requestId && pendingRequests.has(requestId)) {
-                const { source } = pendingRequests.get(requestId);
-                source.postMessage({ type: 'updateReturn', 
-                    content: event.data.content, requestId: requestId
-                }, origin);
-                pendingRequests.delete(requestId);
-            }
+        // } else if (event.data.type === 'updateUIState') {
+        //     const requestId = event.data.content?.requestId;
+        //     if (requestId && pendingRequests.has(requestId)) {
+        //         const { source } = pendingRequests.get(requestId);
+        //         source.postMessage({ type: 'updateReturn', 
+        //             content: event.data.content, requestId: requestId
+        //         }, origin);
+        //         pendingRequests.delete(requestId);
+        //     }
         }
     });
 
