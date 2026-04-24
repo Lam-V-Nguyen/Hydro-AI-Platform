@@ -75,7 +75,8 @@ ul li { margin-top: 15px; }
 
 .time-series-window {
   position: fixed; top: 50%; left: 50%; display: none;
-  border-radius: 10px; min-width: 1000px; min-height: 400px;
+  border-radius: 10px; min-width: 700px; min-height: 300px;
+  width: 1000px; height: 400px;
   transform: translate(-50%, -50%); resize: both; overflow: hidden;
   background-color: #c2bdbdff; flex-direction: column;
 }

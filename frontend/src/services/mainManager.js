@@ -4,7 +4,6 @@ import { initGrid, addWidget, loadWidget, saveWidget, hasWidget } from "./widget
 import { startLoading, stopLoading, jsonLoader, htmlLoader } from "./commonFunctions.js"; 
 import { setPendingRequest, clearPendingRequest, origin } from "./constant.js";
 import { renderPreview } from "./mapManager.js";
-import { chartManager } from "./chartManager.js";
 
 
 const widgetMenu = document.getElementById("widgetMenu"); 

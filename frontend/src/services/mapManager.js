@@ -1,5 +1,4 @@
 import { CENTER, ZOOM, L, getPendingRequest, clearPendingRequest, origin } from "./constant.js";
-import { jsonLoader, signalSender } from "./commonFunctions.js";
 
 export let currentMap;
 let currentTileLayer = null, timeCounter = null, html='', markersObs = [], 

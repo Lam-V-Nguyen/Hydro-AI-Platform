@@ -2,7 +2,7 @@ import { hydMapId } from "./constant.js";
 import { setupTabs } from "./tabManager.js";
 import { jsonLoader, nameChecker, fillTable, updateTable, iframeConnector, 
     getDataFromTable, csvUploader, fileUploader, deleteTable, copyPaste,
-    addRowToTable, removeRowFromTable, pointUpdat, getProjectList, signalSender
+    addRowToTable, removeRowFromTable, pointUpdate, getProjectList, signalSender
 } from "./commonFunctions.js";
 import { timeStepCalculator, saveProject } from "./projectSaver.js";
 import { projectRender } from "./projectManager.js";
@@ -66,7 +66,7 @@ const obj = {
     outputHis: $('write-his-file'), hisStart: $('his-output-start'), hisStop: $('his-output-end'),
     outputMap: $('write-map-file'), mapStart: $('map-output-start'), mapStop: $('map-output-end'),
     outputWQ: $('write-water-quality-file'), wqStart: $('water-quality-output-start'), wqStop: $('water-quality-output-end'),
-    outputRestart: $('write-restart-file'), rstStart: $('restart-start'), rstStop: $('restart-end'),
+    outputRestart: $('write-restart-file'), rstStart: $('restart-output-start'), rstStop: $('restart-output-end'),
 }
 
 let dragging = false, offsetX = 0, offsetY = 0;
@@ -379,11 +379,15 @@ async function hydManager(){
     // Plot chart
     obj.sourcePlotBtn.addEventListener('click', () => { 
         const data = getDataFromTable(obj.sourceTable, true);
-        plotTimeSeries(obj.plotContainer, data, obj.sourceName, 'hyd-plot-source');
+        const title = 'Hydrological Time-Series Graph';
+        const titleChart = obj.sourceName.value.slice(0, -4);
+        plotTimeSeries(obj.plotContainer, title, data, titleChart);
     });
     obj.meteoPlotBtn.addEventListener('click', () => {
         const data = getDataFromTable(obj.meteoTable, true);
-        plotTimeSeries(obj.plotContainer, data, obj.meteoUploadText, 'hyd-plot-meteo');
+        const title = 'Meteorological Time-Series Graph';
+        const titleChart = obj.meteoName.value.slice(0, -4);
+        plotTimeSeries(obj.plotContainer, title, data, titleChart);
     });
 
     // Working on hydrological option
@@ -411,7 +415,7 @@ async function hydManager(){
     assignOutput(obj.outputHis, obj.hisStart, obj.hisStop, obj.startDate, obj.stopDate);
     assignOutput(obj.outputMap, obj.mapStart, obj.mapStop, obj.startDate, obj.stopDate);
     assignOutput(obj.outputWQ, obj.wqStart, obj.wqStop, obj.startDate, obj.stopDate);
-    assignOutput(obj.outputRestart, obj.rtsStart, obj.rtsStop, obj.startDate, obj.stopDate);
+    assignOutput(obj.outputRestart, obj.rstStart, obj.rstStop, obj.startDate, obj.stopDate);
     // Save source to project
     obj.sourceSaveBtn.addEventListener('click', async () => {
         const nameProject = obj.projectName.value.trim();
@@ -476,7 +480,7 @@ async function hydManager(){
             hisInterval: hisInterval, hisStart: obj.hisStart, hisStop: obj.hisStop, outputMap: obj.outputMap, 
             mapInterval: mapInterval, mapStart: obj.mapStart, mapStop: obj.mapStop, outputWQ: obj.outputWQ, 
             wqInterval: wqInterval, wqStart: obj.wqStart, wqStop: obj.wqStop, outputRestart: obj.outputRestart, 
-            rtsInterval: rtsInterval, rtsStart: obj.rtsStart, rtsStop: obj.rtsStop, sttInterval: sttInterval, 
+            rtsInterval: rtsInterval, rtsStart: obj.rstStart, rtsStop: obj.rstStop, sttInterval: sttInterval, 
             timingInterval: timingInterval 
         };
         await saveProject(elements); 

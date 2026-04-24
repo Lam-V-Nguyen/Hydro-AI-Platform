@@ -1,63 +1,46 @@
 import { numberFormatter, formatDateTime, interpolateJet, signalSender } from "./commonFunctions.js";
 
-let globalChartData = {data: null, titleX: "", titleY: "", validColumns: []};
+let globalChartData = {title: "", data: null, checkBox: null, selectBox:null, titleX: "", titleY: "", validColumns: []};
 
-export function plotTimeSeries(plotContainer, data, sourceName, id) {
+export async function plotTimeSeries(plotContainer, title, data, titleChart, 
+    titleX='Time', titleY='Value', selectedColumns=null) {
     const {columns, rows} = data;
-    let title = sourceName.value.slice(0, -4), titleWindow = '';
+    // let titleChart = sourceName.value.slice(0, -4);
     if (rows.length === 0) { alert('No data to plot. Please check the table.'); return; }
-    if (id === 'hyd-plot-source') { titleWindow = 'Hydrological Time-Series Graph';
-    } else { titleWindow = 'Meteorological Time-Series Graph'; }
-
-
-
-
-            // startLoading('Initializing data for time series graph. Please wait...');
-            // const rows = event.data.rows, columns = event.data.columns;
-            // const chartData = { columns, data: rows }, id = event.data.id;
-            // const width = 1200, height = 300, iframeSource = '/src_frontend/htmls/timeSeriesUI.html';
-            // if (!hasWidget(id)) addWidget(9, 7, event.data.titleWindow, id, iframeSource);
-            // const iframe = await waitForWidgetReady(id);
-            // await new Promise( r => setTimeout(r, 200));
-            // await chartManager(iframe, chartData, event.data.title, 'Time', 'Value', width, height);
-            // stopLoading();
-
-
-
-    plotContainer.innerHTML = titleWindow;
-}
-
-
-// Draw the chart using Plotly
-export async function plotTimeSeries11111(plotDiv, checkboxList, selectBox, 
-    data, title, titleX, titleY, width, height, selectedColumns=null) {
-//     const cols = data.columns, rows = data.data;
-//     const x = rows.map(r => r[0]);    
-//     let checkboxInputs = checkboxList.querySelectorAll('input[type="checkbox"]');
-//     if (selectedColumns === null) { checkboxInputs = []; checkboxInputs.legend = 0; }
-//     // Create checkbox list
-//     if (checkboxInputs.length === 0) {
-//         const validColumns = [];
-//         for (let i = 1; i < cols.length; i++) {
-//             const y = rows.map(r => r[i]);
-//             const hasValid = y.some(val => val !== null && !isNaN(val));
-//             if (hasValid) validColumns.push(data.columns[i]);
-//         }
-//         // Update global variable
-//         globalChartData = { data, titleX, titleY, validColumns };
-//         createCheckboxList(plotDiv, checkboxList, selectBox, title, width, height, validColumns);
-//         checkboxInputs = checkboxList.querySelectorAll('input[type="checkbox"]');
-//     }
-//     // Get selected columns
-//     if (!selectedColumns) {
-//         selectedColumns = Array.from(checkboxInputs)
-//             .filter(cb => cb.checked && cb.value !== 'All').map(cb => cb.value);
-//     }
-//     const allCheckbox = Array.from(checkboxInputs).find(cb => cb.value === 'All');
-//     let drawColumns, traceIndex = 0;
-//     if (allCheckbox && allCheckbox.checked) drawColumns = cols.slice(1);
-//     else drawColumns = selectedColumns;
-//     if (drawColumns.length === 0) { Plotly.purge(plotDiv); return; }
+    const $ = (selector) => plotContainer.querySelector(selector);
+    const obj = {
+        dropdown: $(".select-object"), selectBox:$(".select-box"),
+        titlePlot: $("#plot-title"), checkboxList: $(".checkbox-list"), 
+        chartDiv: $("#myChart"), viewDataBtn: $("#viewDataBtn"),
+        downloadBtn: $("#downloadExcel")
+    };
+    // Draw the chart using Plotly
+    // const x = rows.map(r => r[0]);
+    let checkboxInputs = obj.checkboxList.querySelectorAll('input[type="checkbox"]');
+    if (selectedColumns === null) { checkboxInputs = []; checkboxInputs.legend = 0; }
+    // Create checkbox list
+    if (checkboxInputs.length === 0) {
+        const validColumns = [];
+        for (let i = 1; i < cols.length; i++) {
+            const y = rows.map(r => r[i]);
+            const hasValid = y.some(val => val !== null && !isNaN(val));
+            if (hasValid) validColumns.push(data.columns[i]);
+        }
+        // Update global variable
+        globalChartData = { data, titleX, titleY, validColumns };
+        createCheckboxList(plotContainer, checkboxList, selectBox, titleChart, validColumns);
+        checkboxInputs = checkboxList.querySelectorAll('input[type="checkbox"]');
+    }
+    // Get selected columns
+    if (!selectedColumns) {
+        selectedColumns = Array.from(checkboxInputs)
+            .filter(cb => cb.checked && cb.value !== 'All').map(cb => cb.value);
+    }
+    const allCheckbox = Array.from(checkboxInputs).find(cb => cb.value === 'All');
+    let drawColumns, traceIndex = 0;
+    if (allCheckbox && allCheckbox.checked) drawColumns = cols.slice(1);
+    else drawColumns = selectedColumns;
+    if (drawColumns.length === 0) { Plotly.purge(plotDiv); return; }
 //     const traces = [], n = drawColumns.length;  
 //     for (const colName of drawColumns) {
 //         const i = cols.indexOf(colName);
@@ -99,48 +82,31 @@ export async function plotTimeSeries11111(plotDiv, checkboxList, selectBox,
 //     const config = { responsive: true, displaylogo: false };
 //     if (!plotDiv._fullLayout) { Plotly.newPlot(plotDiv, traces, layout, config);
 //     } else { Plotly.react(plotDiv, traces, layout, config); }
+
+
+
+
+
+
+
+
+
+
+
+
+
+    plotContainer.style.display = 'flex'; obj.titlePlot.innerHTML = title;
+    // Download chart
+    obj.viewDataBtn.addEventListener("click", () => viewDatafromPlot(obj.chartDiv));
+    // Download data as Excel
+    obj.downloadBtn.addEventListener("click", () => saveToExcelFromPlot(obj.chartDiv));
+    // Open dropdown
+    obj.selectBox.addEventListener("click", () => {
+        obj.checkboxList.style.display = obj.checkboxList.style.display === 'block' ? 'none' : 'block';
+    });
 }
 
-
-
-
-// export async function chartManager(iframe, data, title, titleX, titleY, selectedColumns=null) {
-//     const doc = iframe.contentDocument;
-//     if (!doc?.getElementById("myChart")) return;
-//     const $ = (selector) => doc.querySelector(selector);
-//     const $$id = (id) => doc.getElementById(id);
-//     const obj = {
-//         dropdown: $(".select-object"), selectBox:$(".select-box"),
-//         checkboxList: $(".checkbox-list"), chartDiv: $$id("myChart"),
-//         viewDataBtn: $$id("viewDataBtn"), downloadBtn: $$id("downloadExcel")
-//     };
-//     await plotTimeSeries(
-//         obj.chartDiv, obj.checkboxList, obj.selectBox, data, title, titleX, titleY, selectedColumns
-//     );
-//     // Open dropdown
-//     obj.selectBox.addEventListener("click", () => {
-//         obj.checkboxList.style.display = obj.checkboxList.style.display === 'block' ? 'none' : 'block';
-//     });
-//     // Download chart
-//     obj.viewDataBtn.addEventListener("click", () => viewDatafromPlot(obj.chartDiv));
-//     // Download data as Excel
-//     obj.downloadBtn.addEventListener("click", () => saveToExcelFromPlot(obj.chartDiv));
-// }
-
-
-
-async function updateChart(plotDiv, checkboxObj, selectBoxObj, title, width, height) {
-    const checkboxes = checkboxObj.querySelectorAll('input[type="checkbox"]');
-    const selectedColumns = Array.from(checkboxes)
-        .filter(cb => cb.checked && cb.value !== 'All').map(cb => cb.value);
-    const {data, titleX, titleY} = globalChartData;
-    await plotTimeSeries(
-        plotDiv, checkboxObj, selectBoxObj, data, title, 
-        titleX, titleY, width, height, selectedColumns
-    );
-}
-
-export function createCheckboxList(plotDiv, checkboxObj, selectBoxObj, title, width, height, columns) {
+export function createCheckboxList(plotContainer, checkboxObj, selectBoxObj, titleChart, columns) {
     checkboxObj.innerHTML = '';
     // Create "All" checkbox
     const allLabel = document.createElement('label');
@@ -159,20 +125,29 @@ export function createCheckboxList(plotDiv, checkboxObj, selectBoxObj, title, wi
     allCheckbox.addEventListener('change', () => {
         if (allCheckbox.checked) colCheckBoxes.forEach(cb => cb.checked = true);
         else colCheckBoxes.forEach(cb => cb.checked = false);
-        updateChart(plotDiv, checkboxObj, selectBoxObj, title, width, height);
+        updateChart(plotContainer, checkboxObj, selectBoxObj, titleChart);
         checkboxObj.style.display = 'none';
     })
     // Select other columns
     colCheckBoxes.forEach(cb => {
         cb.addEventListener('change', () => {
             allCheckbox.checked = colCheckBoxes.every(cb => cb.checked);
-            updateChart(plotDiv, checkboxObj, selectBoxObj, title, width, height);
+            updateChart(plotDiv, checkboxObj, selectBoxObj, titleChart);
             checkboxObj.style.display = 'none';
         });
     });
 }
 
-
+async function updateChart(plotContainer, checkboxObj, selectBoxObj, titleChart) {
+    const {title, data, titleX, titleY} = globalChartData;
+    
+    const checkboxes = checkboxObj.querySelectorAll('input[type="checkbox"]');
+    const selectedColumns = Array.from(checkboxes)
+        .filter(cb => cb.checked && cb.value !== 'All').map(cb => cb.value);
+    
+    await plotTimeSeries(plotContainer, title, data, titleChart,
+        titleX, titleY, selectedColumns);
+}
 
 // Export chart data to new tab as CSV format
 export function viewDatafromPlot(plotDiv) {
