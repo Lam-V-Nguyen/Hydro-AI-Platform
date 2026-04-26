@@ -600,7 +600,7 @@
     <!-- Time-series window -->
     <div class="time-series-window" id="plot-container">
         <div id="plot-header">
-            <span id="plot-title">Plot Window</span>
+            <span class="plot-title" id="plot-title">Plot Window</span>
             <span class="close-plot-btn" id="close-plot-btn">×</span>
         </div>
         <div class="plot-controls">
@@ -610,7 +610,7 @@
                     <span class="label-text">Select one or more options</span>
                     <span class="arrow">▼</span>
                 </div>
-              <div class="checkbox-list"></div>
+                <div class="checkbox-list"></div>
             </div>
             <div class="button-group">
                 <button type="button" id="viewDataBtn">View Data</button>
@@ -621,20 +621,21 @@
             <div id="myChart"></div>
         </div>
     </div>
-  <script src="/src_frontend/services/tooltipManager.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-  <script src="https://cdn.plot.ly/plotly-2.26.1.min.js"></script>
-  <script>
-    flatpickr(".datetime-interval", { 
-        noCalendar: true, enableSeconds: true, time_24hr: true,
-        enableTime: true, dateFormat: "H:i:S", 
-        defaultHour: 0, defaultMinute: 0, defaultSecond: 0
-    });
-    flatpickr(".datetime", {
-        enableTime: true, enableSeconds: true, time_24hr: true, dateFormat: "Y-m-d H:i:S", 
-        defaultHour: 0, defaultMinute: 0, defaultSecond: 0
-    });
-  </script>
-  <script type="module" src="/src_frontend/services/hydManager.js?v=0"></script>
+    <script src="/src_frontend/services/tooltipManager.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.plot.ly/plotly-2.26.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script>
+        flatpickr(".datetime-interval", { 
+            noCalendar: true, enableSeconds: true, time_24hr: true,
+            enableTime: true, dateFormat: "H:i:S", 
+            defaultHour: 0, defaultMinute: 0, defaultSecond: 0
+        });
+        flatpickr(".datetime", {
+            enableTime: true, enableSeconds: true, time_24hr: true, dateFormat: "Y-m-d H:i:S", 
+            defaultHour: 0, defaultMinute: 0, defaultSecond: 0
+        });
+    </script>
+    <script type="module" src="/src_frontend/services/hydManager.js?v=0"></script>
 </body>
 </html>

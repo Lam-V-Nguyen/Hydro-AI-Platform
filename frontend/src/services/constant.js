@@ -35,23 +35,58 @@ export function valueFormatter(value, minDiff) {
 
 
 
-// const defaultState = {
-//     layoutGrids: null, currentProject: 'demo', currentParams: [], temp: '',
-//     // hydLayer: null, waqLayer: null, sourceLayer: null, crosssectionLayer: null, isHYD: false, projectName: '',
-//     // mapLayer: null, isPathQuery: false, isMultiLayer: false, isClickedInsideLayer: false, isThemocline: false,
-//     // lastFeatureColors: {}, featureMap: {}, polygonCentroids: [], wqObsLayer: null, wqLoadsLayer: null, gisLayers: {},
-//     // globalChartData: {data: null, chartTitle: "", titleX: "", titleY: "", validColumns: []}, sigma: null,
-//     // isPlaying: null, vectorSelected: '', layerSelected: '', sigmaSelected: '', scalerValue: null, showedQuery: '',
-//     // , currentParams: ['FlowFM_his.zarr', 'FlowFM_map.zarr', 'Coliform_his.zarr', 'Coliform_map.zarr']
-// }
+const defaultState = {
+    // currentProject: 'demo', waqModel: 'coliform',
+    // currentParams: ['FlowFM_his.zarr', 'FlowFM_map.zarr', 'Coliform_his.zarr', 'Coliform_map.zarr']
+}
 
-// let state = structuredClone(defaultState);
-// export const getState = () => state;
-// export const setState = (newState) => { 
-//     state = { ...state, ...newState }; 
-// };
-// // Reset state
-// export const resetState = () => { state = structuredClone(defaultState); };
+let state = {}, currentProjectId = null;
+const getKey = (projectId) => `app_state_${projectId}`;
+const loadState = (projectId) => {
+    const saved = localStorage.getItem(getKey(projectId));
+    return saved ? JSON.parse(saved) : structuredClone(defaultState);
+};
+
+const saveState = (projectId, state) => {
+    localStorage.setItem(getKey(projectId), JSON.stringify(state));
+};
+
+export const initState = (projectId) => {
+    currentProjectId = projectId;
+    state = loadState(projectId);
+};
+export const getState = () => state;
+export const setState = (newState) => {
+    state = { ...state, ...newState };
+    if (currentProjectId) saveState(currentProjectId, state);
+};
+export const resetState = () => {
+    state = structuredClone(defaultState);
+    if (currentProjectId) saveState(currentProjectId, state);
+};
+
+
+const defaultVisualization = { 
+    hydLayer: null, sourceLayer: null, crosssectionLayer: null, 
+    wqObsLayer: null, wqLoadsLayer: null, isPathQuery: false, 
+    isThemocline: false, mapLayer: null, isMultiLayer: false, 
+    polygonCentroids: [], showedQuery: '', isClickedInsideLayer: false,
+    vectorSelected: '', layerSelected: '', sigmaSelected: '', isPlaying: null, 
+    lastFeatureColors: {}, featureMap: {}, isHYD: false,
+    
+    // temp:'',
+    // waqLayer: null, projectName: '',
+    //
+    //  gisLayers: {},
+    // globalChartData: {data: null, chartTitle: "", titleX: "", titleY: "", validColumns: []}, sigma: null,
+    //  scalerValue: null, 
+}
+let stateVisualization = structuredClone(defaultVisualization);
+export const getStateVisualization = () => stateVisualization;
+export const setStateVisualization = (newState) => { stateVisualization = { ...stateVisualization, ...newState }; };
+// Reset state
+
+
 
 let pendingRequest = null;
 

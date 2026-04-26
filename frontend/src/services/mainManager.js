@@ -2,16 +2,20 @@ import { menuManager } from "./menuManager.js";
 import { projectMaker, projectModifier, pdfOpener } from "./projectManager.js";
 import { initGrid, addWidget, loadWidget, saveWidget, hasWidget } from "./widgetFunctions.js"; 
 import { startLoading, stopLoading, jsonLoader, htmlLoader } from "./commonFunctions.js"; 
-import { setPendingRequest, clearPendingRequest, origin } from "./constant.js";
+import { setPendingRequest, clearPendingRequest, origin, getState, initState, setState } from "./constant.js";
 import { renderPreview } from "./mapManager.js";
 
 
 const widgetMenu = document.getElementById("widgetMenu"); 
 const menuContainer = document.getElementById('menu-container');
 
-const githubCache = {}, currentProject = 'demo', currentParams = [];
-let isLoaded = false, userName = null; 
-const pendingRequests = new Map();
+const githubCache = {}, pendingRequests = new Map();
+let isLoaded = false, userName = null;
+let currentProject = getState()?.currentProject || null,
+    waqModel = getState()?.waqModel || null, currentParams = getState()?.currentParams || null;
+// const currentProject = 'demo', waqModel = 'coliform';
+// const currentParams = ['FlowFM_his.zarr', 'FlowFM_map.zarr', 'Coliform_his.zarr', 'Coliform_map.zarr'];
+
 
 // const exits = ['hyd-plot-source', 'hyd-plot-meteo', 'run-hyd', 'run-waq'];
 
@@ -20,20 +24,29 @@ widgetMenuManager(); updateComponent();
 // showGitHubLastUpdate('Lam-V-Nguyen', 'Hydro-AI-Platform', 'dev'); 
 
 
-async function login() { 
+async function login() {
     const data = await jsonLoader('auth_check', {}); 
-    if (data.user === 'admin') { userName = ''; } else { userName = data.user; } 
+    if (data.user === 'admin') { userName = ''; } else { userName = data.user; }
+    initState(userName);
 }
 
 async function projectChecker() { 
-    if (userName === 'admin' || userName === null) return; 
-    startLoading('Setting up Database.\nThis takes a while (especially the first time). Please wait...'); 
+    if (getState().currentProject === 'admin' || getState().currentProject === null) return; 
+    startLoading('Setting up Database.\nThis takes a while (especially the first time).\nPlease wait...'); 
     await new Promise(requestAnimationFrame);
+    if (currentProject === null) currentProject = 'demo';
+    if (waqModel === null) waqModel = 'coliform';
+    if (currentParams === null) currentParams = ['FlowFM_his.zarr', 'FlowFM_map.zarr', 'Coliform_his.zarr', 'Coliform_map.zarr'];
+    setState({ 
+        currentProject: currentProject, currentParams: currentParams, waqModel: waqModel 
+    });    
     const data = await jsonLoader('setup_database', { 
-        projectName: currentProject, params: currentParams
+        projectName: getState().currentProject, 
+        params: getState().currentParams, waqModel: getState().waqModel
     }); stopLoading();
-    if (data.status === "error") { alert(data.message); return; } 
-    userName = data.user; showNotes(userName);
+    if (data.status === "error") { alert(data.message); return; }
+    showNotes(`${userName}/${getState().currentProject}`);
+    // console.log('mainManager:', getState().currentProject, getState().waqModel, getState().currentParams);
 } 
 
 function widgetMenuManager() {

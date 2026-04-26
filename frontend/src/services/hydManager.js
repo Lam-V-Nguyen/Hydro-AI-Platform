@@ -1,7 +1,7 @@
 import { hydMapId } from "./constant.js";
 import { setupTabs } from "./tabManager.js";
-import { jsonLoader, nameChecker, fillTable, updateTable, iframeConnector, 
-    getDataFromTable, csvUploader, fileUploader, deleteTable, copyPaste,
+import { jsonLoader, nameChecker, fillTable, updateTable, iframeConnector, closeWindow,
+    getDataFromTable, csvUploader, fileUploader, deleteTable, copyPaste, moveWindow,
     addRowToTable, removeRowFromTable, pointUpdate, getProjectList, signalSender
 } from "./commonFunctions.js";
 import { timeStepCalculator, saveProject } from "./projectSaver.js";
@@ -16,8 +16,6 @@ const obj = {
     projectRemover: $('remove-btn'), projectSaver: $('save-btn'),
     plotContainer: $('plot-container'), plotHeader: $('plot-header'),
     closePlotBtn: $('close-plot-btn'), plotTitle: $('plot-title'),
-
-
     latitude: $('latitude'), getLocation: $('location'),
     nLayers: $('n-layer'), gridPathText: $('grid-text'), 
     gridPathFile: $('grid-file'), startDate: $('start-date'), 
@@ -149,24 +147,9 @@ async function hydManager(){
         }
     });
     // Moving window
-    obj.plotHeader.addEventListener('mousedown', (e) => {
-        dragging = true;
-        offsetX = e.clientX - obj.plotContainer.offsetLeft;
-        offsetY = e.clientY - obj.plotContainer.offsetTop;
-    });
-    document.addEventListener('mousemove', (e) => {
-        if (!dragging) return;
-        const x = e.clientX - offsetX; const y = e.clientY - offsetY;
-        obj.plotContainer.style.left = `${x}px`; 
-        obj.plotContainer.style.top = `${y}px`;
-    });
-    document.addEventListener('mouseup', () => { 
-        dragging = false; offsetX = 0; offsetY = 0;
-    });
+    moveWindow(obj.plotHeader, obj.plotContainer);
     // Close plot
-    obj.closePlotBtn.addEventListener('click', () => { 
-        obj.plotContainer.style.display = "none";
-    });
+    closeWindow(obj.closePlotBtn, obj.plotContainer);
     // Update location
     iframeConnector(obj.getLocation, obj.latitude, 'pickLocation');
     iframeConnector(obj.obsPointPicker, 

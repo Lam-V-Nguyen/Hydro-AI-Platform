@@ -203,7 +203,7 @@ async function dataBaseOptions() {
             e.target.dispatchEvent(new Event('click')); return; 
         }
         if (selectedLake === "All Municipalities" ) { 
-            signalSender('showOverlay', 'Loading Lakes for entire Norway. Please wait...');
+            signalSender('showOverlay', 'Loading Lakes for entire Norway.\nPlease wait...');
             entireNorway = true; obj.tableContent.style.display = "none"; 
             obj.menuContent.style.display = "none"; 
             obj.lakeSelector.style.display = "none"; 
@@ -325,7 +325,7 @@ function unGridManager() {
         if (e.target.checked) { 
             if (drawSelection) { e.target.checked = false; return; } 
             if (!depthLayer) {
-                signalSender('showOverlay', 'Plotting depth grid. Please wait...');
+                signalSender('showOverlay', 'Plotting depth grid.\nPlease wait...');
                 depthLayer = gridPlotter(
                     'Depth (m)', dataLake, dataDepth, lakeMap, obj.colorBarContainer
                 );
@@ -338,7 +338,7 @@ function unGridManager() {
     });
     obj.vertexesBtn.addEventListener('click', async () => {
         resetMap(); obj.colorBarContainer.style.display = 'none';
-        signalSender('showOverlay', 'Generating Vertexes. Please wait...');
+        signalSender('showOverlay', 'Generating Vertexes.\nPlease wait...');
         const response = await jsonLoader('vertex_generator', { projectName: currentProject }); 
         signalSender('hideOverlay');
         if (response.status === "error") { alert(response.message); return; }
@@ -388,7 +388,7 @@ function unGridManager() {
             pointCollection.push(pointCollection[0]); 
             moveChecked = true; refineChecked = false; deleteChecked = false;
             obj.deleteCheckbox.checked = false; obj.refinementCheckbox.checked = false;
-            signalSender('showOverlay', 'Regenerating vertexes. Please wait...');
+            signalSender('showOverlay', 'Regenerating vertexes.\nPlease wait...');
             const contents = { projectName: currentProject, pointCollection: pointCollection };
             const response = await jsonLoader('vertex_mover', contents); 
             signalSender('hideOverlay');
@@ -435,7 +435,7 @@ function unGridManager() {
         });
         if (pointCollection.length === 0) { alert("No vertexes found."); return; }
         pointCollection.push(pointCollection[0]);
-        signalSender('showOverlay', 'Generating an Unstructured Grid. Please wait...');
+        signalSender('showOverlay', 'Generating an Unstructured Grid.\nPlease wait...');
         const contents = { 
             projectName: currentProject, pointCollection: pointCollection, levelValue: levelValue 
         }
@@ -459,7 +459,7 @@ function unGridManager() {
                 alert("Please generate grid first."); 
                 obj.orthoCheckbox.checked = false; return; 
             }
-            signalSender('showOverlay', 'Generating Orthogonality Grid. Please wait...');
+            signalSender('showOverlay', 'Generating Orthogonality Grid.\nPlease wait...');
             const contents = { projectName: currentProject };
             const response = await jsonLoader('grid_ortho', contents);
             signalSender('hideOverlay');
@@ -548,21 +548,21 @@ function unGridManager() {
         if (name === "") { alert("Please enter a name."); return; }
         if (nameChecker(name)) { alert('Grid name contains invalid characters.'); return; }
         if (!name.toLowerCase().endsWith('.nc')) { name = name + '.nc'; }
-        signalSender('showOverlay', 'Checking grid existence. Please wait...');
+        signalSender('showOverlay', 'Checking grid existence.\nPlease wait...');
         const contents = { projectName: currentProject, gridName: name };
         const check = await jsonLoader('grid_checker', contents);
         signalSender('hideOverlay');
         if (check.status === "error") { 
             if (!confirm(`File "${name}" already exists. Do you want to overwrite it?`)) { return; }
         }
-        signalSender('showOverlay', 'Saving grid. Please wait...');
+        signalSender('showOverlay', 'Saving grid.\nPlease wait...');
         const response = await jsonLoader('grid_saver', contents);
         signalSender('hideOverlay'); alert(response.message);
     });
 }
 
 async function addItems(currentProject, value) {
-    signalSender('showOverlay', 'Loading all Lakes for entire Norway. Please wait...');
+    signalSender('showOverlay', 'Loading all Lakes for entire Norway.\nPlease wait...');
     timeOut = setTimeout( async() => { 
         const response = await jsonLoader('search_lake', { 
             projectName: currentProject, name: value 
@@ -588,7 +588,7 @@ async function addItems(currentProject, value) {
 }
 
 async function loadLakes(currentProject){
-    signalSender('showOverlay', "Initializing Database for entire Norway's Lakes. Please wait...");
+    signalSender('showOverlay', "Initializing Database for entire Norway's Lakes.\nPlease wait...");
     const response = await jsonLoader('init_lakes', {projectName: currentProject});
     if (response.status === "error") { alert(response.message); return; }
     signalSender('hideOverlay'); lakesData = response.content;
@@ -596,7 +596,7 @@ async function loadLakes(currentProject){
 }
 
 async function drawPolygon(pointList) {
-    signalSender('showOverlay', 'Drawing Polygon on the map. Please wait...');
+    signalSender('showOverlay', 'Drawing Polygon on the map.\nPlease wait...');
     const content = { projectName: currentProject, points: pointList };
     const response = await jsonLoader('polygon_generator', content);
     signalSender('hideOverlay');
@@ -661,7 +661,7 @@ export function addPointLayer(points, checkMove=false) {
                     const latlng = layer.getLatLng();
                     pointCollection.push([latlng.lat, latlng.lng]);
                 });
-                signalSender('showOverlay', 'Regenerating vertexes. Please wait...');
+                signalSender('showOverlay', 'Regenerating vertexes.\nPlease wait...');
                 const contents = { projectName: currentProject, pointCollection: pointCollection };
                 const response = await jsonLoader('vertex_mover', contents); 
                 signalSender('hideOverlay');
@@ -693,7 +693,7 @@ async function polygonRefinement(pointIds) {
         pointCollection.push([latlng.lat, latlng.lng]);
     });
     if (pointCollection.length < 2) { alert("No point has been found. Select the button 'Get/Reset Vertexes' to create vertexes first."); return; }
-    signalSender('showOverlay', 'Refining Vertexes. Please wait...');
+    signalSender('showOverlay', 'Refining Vertexes.\nPlease wait...');
     const contents = {
         projectName: currentProject, distance: refineValue, polygon: pointCollection,
         startPoint: pointIds[0], endPoint: pointIds[pointIds.length - 1]
@@ -720,7 +720,7 @@ async function pointRemoval(pointIds) {
     if (pointCollection.length < 2) { 
         alert("No point has been found. Select the button 'Get/Reset Vertexes' to draw the original polygon first."); return; 
     }
-    signalSender('showOverlay', "Deleting Vertexes. Please wait...");
+    signalSender('showOverlay', "Deleting Vertexes.\nPlease wait...");
     const contents = {
         projectName: currentProject, polygon: pointCollection,
         startPoint: pointIds[0], endPoint: pointIds[pointIds.length - 1]

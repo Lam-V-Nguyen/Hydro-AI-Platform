@@ -14,7 +14,7 @@ export function timeStepCalculator(daysString, timeString){
 }
 
 export async function saveProject(elements) {
-    signalSender('showOverlay', 'Saving project. Please wait...');
+    signalSender('showOverlay', 'Saving project.\nPlease wait...');
     const { projectName, latitude, nLayers, gridPathText, startDate, stopDate,
         userTimeSec, nodalTimeSec, obsPointTable, crossSectionName, crossSectionTable, salinity, 
         temperature, initWaterLevel, initSalinity, initTemperature , outputHis, hisInterval, hisStart, 

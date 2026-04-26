@@ -1,9 +1,47 @@
 import { toUTC } from "./projectSaver.js";
-import { origin } from "./constant.js";
+import { origin, getState } from "./constant.js";
 const pendingRequests = new Map();
+
+let zIndex = 3000;
 
 export function signalSender(key, contents={}) {
     window.parent.postMessage({type: key, content: contents}, origin);
+}
+
+export function moveWindow(header, container) {
+    let dragging = false, offsetX = 0, offsetY = 0;
+    const onMouseMove = (e) => {
+        const x = e.clientX - offsetX;
+        const y = e.clientY - offsetY;
+        container.style.left = `${x}px`;
+        container.style.top = `${y}px`;
+    };
+    header.addEventListener('mousedown', (e) => {
+        // e.preventDefault();
+        dragging = true; 
+        container.style.cursor = 'move';
+        document.body.style.userSelect = 'none';
+        zIndex++; container.style.zIndex = zIndex;
+        offsetX = e.clientX - container.offsetLeft;
+        offsetY = e.clientY - container.offsetTop;
+        document.addEventListener('mousemove', onMouseMove);
+    });
+    document.addEventListener('mousemove', (e) => {
+        if (!dragging) return;
+        const x = e.clientX - offsetX; const y = e.clientY - offsetY;
+        container.style.left = `${x}px`; 
+        container.style.top = `${y}px`;
+    });
+    document.addEventListener('mouseup', () => { 
+        dragging = false;
+        document.removeEventListener('mousemove', onMouseMove);
+    });
+}
+
+export function closeWindow(btn, container) {
+    btn.addEventListener('click', () => {
+        container.style.display = "none";
+    });
 }
 
 export function getUser(){
@@ -25,33 +63,6 @@ export async function getProjectList(userName='', folderCheck='') {
     if (data.status === "error") { alert(data.message); return; }
     return data.content;
 }
-
-function waitForWidget(id, timeout = 3000) {
-    return new Promise((resolve, reject) => {
-        const start = Date.now();
-        const timer = setInterval(() => {
-            const iframe = document.querySelector(`#iframe-${id}`);
-            if (iframe) {
-                clearInterval(timer); resolve(iframe);
-            }
-            if (Date.now() - start > timeout) {
-                clearInterval(timer); reject("Widget not found");
-            }
-        }, 50);
-    });
-}
-// function waitForIframeLoad(iframe) {
-//     return new Promise(resolve => {
-//         if (iframe.contentDocument?.readyState === 'complete') {
-//             resolve();
-//         } else { iframe.onload = () => resolve(); }
-//     });
-// }
-// export async function waitForWidgetReady(id) {
-//     const iframe = await waitForWidget(id);
-//     await waitForIframeLoad(iframe);
-//     return iframe;
-// }
 
 export function iframeConnector(objBtn, objtarget, type, content = null, lineType='crossSection') {
     if (objBtn.__handler) objBtn.removeEventListener('click', objBtn.__handler);
@@ -299,14 +310,14 @@ export async function csvUploader(event, targetText, table,
 
 export async function fileUploader(targetFile, targetText, projectName, gridName, message, type){
     if (projectName === '') return;
-    window.parent.postMessage({type: 'showOverlay', message: message}, origin);
+    signalSender('showOverlay', message);
     const file = targetFile.files[0], formData = new FormData();
     formData.append('file', file); formData.append('projectName', projectName);
     formData.append('fileName', gridName); formData.append('type', type);
     if (targetText !== null) {targetText.value = file?.name || "";}
     const response = await fetch('/upload_data', { method: 'POST', body: formData });
     const data = await response.json();
-    window.parent.postMessage({type: 'hideOverlay'}, origin);
+    signalSender('hideOverlay');
     if (data.status === "error") {
         if (targetText !== null) {targetText.value = '';}
         alert(data.message); targetFile.value = ''; return;
@@ -447,3 +458,109 @@ export function initRequestListener() {
         }
     });
 }
+
+// Split lines into smaller segments and sort by distance
+export function splitLines(pointContainer, polygonCentroids, subset_dis) {
+    const interpolatedPoints = [];
+    // Convert Lat, Long to x, y
+    for (let i = 0; i < pointContainer.length - 1; i++) {
+        const p1 = pointContainer[i], p2 = pointContainer[i + 1];
+        const pt1 = L.Projection.SphericalMercator.project(L.latLng(p1.lat, p1.lng));
+        const pt2 = L.Projection.SphericalMercator.project(L.latLng(p2.lat, p2.lng));
+        const dx = pt2.x - pt1.x, dy = pt2.y - pt1.y;
+        const segmentDist = Math.sqrt(dx * dx + dy * dy);
+        const segments = Math.max(1, Math.floor(segmentDist / subset_dis));
+        // Add the first point
+        const originDist = L.latLng(p1.lat, p1.lng).distanceTo(pointContainer[0]);
+        interpolatedPoints.push([originDist, p1.value, p1.lat, p1.lng]);
+        // Add the intermediate points        
+        for (let j = 1; j < segments; j++) {
+            const ratio = j / segments;
+            const interpX = pt1.x + ratio * dx, interpY = pt1.y + ratio * dy;
+            const latlngInterp = L.Projection.SphericalMercator.unproject(L.point(interpX, interpY));
+            // Interpolate
+            const location = L.latLng(latlngInterp.lat, latlngInterp.lng);
+            const interpValue = interpolateValue(location, polygonCentroids);
+            // Fall back to nearest centroid if interpolation fails
+            if (interpValue === null || interpValue === undefined) {
+                interpValue = p1.value + ratio * (p2.value - p1.value);
+            }
+            // Compute distance            
+            const distInterp = location.distanceTo(pointContainer[0]);
+            interpolatedPoints.push([distInterp, interpValue, latlngInterp.lat, latlngInterp.lng]);
+        }
+        // Add the last point
+        const lastDist = L.latLng(p2.lat, p2.lng).distanceTo(pointContainer[0]);
+        interpolatedPoints.push([lastDist, p2.value, p2.lat, p2.lng]);
+    }
+    // Sort by distance
+    interpolatedPoints.sort((a, b) => a[0] - b[0]);
+    return interpolatedPoints;
+}
+
+// Interpolate value using inverse distance weighting
+export function interpolateValue(location, centroids, power = 5, maxDistance = Infinity) {
+    const weights = [], values = [];
+    for (const c of centroids){
+        const d = turf.distance(
+            turf.point([location.lng, location.lat]),
+            turf.point([c.lng, c.lat]), {unit: 'meters'}
+        );
+        if (d > maxDistance || d === 0) continue;
+        const w = 1 / Math.pow(d, power);
+        weights.push(w); values.push(c.value * w);
+    }
+    if (weights.length === 0) return null;
+    const sumWeughts = weights.reduce((a, b) => a + b, 0);
+    const sumValues = values.reduce((a, b) => a + b, 0);
+    return (sumValues / sumWeughts);
+}
+
+export async function initOptions(comboBox, key, projectName) {
+    signalSender('showOverlay', 'Loading Options.\nPlease wait...');
+    try {
+        const response = await fetch('/initiate_options', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({key: key, projectName: projectName})});
+        const data = await response.json();
+        if (data.status === "ok") {
+            // Add none option in case of vector
+            if (key === 'vector' || key === 'thermocline_waq'){
+                comboBox.innerHTML = '';
+                // Add hint to the velocity object
+                const hint = document.createElement('option');
+                hint.value = ''; hint.selected = true;
+                hint.text = '- No Selection -'; 
+                comboBox.add(hint);
+            }
+            // Add options
+            data.content.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item[0]; option.text = item[1];
+                comboBox.add(option);
+            });
+            // Select the first option
+            if (key !== 'vector' && key !== 'thermocline_waq') {comboBox.value = -1;}
+        } else if (data.status === "error") {alert(data.message); return;}
+    } catch (error) {alert(error);}
+    signalSender('hideOverlay');
+}
+
+export function decodeArray(base64Str, n_decimals=3) {
+    // Convert base64 to ArrayBuffer
+    const binaryStr = atob(base64Str);
+    const buffer = new ArrayBuffer(binaryStr.length);
+    const view = new Uint8Array(buffer);
+    for (let i = 0; i < binaryStr.length; i++) {
+        view[i] = binaryStr.charCodeAt(i);
+    }
+    // Convert buffer to Float32Array
+    const floatArray = new Float32Array(buffer);
+    // Round values
+    const values = Array.from(floatArray).map(v => parseFloat(v.toFixed(n_decimals)));
+    return values;
+}
+
+
+
+
