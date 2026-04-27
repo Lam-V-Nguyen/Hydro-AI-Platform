@@ -212,7 +212,12 @@ body {
   font-size: 14px; cursor: pointer; border-radius: 5px; padding: 5px 10px;
 }
 .time-controls button:hover { background-color: #06cc27; }
-
+.time-slider{ flex: 1; padding-left: 10px; padding-right: 10px; }
+.time-slider button {
+  background-color: #00b894; border: none; color: white; padding: 5px 10px;
+  font-size: 14px; cursor: pointer; border-radius: 5px;
+}
+.time-slider button:hover { background-color: #019475; }
 
 
 /* .profile-window {

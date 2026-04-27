@@ -352,3 +352,109 @@ export function plotProfileMultiLayer(key, query, data, title, unit) {
     // })
     // profileWindow().style.display = "flex";
 }
+
+export function thermoclinePlotter(key, data, name, titleX, titleY, chartTitle) {
+    animationToken++;
+    const myToken = animationToken;
+    chartDivProfile().style.border = "1px solid #aaa"; 
+    chartDivProfile().style.borderRadius = "10px"; 
+    chartDivProfile().style.boxShadow = "0 2px 8px rgba(0,0,0,0.15)"; 
+    if (profileWindow()._resizeObserver) profileWindow()._resizeObserver.disconnect();
+    // Hide components
+    colorCombo().style.display = "none"; minValue().style.display = "none"; maxValue().style.display = "none";
+    colorComboLabel().style.display = "none"; minLabel().style.display = "none"; maxLabel().style.display = "none";
+    let animating = false, frameIndex = 0, duration;
+    const { timestamps, depths, values } = data;
+    // Set up time slider
+    timeSlider().min = 0; timeSlider().max = timestamps.length - 1;
+    timeSlider().step = 1; timeSlider().value = 0;
+    timeLabelStart().textContent = `Start: ${timestamps[0]}`;
+    timeLabelEnd().textContent = `End: ${timestamps[timestamps.length - 1]}`;
+    timeLabel().textContent = `Time: ${timestamps[0]}`;
+    // Render plot
+    profileWindow()._resizeObserver = renderThermocline(key, chartDivProfile(), values,
+            depths, name, titleX, titleY, chartTitle);
+    // Change header title of window
+    profileWindowHeader().childNodes[0].nodeValue = 'Thermocline Plot';
+    // Update a single frame
+    async function updateFrame(index) {
+        if (myToken !== animationToken) return;
+        const queryContents = { idx: index, type: 'thermocline_update', projectName: getState().projectName };
+        const updateData = await sendQuery('select_thermocline', queryContents);
+        if (updateData.status === "error") { 
+            alert(updateData.message); animating = false;
+            playPauseBtn().textContent = '▶ Play'; return;
+        }
+        const values = updateData.content;
+        // Update the frame
+        await Plotly.update(chartDivProfile(), { x: [values], y: [depths]}, {}, [0]);
+        // Update time slider
+        timeSlider().value = index; timeLabel().textContent = `Time: ${timestamps[index]}`;
+    }
+    // === Play / Pause control === 
+    async function playAnimation() { 
+        duration = parseFloat(durationValue().value)*1000
+        while (animating && frameIndex < timestamps.length && myToken === animationToken) {
+            await updateFrame(frameIndex);
+            frameIndex++;
+            await new Promise(r => setTimeout(r, duration)); 
+        }
+        if (myToken !== animationToken) return;
+        if (frameIndex >= timestamps.length) { 
+            animating = false; playPauseBtn().textContent = '▶ Play'; 
+            frameIndex = 0; // Reset index
+        }
+    }
+    playPauseBtn().onclick = () => { 
+        if (!animating){ 
+            animating = true; playPauseBtn().textContent = '⏸ Pause'; 
+            playAnimation(); 
+        } else { 
+            animating = false; playPauseBtn().textContent = '▶ Play'; 
+        } 
+    };
+    // === Slider control === 
+    timeSlider().addEventListener('input', async(e) => {
+        animating = false; playPauseBtn().textContent = '▶ Play';
+        frameIndex = parseInt(e.target.value);
+    });
+    // === Duration control ===
+    durationValue().addEventListener('change', () => { 
+        animating = false; playPauseBtn().textContent = '▶ Play';
+    });
+    profileWindow().style.display = "flex"; setState({isThemocline: false});
+}
+
+function renderThermocline(key, plotDiv, xValues, yValues, legend, xTitle, yTitle, title){
+    // === Layout ===
+    const layout = { title: { text: title, font: { color: 'black', weight: 'bold', size: 20 } },
+        paper_bgcolor: '#c2bdbdff', plot_bgcolor: '#c2bdbdff', showlegend: true,
+        xaxis: {
+            title: {text: xTitle, font: { color: 'black' }, standoff: 10}, type: 'category', zeroline: false,
+            automargin: true, mirror: true, showgrid: false, tickmode: 'auto', ticks: 'outside',
+            showline: true, linewidth: 1, linecolor: 'black', tickfont: { color: 'black' }
+        },
+        yaxis: {
+            title: {text: yTitle, font: { color: 'black' }}, automargin: true, zeroline: false,
+            mirror: true, showline: true, linewidth: 1, linecolor: 'black', 
+            autorange: key === 'thermocline_hyd' ? 'reversed' : true,
+            showgrid: false, tickfont: { color: 'black' }, tickmode: 'auto', ticks: 'outside'
+        },
+        margin: { l: 70, r: true ? 60 : 20, t: 50, b: 50 }
+    };
+    const config = {
+        responsive: true, displaylogo: false, displayModeBar: true,
+        modeBarButtonsToRemove: ['lasso2d', 'select2d']
+    };
+    // === Trace ===
+    const trace = { x: xValues, y: yValues, mode: 'lines',
+        type: 'scatter', line: { color: 'blue', width: 2 }, name: legend
+    };
+    // === Plot ===
+    Plotly.purge(plotDiv);
+    Plotly.newPlot(plotDiv, [trace], layout, config).then(() => {
+        const resizeObserver = new ResizeObserver(() => Plotly.Plots.resize(plotDiv));
+        resizeObserver.observe(plotDiv);
+        return resizeObserver;
+    });
+}

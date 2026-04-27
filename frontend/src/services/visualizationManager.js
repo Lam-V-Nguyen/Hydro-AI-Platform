@@ -1,46 +1,42 @@
-import { CENTER, ZOOM, L, getState, setState, initState } from "./constant.js";
-import { getUser, signalSender, jsonLoader, moveWindow, closeWindow
-} from "./commonFunctions.js";
+import { L, getState, setState, initState } from "./constant.js";
+import { getUser, signalSender, jsonLoader, moveWindow, closeWindow } from "./commonFunctions.js";
 import { locationFinder, initializeMenu, projectChecker } from "./visualization.js";
 import { map, initMap } from "./visualizationMap.js";
 
 
 const $ = (id) => document.getElementById(id);
 const obj = {
-    baseMap: $("basemap-btn"), locationSearcher: $("search"),
-    locationList: $("suggestions"), popupMenu: $("popup-menu"), closeSummaryBtn: $("close-summary-btn"),
+    baseMap: $("basemap-btn"), locationSearcher: $("search"), locationList: $("suggestions"), 
+    popupMenu: $("popup-menu"), closeSummaryBtn: $("close-summary-btn"),
     summaryContainer: $("summary-container"), summaryHeader: $("summary-header"), 
     closeTimeSeriesBtn: $("close-time-series-btn"), timeSeriesContainer: $("time-series-container"),
-    timeSeriesHeader: $("time-series-header"), 
-
-    substanceContainer: $("substance-container"), substanceHeader: $("substance-header"),
-    closeSubstanceBtn: $("close-substance-btn"), profileContainer: $("profile-window"), 
-    profileHeader: $("profile-header"), closeProfileBtn: $("close-profile-btn")
+    timeSeriesHeader: $("time-series-header"), substanceContainer: $("substance-container"), 
+    substanceHeader: $("substance-header"), closeSubstanceBtn: $("close-substance-btn"), 
+    profileContainer: $("profile-window"), profileHeader: $("profile-header"), 
+    closeProfileBtn: $("close-profile-btn")
 }
 
 
-
-
-
-let userName = null, waqName = null, mapContainer = null, timeCounter = null, 
-    timeOut = null, hideTimeout = null;
-// const currentProject = 'demo', waqModel = 'coliform';
-// const currentParams = ['FlowFM_his.zarr', 'FlowFM_map.zarr', 'Coliform_his.zarr', 'Coliform_map.zarr'];
+let currentProject = null, currentParams = null, userName = null, 
+    model = null, waqName = null, hideTimeout = null, gisLayers = {};
 
 
 await getProject(); await initMap(); updateManager();
 
 async function getProject() { 
-    userName = await getUser(); userName = userName.split('/').shift()
-    initState(userName); waqName = getState().currentParams[2].replace('_his.zarr', '');
+    userName = await getUser(); userName = userName.split('/').shift();
+    initState(userName);
+    currentProject = getState()?.currentProject || 'demo';
+    model = getState()?.waqModel || 'coliform';
+    currentParams = getState()?.currentParams || 
+        ['FlowFM_his.zarr', 'FlowFM_map.zarr', 'Coliform_his.zarr', 'Coliform_map.zarr'];
+    setState({ currentProject: currentProject, currentParams: currentParams, waqModel: model });
+    waqName = currentParams[2].replace('_his.zarr', '');
     const message = `Initializing project '${getState().currentProject}' and WAQ model '${waqName}'.\nPlease wait...`;
     await projectChecker(
         getState().currentProject, getState().currentParams, getState().waqModel, message
     );
-    // console.log('visualizationManager:', getState().currentProject, getState().waqModel, getState().currentParams);
 }
-
-
 
 function updateManager() { 
     // Search locations
@@ -68,7 +64,7 @@ function updateManager() {
                 'FlowFM_his.zarr', 'FlowFM_map.zarr', `${waqName}_his.zarr`, `${waqName}_map.zarr`
             ];
             setState({ currentParams: params }); setState({ waqModel: modelType });
-            await projectChecker(getState().currentProject, params, modelType, message);
+            await projectChecker(getState().currentProject, params, modelType, message, false);
             initializeMenu(waqName); 
         }
 
@@ -123,27 +119,72 @@ function updateManager() {
         }
         if (handleMenuClick(e, '.menu-link', 'submenu')) return;
         if (handleMenuClick(e, '.menu-link-1', 'submenu-1')) return;
-        
-
-
-
-
-
-
-
-
-
-
     });
-
-
-
-
-
-
+    obj.popupMenu.addEventListener('click', async (e) => {
+        // Show/hide GIS layers
+        if (e.target.type === 'checkbox' && e.target.className === 'layer-gis') {
+            const id = e.target.id, value = e.target.checked;
+            await GISLayerChange(currentProject, id, value);
+        }
+        // Delete GIS layer
+        if (e.target.classList.contains('delete-btn')) {
+            // e.stopPropagation(); e.preventDefault();
+            const id = e.target.id.replace('delete-', '');
+            signalSender('showOverlay', 'Deleting GIS Layer.\nPlease wait...');
+            const data = await jsonLoader('delete_gis', { projectName: currentProject, name: id });
+            if (data.status === "error") { signalSender('hideOverlay'); alert(data.message); return; }
+            await GISLayerChange(currentProject, id, false);
+            const rowDiv = e.target.parentNode; if (rowDiv) {rowDiv.remove();}
+            signalSender('hideOverlay');
+        }
+    });
 }
 
-
+async function GISLayerChange(currentProject, id, checked){
+    setState({gisLayers: {...getState().gisLayers, [id]: checked}});
+    if (!checked) {
+        if (gisLayers[id]) { map.removeLayer(gisLayers[id]); }
+        return;
+    }
+    if (gisLayers[id]) { map.addLayer(gisLayers[id]); return; }
+    // Load gis layer
+    signalSender('showOverlay', 'Loading GIS Layer.\nPlease wait...');
+    const response = await jsonLoader('get_gis_layer', { projectName: currentProject, layer: id });
+    if (response.status === "error") { signalSender('hideOverlay');; alert(response.message); return; }
+    const hue1 = Math.floor(Math.random() * 360), hue2 = Math.floor(Math.random() * 360);
+    const fillColor = `hsl(${hue1}, 70%, 50%)`, color = `hsl(${hue2}, 70%, 50%)`;
+    const layer = L.geoJSON(response.content, { renderer: L.canvas(),
+        pointToLayer: function (feature, latlng) {
+            return L.circleMarker(latlng, {
+                radius: 3, fillColor: fillColor, color: color,
+                weight: 1, opacity: 1, fillOpacity: 0.8
+            });
+        },
+        style: feature => {
+            switch (feature.geometry.type) {
+                case 'LineString': 
+                case 'MultiLineString':
+                    return { color: color, weight: 2 };
+                case 'Polygon':
+                case 'MultiPolygon':
+                    return { color: color, fillColor: fillColor, fillOpacity: 0.5, weight: 1 };
+                default: return {};
+            }
+        },
+        onEachFeature: (feature, l) => {
+            l.on('click', () => {
+                if (!feature.properties) return;
+                const content = Object.entries(feature.properties)
+                    .map(([k, v]) => `<b>${k}</b>: ${v}`).join('<br>')
+                l.bindPopup(`<div style="max-height: 200px; overflow-y: auto;
+                    overflow-x: hidden;">${content}</div>`).openPopup();
+            });
+        }
+    });
+    gisLayers[id] = layer; map.addLayer(layer); 
+    if (layer.getLayers().length < 2000) { map.fitBounds(layer.getBounds()); }
+    signalSender('hideOverlay');
+}
 
 
 
@@ -174,454 +215,12 @@ function updateManager() {
 
 
 
-// async function GISLayerChange(name, id, checked){
-//     setState({gisLayers: {...getState().gisLayers, [id]: checked}});
-//     if (!checked) {
-//         if (gisLayers[id]) { map.removeLayer(gisLayers[id]); }
-//         return;
-//     }
-//     if (gisLayers[id]) { map.addLayer(gisLayers[id]); return; }
-//     // Load gis layer
-//     startLoading('Loading GIS Layer.\nPlease wait...');
-//     const response = await sendQuery('get_gis_layer', {projectName: name, layer: id});
-//     if (response.status === "error") { alert(response.message); return; }
-//     const hue1 = Math.floor(Math.random() * 360), hue2 = Math.floor(Math.random() * 360);
-//     const fillColor = `hsl(${hue1}, 70%, 50%)`, color = `hsl(${hue2}, 70%, 50%)`;
-//     const layer = L.geoJSON(response.content, { renderer: L.canvas(),
-//         pointToLayer: function (feature, latlng) {
-//             return L.circleMarker(latlng, {
-//                 radius: 3, fillColor: fillColor, color: color,
-//                 weight: 1, opacity: 1, fillOpacity: 0.8
-//             });
-//         },
-//         style: feature => {
-//             switch (feature.geometry.type) {
-//                 case 'LineString': 
-//                 case 'MultiLineString':
-//                     return { color: color, weight: 2 };
-//                 case 'Polygon':
-//                 case 'MultiPolygon':
-//                     return { color: color, fillColor: fillColor, fillOpacity: 0.5, weight: 1 };
-//                 default: return {};
-//             }
-//         },
-//         onEachFeature: (feature, l) => {
-//             l.on('click', () => {
-//                 if (!feature.properties) return;
-//                 const content = Object.entries(feature.properties)
-//                     .map(([k, v]) => `<b>${k}</b>: ${v}`).join('<br>')
-//                 l.bindPopup(`<div style="max-height: 200px; overflow-y: auto;
-//                     overflow-x: hidden;">${content}</div>`).openPopup();
-//             });
-//         }
-//     });
-//     gisLayers[id] = layer; map.addLayer(layer); 
-//     if (layer.getLayers().length < 2000) { map.fitBounds(layer.getBounds()); }
-//     showLeafletMap();
-// }
+
 
 // function updateEvents() {
-//     // Search locations
-//     locationSearcher().addEventListener('input', (e) => {
-//         clearTimeout(timeOut);
-//         const value = e.target.value.trim();
-//         if (value === '' || value.length < 2) { sugesstionSearcher().style.display = 'none'; return; }
-//         timeOut = setTimeout(() => {
-//             fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(value)}&addressdetails=1&limit=5`)
-//             .then(response => response.json()).then(data => {
-//                 if (data.length === 0) {sugesstionSearcher().style.display = 'none'; return;}
-//                 sugesstionSearcher().innerHTML = '';
-//                 data.forEach(location => {
-//                     var div = document.createElement('div');
-//                     div.textContent = location.display_name;
-//                     div.addEventListener('click', () => {
-//                         var lat = location.lat, lng = location.lon;
-//                         map.setView([lat, lng], 12);
-//                         locationSearcher().value = location.display_name;
-//                         sugesstionSearcher().style.display = 'none';
-//                     });
-//                     sugesstionSearcher().appendChild(div);
-//                 });
-//                 sugesstionSearcher().style.display = 'block';
-//             })
-//         }, 200);
-//     });
-//     // Check if events are already bound
-//     if (window.__menuEventsBound) return;
-//     window.__menuEventsBound = true;
-//     const pm = popupMenu();
-//     // Show popup menu on click or leave
-//     if (pm) {
-//         pm.addEventListener('mouseenter', () => {
-//             pm.classList.add('show');
-//             if (hideTimeout) { clearTimeout(hideTimeout); hideTimeout = null; }
-//         });
-//         pm.addEventListener('mouseleave', () => {
-//             hideTimeout = setTimeout(() => {
-//                 pm.classList.remove('show');
-//             }, 500);
-//         });
-//     };
-//     const pmHelp = popupMenuHelp();
-//     // Show popup menu on click or leave
-//     if (pmHelp) {
-//         pmHelp.addEventListener('mouseenter', () => {
-//             pmHelp.classList.add('show');
-//             if (hideTimeoutHelp) { clearTimeout(hideTimeoutHelp); hideTimeoutHelp = null; }
-//         });
-//         pmHelp.addEventListener('mouseleave', () => {
-//             hideTimeoutHelp = setTimeout(() => {
-//                 pmHelp.classList.remove('show');
-//             }, 500);
-//         });
-//     }
-//     document.addEventListener('click', (e) => {
-//         // Close the popup menu if clicked outside
-//         if (pm && !pm.contains(e.target)) pm.classList.remove('show');
-//         if (pmHelp && !pmHelp.contains(e.target)) pmHelp.classList.remove('show');
-//         // Toogle the menu if click on menu-link
-//         const link = e.target.closest('.menu-link');
-//         if (link){
-//             e.preventDefault(); e.stopPropagation();
-//             const submenu = link.nextElementSibling;
-//             if (submenu && submenu.classList.contains('submenu')){
-//                 // Close other submenus and remove active on menu-links
-//                 document.querySelectorAll('.submenu.open').forEach(s => {
-//                     if (s !== submenu) s.classList.remove('open');
-//                 });
-//                 document.querySelectorAll('.menu-link.active').forEach(l => {
-//                     if (l !== link) l.classList.remove('active');
-//                 });
-//                 // Toggle class open
-//                 submenu.classList.toggle('open');
-//                 link.classList.toggle('active');
-//             }
-//             return;
-//         }
-//         const link1 = e.target.closest('.menu-link-1');
-//         if (link1){
-//             e.preventDefault(); e.stopPropagation();
-//             const submenu1 = link1.nextElementSibling;
-//             if (submenu1 && submenu1.classList.contains('submenu-1')){
-//                 // Close other submenus and remove active on menu-links
-//                 document.querySelectorAll('.submenu-1.open').forEach(s => {
-//                     if (s !== submenu1) s.classList.remove('open');
-//                 });
-//                 document.querySelectorAll('.menu-link-1.active').forEach(l => {
-//                     if (l !== link1) l.classList.remove('active');
-//                 });
-//                 // Toggle class open
-//                 submenu1.classList.toggle('open');
-//                 link1.classList.toggle('active');
-//             }
-//             return;
-//         }
-//         // Hide suggestions for location search
-//         if (!document.querySelector('.search-box').contains(e.target)) {
-//             sugesstionSearcher().style.display = 'none';
-//         }
-//     });
-//     popupContent().addEventListener('click', async (e) => {
-//         const project = e.target.closest('.project');
-//         const nameProject = projectTitle().textContent.split(':')[1].split('/')[1].trim();
-//         if (project) {
-//             const name = project.dataset.info;
-//             if (name === 'visualization') {
-//                 // Open project for visualization
-//                 iframeInit("open_project", projectOpenWindow(), projectOpenWindowHeader(), 
-//                     projectOpenWindowContent(), "Select Scenario with Simulation Result");
-//                 updateStatus().innerHTML = 'Last Option: Visualization';
-//             } else if (name === 'new-hyd-project') { 
-//                 // Create new hyd project
-//                 projectChecker(); updateStatus().innerHTML = 'Last Option: HYD Scenario Modification';
-//                 iframeInit("new_HYD_project", projectSetting(), projectSettingHeader(), 
-//                     projectSettingContent(), "Create/Modify/Delete a new Hydrodynamic Scenario");
-//             } else if (name === 'run-hyd-simulation') {
-//                 // Run hyd simulation
-//                 projectChecker(); updateStatus().innerHTML = 'Last Option: Run HYD Simulation';
-//                 iframeInit("run_hyd_simulation", simulationWindow(), simulationHeader(), 
-//                     simulationContent(), "Run a Hydrodynamic Simulation");
-//             } else if (name === 'new-waq-project') { 
-//                 // Create a new waq project
-//                 projectChecker(); updateStatus().innerHTML = 'Last Option: WAQ Scenario Modification';
-//                 iframeInit("new_WQ_project", projectSetting(), projectSettingHeader(), 
-//                     projectSettingContent(), "Set up a Water Quality Simulation");
-//             } else if (name === 'run-waq-project') { 
-//                 // Run a new waq project
-//                 projectChecker(); updateStatus().innerHTML = 'Last Option: Run WAQ Simulation';
-//                 iframeInit("run_WQ_project", simulationWindow(), simulationHeader(), 
-//                     simulationContent(), "Run a Water Quality Simulation");
-//             } else if (name === 'gis-uploader') { 
-//                 // GIS Uploader
-//                 GISUploadFile().click(); updateStatus().innerHTML = 'Last Option: Upload GIS data';
-//                 // Open GIS data
-//                 if (GISUploadFile()) {
-//                     GISUploadFile().addEventListener('change', async (event) => { 
-//                         const file = event.target.files[0]; if (!file) return;
-//                         await fileUploader(GISUploadFile(), null, nameProject, 
-//                             file.name, 'Uploading and Processing GIS data.\nPlease wait...', 'gis');
-//                         const hasGISMenu = menuLeft().querySelector("#GISMenu") !== null;
-//                         if (!hasGISMenu) {
-//                             const li = document.createElement("li");
-//                             li.style.alignItems = "center"; li.style.display = "flex";
-//                             const a = document.createElement("a");
-//                             a.className = "menu"; a.id = "GISMenu"; a.textContent = "GIS Layer";
-//                             a.setAttribute("data-info", "4|gisLayer.html|subMenu");
-//                             li.appendChild(a); menuLeft().appendChild(li); initializeMenu();
-//                         }
-//                         GISUploadFile().value = '';
-//                     });
-//                 }
-//                 projectChecker();
-//             } else if (name === 'grid-generation') {
-//                 // Grid Generation
-//                 projectChecker(); updateStatus().innerHTML = 'Last Option: Grid Generation from Lake Database';
-//                 const win = window.open('static_frontend/templates/gridGenerator.html', '_blank');
-//                 if (!win) alert('Please allow popups for opening the page.');
-//             } else if (name === 'data-preparation') {
-//                 // Data Preparation
-//                 projectChecker(); updateStatus().innerHTML = 'Last Option: Data Preparation';
-//                 const win = window.open('static_frontend/templates/dataPreparation.html', '_blank');
-//                 if (!win) alert('Please allow popups for opening the page.');
-//             } else if (name === 'flow-estimation') {
-//                 // Flow Estimation
-//                 projectChecker(); updateStatus().innerHTML = 'Last Option: Flow Estimation';
-//                 const win = window.open('static_frontend/templates/flowEstimation.html', '_blank');
-//                 if (!win) alert('Please allow popups for opening the page.');
-//             } else if (name === 'model-calibration') {
-//                 // Model Calibration
-//                 projectChecker(); updateStatus().innerHTML = 'Last Option: Model Calibration';
-//                 const win = window.open('static_frontend/templates/modelManagement.html', '_blank');
-//                 if (!win) alert('Please allow popups for opening the page.');
-//             }
-//         }
-//         // Delete GIS layer
-//         if (e.target.classList.contains('delete-btn')) {
-//             e.stopPropagation(); e.preventDefault();
-//             const id = e.target.id.replace('delete-', '');
-//             const data = await sendQuery('delete_gis', { projectName: nameProject, name: id });
-//             if (data.status === "error") { alert(data.message); return; }
-//             await GISLayerChange(nameProject, id, false);
-//             const rowDiv = e.target.parentNode; if (rowDiv) {rowDiv.remove();}
-//         }
-//         // Show/hide GIS layers
-//         if (e.target.type === 'checkbox' && e.target.className === 'layer-gis') {
-//             e.stopPropagation();
-//             const id = e.target.id, value = e.target.checked;
-//             await GISLayerChange(nameProject, id, value);
-//         }
-//     });
-//     // Listent events from open project iframe
-//     window.addEventListener('message', async (event) => {
-//         if (event.data?.type === 'reset_config') { openDemoProject(event.data.projectName, event.data.params); }
-//         if (event.data?.type === 'resize-simulation') {
-//             const frameHeight = event.data.height;
-//             if (simulationWindow()) { simulationWindow().style.height = frameHeight + 'px'; }
-//         }
-//         if (event.data?.type === 'projectConfirmed') {
-//             projectChecker(event.data.project, event.data.values);
-//             projectOpenWindow().style.display = 'none';
-//         }
-//         if (event.data?.type === 'projectPreparation') { 
-//             const data = await sendQuery('setup_new_project', {projectName: event.data.name});
-//             alert(data.message);
-//         }
-//         if (event.data?.type === 'pickLocation') { 
-//             showPicker('location');
-//             markersPoints.forEach(marker => map.removeLayer(marker)); markersPoints = [];
-//         }
-//         if (event.data?.type === 'pickPoint') { 
-//             showPicker('point');
-//             // Set custom icon
-//             const pointType = event.data.pointType;
-//             let inconUrl = null, rows = null;
-//             // Remove existing markers
-//             markersPoints.forEach(marker => map.removeLayer(marker)); markersPoints = [];
-//             if (pointType === 'obsPoint') {
-//                 rows = event.data.data.rows;
-//                 inconUrl = `/static_backend/images/station.png?v=${Date.now()}`;
-//             }
-//             else if (pointType === 'waqPoint') {
-//                 const temp = event.data.data[0].rows;
-//                 // Plot loads on map if available
-//                 if (temp.length > 0) {
-//                     inconUrl = `/static_backend/images/waq_loads.png?v=${Date.now()}`;
-//                     const customIcon = L.icon({
-//                         iconUrl: inconUrl, iconSize: [20, 20], popupAnchor: [1, -34],
-//                     });
-//                     temp.forEach(row => {
-//                         const [name, lat, lon] = row;
-//                         if (!name || isNaN(lat) || isNaN(lon)) return;
-//                         const marker = L.marker([parseFloat(lat), parseFloat(lon)], { icon: customIcon }).addTo(map);
-//                         marker.bindPopup(name); markersPoints.push(marker);
-//                     })
-//                 }
-//                 rows = event.data.data[1].rows;
-//                 inconUrl = `/static_backend/images/waq_obs.png?v=${Date.now()}`;
-//             }
-//             else if (pointType === 'loadsPoint') {
-//                 const temp = event.data.data[0].rows;
-//                 if (temp.length > 0) {
-//                     inconUrl = `/static_backend/images/waq_obs.png?v=${Date.now()}`;
-//                     const customIcon = L.icon({
-//                         iconUrl: inconUrl, iconSize: [20, 20], popupAnchor: [1, -34],
-//                     });
-//                     temp.forEach(row => {
-//                         const [name, lat, lon] = row;
-//                         if (!name || isNaN(lat) || isNaN(lon)) return;
-//                         const marker = L.marker([parseFloat(lat), parseFloat(lon)], { icon: customIcon }).addTo(map);
-//                         marker.bindPopup(name); markersPoints.push(marker);
-//                     })
-//                 }
-//                 rows = event.data.data[1].rows;
-//                 inconUrl = `/static_backend/images/waq_loads.png?v=${Date.now()}`;
-//             }
-//             const customIcon = L.icon({
-//                 iconUrl: inconUrl, iconSize: [20, 20], popupAnchor: [1, -34],
-//             });
-//             // Add new markers
-//             rows.forEach(row => {
-//                 const [name, lat, lon] = row;
-//                 if (!name || isNaN(lat) || isNaN(lon)) return;
-//                 const marker = L.marker([parseFloat(lat), parseFloat(lon)], { icon: customIcon }).addTo(map);
-//                 marker.bindPopup(name); markersPoints.push(marker);
-//             })
-//         }
-//         if (event.data?.type === 'updateObsPoint') {
-//             const rows = event.data.data.rows;
-//             // Remove existing markers
-//             markersPoints.forEach(marker => map.removeLayer(marker)); markersPoints = [];
-//             const customIcon = L.icon({
-//                 iconUrl: `/static_backend/images/station.png?v=${Date.now()}`,
-//                 iconSize: [20, 20], popupAnchor: [1, -34],
-//             });
-//             // Add new markers
-//             rows.forEach(row => {
-//                 const [name, lat, lon] = row;
-//                 if (!name || isNaN(lat) || isNaN(lon)) return;
-//                 const marker = L.marker([parseFloat(lat), parseFloat(lon)], { icon: customIcon }).addTo(map);
-//                 marker.bindPopup(name); markersPoints.push(marker);
-//             })
-//             alert('Observation points updated. See the map for details.');
-//         }
-//         if (event.data?.type === 'pickCrossSection' || event.data?.type === 'clearCrossSection') { 
-//             if (event.data?.type === 'pickCrossSection') {
-//                 showPicker('crosssection');
-//                 const rows = event.data.data.rows;
-//                 if (rows.length === 0) return;
-//             }
-//             markersCrosssection.forEach(marker => map.removeLayer(marker));
-//             markersCrosssection = []; crosssectionContainer = [];
-//             if (pathLineCrosssection) { map.removeLayer(pathLineCrosssection); pathLineCrosssection = null; }
-//         }
-//         if (event.data?.type === 'pickBoundary' || event.data?.type === 'clearBoundary') { 
-//             if (event.data?.type === 'pickBoundary') {
-//                 showPicker('boundary');
-//                 const rows = event.data.data.rows;
-//                 if (rows.length === 0) return;
-//             }
-//             markersBoundary.forEach(marker => map.removeLayer(marker));
-//             markersBoundary = []; boundaryContainer = [];
-//             if (pathLineBoundary) { map.removeLayer(pathLineBoundary); pathLineBoundary = null; }
-//         }
-//         // Show/hide overlay
-//         if (event.data?.type === 'showOverlay') { startLoading(event.data.message); }
-//         if (event.data?.type === 'hideOverlay') { showLeafletMap(); }
-//         if (event.data?.type === 'pickSource') { showPicker('source'); }
-//         if (event.data?.type === 'plotSource') {
-//             const rows = event.data.rows;
-//             const columns = event.data.columns;
-//             const chartData = { columns, data: rows };
-//             plotTimeSeries(plotWindow(), chartDiv(), chartData, 'Source Data Chart', 'Time', 'Value', false);
-//         }
-//         if (event.data?.type === 'addWQSource') {
-//             const sources = event.data.sources;
-//             sources.forEach(row => {
-//                 const [name, lat, lon] = row;
-//                 if (!name || isNaN(lat) || isNaN(lon)) return;
-//                 const marker = L.marker([parseFloat(lat), parseFloat(lon)]).addTo(map);
-//                 marker.bindPopup(name);
-//             })
-//         }
-//         if (event.data?.type === 'showGrid') {
-//             startLoading(event.data.message);
-//             const name = event.data.projectName, gridName = event.data.gridName;
-//             const data = await sendQuery('open_grid', {projectName: name, gridName: gridName});
-//             if (data.status === "error") {alert(data.message); ; return;}
-//             // Show the grid on the map
-//             if (gridLayer) map.removeLayer(gridLayer); gridLayer = null;
-//             gridLayer = L.geoJSON(data.content, {style: {color: 'black', weight: 1}}).addTo(map);
-//             showLeafletMap();
-//         }
-//         if (event.data?.type === 'thermoclineGrid') {
-//             startLoading(event.data.message);
-//             const key = event.data.key, query = event.data.query;
-//             const titleX = event.data.titleX, titleY = event.data.titleY;
-//             const chartTitle = event.data.chartTitle;
-//             const data = await sendQuery('select_thermocline', {key: key, query: query,
-//                 type: 'thermocline_grid', projectName: getState().projectName});
-//             if (data.status === "error") {alert(data.message); return;}
-//             if (gridLayer) map.removeLayer(gridLayer); gridLayer = null;
-//             gridLayer = L.geoJSON(data.content, {
-//                 style: {color: 'black', weight: 1},
-//                 onEachFeature: function (feature, layer) {
-//                     layer.on('click', function (e) {
-//                         const index = feature.properties.index;
-//                         // Make popup HTML
-//                         const popupContent = `
-//                             <div style="width:200px">
-//                                 <h4 style="margin:0 0 6px 0;">Change Index: #${index}</h4>
-//                                 <label>New Name:</label>
-//                                 <input id="nameInput" type="text" value="${index}" 
-//                                     style="width:100%;margin-bottom:6px;padding:3px;" />
-//                                 <button id="saveBtn" 
-//                                     style="width:100%;padding:4px;background:#007bff;
-//                                     color:white;border:none;border-radius:4px;cursor:pointer;">
-//                                     Plot Chart
-//                                 </button>
-//                             </div>
-//                         `;
-//                         layer.bindPopup(popupContent).openPopup(e.latlng);
-//                         // Add event listener to save button
-//                         setTimeout(() => {
-//                             const input = document.getElementById('nameInput');
-//                             const saveBtn = document.getElementById('saveBtn');
-//                             if (input && saveBtn) {
-//                                 saveBtn.addEventListener('click', async() => {
-//                                     const newName = input.value;
-//                                     if (newName !== '') {
-//                                         const initData = await sendQuery('select_thermocline', {key: key,
-//                                             query: query, idx: index, type: 'thermocline_init', projectName: getState().projectName});
-//                                         layer.closePopup(); setState({isThemocline: false});
-//                                         if (initData.status === "error") { alert(initData.message); return; }
-//                                         thermoclinePlotter(key, initData.content, newName, titleX, titleY, chartTitle);
-//                                     } else { alert('Please enter a name.'); return; }
-//                                 });
-//                             }
-//                         }, 200);
-//                     });
-//                 }
-//             }).addTo(map);
-//             showLeafletMap();
-//         }
-//     });
-//     // Move window
-//     moveWindow(contactInfo, contactInfoHeader); moveWindow(projectOpenWindow, projectOpenWindowHeader);
-//     moveWindow(projectSetting, projectSettingHeader); moveWindow(simulationWindow, simulationHeader);
-//     moveWindow(substanceWindowHis, substanceWindowHeaderHis); moveWindow(substanceWindowMap, substanceWindowHeaderMap); 
-//     // Close windows
-//     substanceWindowCloseBtnHis().addEventListener('click', () => { 
-//         substanceWindowHis().style.display = 'none'; plotWindow().style.display = 'none';
-//     });
-//     substanceWindowCloseBtnMap().addEventListener('click', () => { 
-//         substanceWindowMap().style.display = 'none'; plotWindow().style.display = 'none'; hideMap();
-//     });
-//     contactInfoCloseBtn().addEventListener('click', () => { contactInfo().style.display = 'none'; });
-//     projectOpenCloseBtn().addEventListener('click', () => { projectOpenWindow().style.display = 'none'; });
-//     projectSettingCloseBtn().addEventListener('click', () => { 
-//         hideMap(); projectSetting().style.display = 'none'; 
-//     });
-//     simulationCloseBtn().addEventListener('click', () => { simulationWindow().style.display = 'none'; });
+
+
+
 //     map.on('mousemove', function (e) {
 //         if (!pickerState.location && !pickerState.point && !pickerState.source && !pickerState.crosssection && 
 //             !pickerState.boundary) {
@@ -706,19 +305,7 @@ function updateManager() {
 //     });
 // }
 
-// function showPicker(key){
-//     // Show point picker on the map
-//     pickerState[key] = true;
-//     mapContainer().style.cursor = 'crosshair';
-//     projectSetting().style.display = 'none';
-// }
-// function hidePicker(key, data, type){
-//     const iframe = projectSettingContent().querySelector("iframe");
-//     if (iframe) { iframe.contentWindow.postMessage({ type: type, content: data }, '*'); }
-//     pickerState[key] = false;
-//     mapContainer().style.cursor = 'grab';
-//     projectSetting().style.display = 'flex';
-// }
+
 
 
 

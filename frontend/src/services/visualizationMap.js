@@ -1,15 +1,12 @@
 import { CENTER, ZOOM, L } from "./constant.js";
 
 export let map;
-let currentTileLayer = null, mapContainer = null, timeCounter = null, 
-    timeOut = null, hideTimeout = null;
+let currentTileLayer = null, mapContainer = null, timeCounter = null;
 
 const hoverTooltip = L.tooltip({
     permanent: false, direction: 'bottom',
     sticky: true, offset: [0, 10], className: 'custom-tooltip'
 });
-
-
 
 const $ = (id) => document.getElementById(id);
 const obj = {

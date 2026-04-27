@@ -30,14 +30,9 @@ export function valueFormatter(value, minDiff) {
     } else { return value.toFixed(decimalPlaces); }
 }
 
-
-
-
-
-
 const defaultState = {
-    // currentProject: 'demo', waqModel: 'coliform',
-    // currentParams: ['FlowFM_his.zarr', 'FlowFM_map.zarr', 'Coliform_his.zarr', 'Coliform_map.zarr']
+    currentProject: 'demo', waqModel: 'coliform',
+    currentParams: ['FlowFM_his.zarr', 'FlowFM_map.zarr', 'Coliform_his.zarr', 'Coliform_map.zarr']
 }
 
 let state = {}, currentProjectId = null;
@@ -69,16 +64,13 @@ export const resetState = () => {
 const defaultVisualization = { 
     hydLayer: null, sourceLayer: null, crosssectionLayer: null, 
     wqObsLayer: null, wqLoadsLayer: null, isPathQuery: false, 
-    isThemocline: false, mapLayer: null, isMultiLayer: false, 
+    isThemocline: false, mapLayer: null, isMultiLayer: false, gisLayers: {},
     polygonCentroids: [], showedQuery: '', isClickedInsideLayer: false,
     vectorSelected: '', layerSelected: '', sigmaSelected: '', isPlaying: null, 
-    lastFeatureColors: {}, featureMap: {}, isHYD: false,
+    lastFeatureColors: {}, featureMap: {}, isHYD: false, sigma: null,
     
-    // temp:'',
-    // waqLayer: null, projectName: '',
-    //
-    //  gisLayers: {},
-    // globalChartData: {data: null, chartTitle: "", titleX: "", titleY: "", validColumns: []}, sigma: null,
+    //  
+    // globalChartData: {data: null, chartTitle: "", titleX: "", titleY: "", validColumns: []},
     //  scalerValue: null, 
 }
 let stateVisualization = structuredClone(defaultVisualization);

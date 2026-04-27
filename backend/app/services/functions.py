@@ -1,4 +1,4 @@
-import os, json, chardet, asyncio, stat, time, re, shapely, shutil
+import os, json, chardet, asyncio, stat, time, re, shapely, shutil, base64
 from config import ALLOWED_USERS
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi import Depends, HTTPException, status
@@ -1103,9 +1103,63 @@ def getVectorNames() -> list:
     result = [(0,'Velocity')]
     return result
 
+def vectorComputer(data_map: xr.Dataset, value_type: str, row_idx: int, step: int=-1) -> dict:
+    """
+    Compute vector in each layer and average value (if possible)
 
+    Parameters:  
+    ----------
+    data_map: xr.Dataset
+        The dataset received from _map file.
+    value_type: str
+        The type of vector to compute: 'Average' or one specific layer.
+    row_idx: int
+        The index of the interested layer.
+    step: int
+        The index of the interested time step.
 
+    Returns:
+    -------
+    dict
+        A dictionary containing time, coordinates, and values of the vector.
+    """
+    if value_type == 'Average':
+        # Average velocity in each layer
+        ucx = data_map['mesh2d_ucxa'].isel(time=step).values
+        ucy = data_map['mesh2d_ucya'].isel(time=step).values
+        ucm = data_map['mesh2d_ucmaga'].isel(time=step).values
+    else:
+        # Velocity for specific layer
+        ucx = data_map['mesh2d_ucx'].isel(time=step).values[:, row_idx]
+        ucy = data_map['mesh2d_ucy'].isel(time=step).values[:, row_idx]
+        ucm = data_map['mesh2d_ucmag'].isel(time=step).values[:, row_idx]
+    # Get indices of non-nan values
+    col_idx = np.where(~np.isnan(ucx) & ~np.isnan(ucy) & ~np.isnan(ucm))
+    # Coordinates (filtered)
+    x_coords = data_map['mesh2d_face_x'].values[col_idx]
+    y_coords = data_map['mesh2d_face_y'].values[col_idx]
+    # Values (filtered)
+    ucx_valid = np.round(ucx[col_idx].astype(np.float64), 5)
+    ucy_valid = np.round(ucy[col_idx].astype(np.float64), 5)
+    ucm_valid = np.round(ucm[col_idx].astype(np.float64), 2)
+    result = {"time": pd.to_datetime(data_map['time'].values[step]).strftime('%Y-%m-%d %H:%M:%S'),
+        "coordinates": np.column_stack((x_coords, y_coords)).tolist(),
+        "values": np.column_stack((ucx_valid, ucy_valid, ucm_valid)).tolist()
+    }
+    return result
 
+def encode_array(arr: np.ndarray) -> str:
+    """Encode numpy array float32 to base64 string for fast transfer."""
+    arr = arr.astype(np.float32)
+    return base64.b64encode(arr.tobytes()).decode()
 
+def decode_array(b64_str: str, shape, dtype=np.float32) -> np.ndarray:
+    """Decode base64 string to numpy array."""
+    arr = np.frombuffer(base64.b64decode(b64_str), dtype=dtype)
+    return arr.reshape(shape)
 
     
+
+
+
+

@@ -98,7 +98,6 @@ async def copy_project(request: Request, user=Depends(functions.basic_auth)):
             try: await extend_task
             except asyncio.CancelledError: pass
 
-
 # Delete a project
 @router.post("/delete_project")
 async def delete_project(request: Request, user=Depends(functions.basic_auth)):
@@ -126,13 +125,6 @@ async def delete_project(request: Request, user=Depends(functions.basic_auth)):
             extend_task.cancel()
             try: await extend_task
             except asyncio.CancelledError: pass
-
-
-
-
-
-
-
 
 async def init_data(project_cache, dm, hyd_dir, waq_dir, params):
     # Assign datasets (only load if file path exists)

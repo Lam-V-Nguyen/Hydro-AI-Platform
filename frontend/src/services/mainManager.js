@@ -10,14 +10,10 @@ const widgetMenu = document.getElementById("widgetMenu");
 const menuContainer = document.getElementById('menu-container');
 
 const githubCache = {}, pendingRequests = new Map();
-let isLoaded = false, userName = null;
-let currentProject = getState()?.currentProject || null,
-    waqModel = getState()?.waqModel || null, currentParams = getState()?.currentParams || null;
-// const currentProject = 'demo', waqModel = 'coliform';
-// const currentParams = ['FlowFM_his.zarr', 'FlowFM_map.zarr', 'Coliform_his.zarr', 'Coliform_map.zarr'];
-
-
+let currentProject, waqModel, currentParams, isLoaded = false, userName = null;
 // const exits = ['hyd-plot-source', 'hyd-plot-meteo', 'run-hyd', 'run-waq'];
+
+
 
 await login(); await projectChecker(); loadWidget();
 widgetMenuManager(); updateComponent(); 
@@ -28,18 +24,19 @@ async function login() {
     const data = await jsonLoader('auth_check', {}); 
     if (data.user === 'admin') { userName = ''; } else { userName = data.user; }
     initState(userName);
+    currentProject = getState()?.currentProject || 'demo',
+    waqModel = getState()?.waqModel || 'coliform', 
+    currentParams = getState()?.currentParams || 
+    ['FlowFM_his.zarr', 'FlowFM_map.zarr', 'Coliform_his.zarr', 'Coliform_map.zarr'];
 }
 
 async function projectChecker() { 
     if (getState().currentProject === 'admin' || getState().currentProject === null) return; 
     startLoading('Setting up Database.\nThis takes a while (especially the first time).\nPlease wait...'); 
     await new Promise(requestAnimationFrame);
-    if (currentProject === null) currentProject = 'demo';
-    if (waqModel === null) waqModel = 'coliform';
-    if (currentParams === null) currentParams = ['FlowFM_his.zarr', 'FlowFM_map.zarr', 'Coliform_his.zarr', 'Coliform_map.zarr'];
     setState({ 
         currentProject: currentProject, currentParams: currentParams, waqModel: waqModel 
-    });    
+    });
     const data = await jsonLoader('setup_database', { 
         projectName: getState().currentProject, 
         params: getState().currentParams, waqModel: getState().waqModel

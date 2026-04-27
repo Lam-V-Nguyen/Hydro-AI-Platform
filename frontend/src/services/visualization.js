@@ -79,7 +79,8 @@ export async function initializeMenu(waqName){
                     const file = e.target.files[0]; if (!file) return;
                     await fileUploader(gisUploadFile, null, project, 
                         file.name, 'Uploading and Processing GIS data.\nPlease wait...', 'gis');
-                    gisUploadFile.value = ''; projectChecker(project, params, waqModel, true);
+                    const message = `Reloading project '${project}'.\nPlease wait...`;
+                    gisUploadFile.value = ''; projectChecker(project, params, waqModel, message, true);
                 });
                 return;
             }
@@ -109,12 +110,13 @@ export async function showPopupMenu(waqName, id, htmlFile) {
         if (id === '1') generalOptionsManager(project); // Events on General Options submenu
         if (id === '2') timeSeriesManager(project); // Events on Time series Measurement submenu
         if (id === '3') spatialMapManager(project); // Events on Map submenu
-        // if (id === '4') {
-        //     const checkBox = popupContent.querySelectorAll('input[type="checkbox"]');
-        //     for (let i = 0; i < checkBox.length; i++) { 
-        //         checkBox[i].checked = getState().gisLayers[checkBox[i].id]; 
-        //     }
-        // }
+        if (id === '4') {
+            const checkBox = popupContent.querySelectorAll('input[type="checkbox"]');
+            if (checkBox === null || checkBox.length === 0 ) return;
+            for (let i = 0; i < checkBox.length; i++) { 
+                checkBox[i].checked = getState().gisLayers[checkBox[i].id]; 
+            }
+        }
         
     } catch (error) { alert(error + ': ' + htmlFile); }
 }
@@ -148,7 +150,7 @@ function timeSeriesManager(projectName) {
                 alert(data.message); substanceContainer.style.display = 'none'; return;
             }
             const substanceTitle = substanceContainer.querySelector('#substance-title');
-            substanceTitle.textContent = `Substance - Time Series`;
+            substanceTitle.textContent = 'Substance - Time Series';
             substancesContent.innerHTML = ''; substanceContainer.style.display = 'flex';
             // Add content
             substancesContent.innerHTML = data.content.map((substance, i) => 

@@ -1,7 +1,8 @@
 import { jsonLoader, signalSender, splitLines } from "./commonFunctions.js";
 import { L, ZOOM, getStateVisualization, setStateVisualization } from "./constant.js";
 import { map } from "./visualizationMap.js";
-import { plotChart, plotProfileSingleLayer, plotProfileMultiLayer } from "./chartManager.js";
+import { plotChart, plotProfileSingleLayer, plotProfileMultiLayer, thermoclinePlotter } from "./chartManager.js";
+import { clearMap } from "./mapManager.js";
 
 
 const $ = (id) => document.getElementById(id);
@@ -11,7 +12,7 @@ const obj = {
     colorBarTitle: $("colorbar-title"), profileContainer: $("profile-window")
 }
 
-let objContent = null, currentProject = null, pathLine = null, 
+let objContent = null, currentProject = null, pathLine = null, gridLayer = null,
     selectedMarkers = [], pointContainer = [];
 
 function checkUpdater(setLayer, objCheckbox, checkFunction){
@@ -35,53 +36,10 @@ export function generalOptionsManager(projectName){
         sourceStation: $$('source-checkbox'), crossSection: $$('cross-section-checkbox'),
         waqObsStation: $$('waq-obs-checkbox'), waqLoadsStation: $$('waq-loads-checkbox'),
         pathQuery: $$('path-query-checkbox'),
-
-
     }
     currentProject = projectName; generalEvents(); pathEvents(); 
-    // Plot thermocline for hydrodynamic simulation
-//     thermoclineHYD().addEventListener('click', () => {
-//         if (updateStatus()) { updateStatus().innerHTML = 'Last Option: Thermocline for Hydrodynamic Simulation'; }
-//         const titleX = 'Temperature (°C)', titleY = 'Depth (m)';
-//         setState({isThemocline: true}); if (getState().isPathQuery) { deActivePathQuery(); }
-//         const chartTitle = 'Thermocline for Hydrodynamic Simulation';
-//         const key = 'thermocline_hyd', query = `temp_multi_dynamic`;
-//         window.parent.postMessage({type: 'thermoclineGrid', key: key, query: query,
-//             titleX: titleX, titleY: titleY, chartTitle: chartTitle, 
-//             message: 'Preparing grid for hydrodynamic thermocline plot...'}, '*');
-//     });
-//     // Plot thermocline for water quality
-//     waqSelector().addEventListener('click', () => {
-//         hideMap(); if (updateStatus()) { updateStatus().innerHTML = 'Last Option: Vertical Profile for Water Quality Simulation'; }
-//         const item = document.getElementById('thermocline-row');
-//         if (item) {
-//             item.style.display = item.style.display === 'none' ? 'block' : 'none';
-//             // Load water quality data
-//             initOptions(thermoclineWAQ, 'thermocline_waq'); return;
-//         }
-//     });
-//     thermoclineWAQ().addEventListener('change', () => {
-//         const selected = thermoclineWAQ().value, titleY = 'Depth (m)';
-//         if (selected === '') { window.parent.postMessage({type: 'thermoclineGridClear'}, '*'); return; };
-//         setState({isThemocline: true}); if (getState().isPathQuery) { deActivePathQuery(); }
-//         const titleX = thermoclineWAQ().options[thermoclineWAQ().selectedIndex].text;
-//         const chartTitle = 'Vertical Profile for Water Quality Simulation';
-//         const key = 'thermocline_waq', query = `mesh2d_${selected}`;
-//         window.parent.postMessage({type: 'thermoclineGrid', key: key, query: query,
-//             titleX: titleX, titleY: titleY, chartTitle: chartTitle, 
-//             message: 'Preparing grid for water quality thermocline plot...'}, '*');
-//     });
-//     configReset().addEventListener('click', async() => { 
-//         const currentProject = getState().currentProject, currentParams = getState().currentParams;
-//         const data = await sendQuery('reset_config', {projectName: projectName});
-//         if (updateStatus()) { updateStatus().innerHTML = 'Last Option: Reset Configuration'; }
-//         alert(data.message);
-//         window.parent.postMessage({type: 'reset_config', projectName: currentProject, params: currentParams}, '*');
-//         return;
-//     });
-
-
 }
+
 
 
 
@@ -140,7 +98,7 @@ function generalEvents(){
     // 5. Update water quality observation points
     checkUpdater("wqLoadsLayer", objContent.waqLoadsStation, loadWAQLoads);
     // Add event when user clicks on the popup
-    document.addEventListener('click', function(e) {
+    document.addEventListener('click', async function(e) {
         if (e.target && e.target.classList.contains('in-situ')) {
             e.preventDefault();
             const [query, colorbarTitle] = e.target.dataset.info.split('|');
@@ -153,6 +111,112 @@ function generalEvents(){
             const chartTitle = colorbarTitle.split('(')[0].trim();
             plotChart(currentProject, obj.timeSeriesContainer, '', key, chartTitle, 'Time', colorbarTitle);
         }
+        // Plot thermocline for hydrodynamic simulation
+        if (e.target.id === 'hyd-thermocline-selector') {
+            signalSender('showOverlay', 'Preparing grid for hydrodynamic thermocline plot...');
+            const titleX = 'Temperature (°C)', titleY = 'Depth (m)';
+            setStateVisualization({isThemocline: true}); 
+            if (getStateVisualization().isPathQuery) deActivePathQuery();
+            const chartTitle = 'Thermocline for Hydrodynamic Simulation';
+            const key = 'thermocline_hyd', query = 'temp_multi_dynamic';
+            const content = { 
+                key: key, query: query, type: 'thermocline_grid', projectName: currentProject 
+            };
+            const data = await jsonLoader('select_thermocline', content);
+            if (data.status === "error") {
+                signalSender('hideOverlay'); alert(data.message); return;
+            }
+            gridLayer = clearMap(gridLayer, map);
+            gridLayer = L.geoJSON(data.content, {
+                style: {color: 'black', weight: 1},
+                onEachFeature: function (feature, layer) {
+                    layer.on('click', function (e) {
+                        const index = feature.properties.index;
+                        // Make popup HTML
+                        const popupContent = `
+                            <div style="width:200px">
+                                <h4 style="margin:0 0 6px 0;">Change Index: #${index}</h4>
+                                <label>New Name:</label>
+                                <input id="nameInput" type="text" value="${index}" 
+                                    style="width:100%;margin-bottom:6px;padding:3px;" />
+                                <button id="saveBtn" 
+                                    style="width:100%;padding:4px;background:#007bff;
+                                    color:white;border:none;border-radius:4px;cursor:pointer;">
+                                    Plot Chart
+                                </button>
+                            </div>
+                        `;
+                        layer.bindPopup(popupContent).openPopup(e.latlng);
+                        // Add event listener to save button
+                        setTimeout(() => {
+                            const input = document.getElementById('nameInput');
+                            const saveBtn = document.getElementById('saveBtn');
+                            if (input && saveBtn) {
+                                saveBtn.addEventListener('click', async() => {
+                                    const newName = input.value;
+                                    if (newName !== '') {
+                                        const content = { 
+                                            key: key, query: query, type: 'thermocline_init', 
+                                            idx: index, projectName: currentProject,
+                                        };
+                                        const initData = await jsonLoader('select_thermocline', content);
+                                        layer.closePopup(); setStateVisualization({isThemocline: false});
+                                        if (initData.status === "error") { alert(initData.message); return; }
+                                        thermoclinePlotter(key, initData.content, newName, titleX, titleY, chartTitle);
+                                    } else { alert('Please enter a name.'); return; }
+                                });
+                            }
+                        }, 200);
+                    });
+                }
+            }).addTo(map);
+            signalSender('hideOverlay');
+        }
+
+
+//     // Plot thermocline for water quality
+//     waqSelector().addEventListener('click', () => {
+//         hideMap(); if (updateStatus()) { updateStatus().innerHTML = 'Last Option: Vertical Profile for Water Quality Simulation'; }
+//         const item = document.getElementById('thermocline-row');
+//         if (item) {
+//             item.style.display = item.style.display === 'none' ? 'block' : 'none';
+//             // Load water quality data
+//             initOptions(thermoclineWAQ, 'thermocline_waq'); return;
+//         }
+//     });
+//     thermoclineWAQ().addEventListener('change', () => {
+//         const selected = thermoclineWAQ().value, titleY = 'Depth (m)';
+//         if (selected === '') { window.parent.postMessage({type: 'thermoclineGridClear'}, '*'); return; };
+//         setState({isThemocline: true}); if (getState().isPathQuery) { deActivePathQuery(); }
+//         const titleX = thermoclineWAQ().options[thermoclineWAQ().selectedIndex].text;
+//         const chartTitle = 'Vertical Profile for Water Quality Simulation';
+//         const key = 'thermocline_waq', query = `mesh2d_${selected}`;
+//         window.parent.postMessage({type: 'thermoclineGrid', key: key, query: query,
+//             titleX: titleX, titleY: titleY, chartTitle: chartTitle, 
+//             message: 'Preparing grid for water quality thermocline plot...'}, '*');
+//     });
+//     configReset().addEventListener('click', async() => { 
+//         const currentProject = getState().currentProject, currentParams = getState().currentParams;
+//         const data = await sendQuery('reset_config', {projectName: projectName});
+//         if (updateStatus()) { updateStatus().innerHTML = 'Last Option: Reset Configuration'; }
+//         alert(data.message);
+//         window.parent.postMessage({type: 'reset_config', projectName: currentProject, params: currentParams}, '*');
+//         return;
+//     });
+
+
+
+
+
+//         if (e.target.id === 'hyd-thermocline-selector') {
+//             signalSender('showOverlay', 'Preparing grid for water quality thermocline plot...');
+
+
+
+//             signalSender('hideOverlay');
+//         }
+
+
     });
 }
 

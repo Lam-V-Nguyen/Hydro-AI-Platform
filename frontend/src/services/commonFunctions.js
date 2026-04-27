@@ -1,5 +1,6 @@
 import { toUTC } from "./projectSaver.js";
-import { origin, getState } from "./constant.js";
+import { origin } from "./constant.js";
+import { getColorFromValue } from "./unstructuredGrid.js";
 const pendingRequests = new Map();
 
 let zIndex = 3000;
@@ -511,9 +512,9 @@ export function interpolateValue(location, centroids, power = 5, maxDistance = I
         weights.push(w); values.push(c.value * w);
     }
     if (weights.length === 0) return null;
-    const sumWeughts = weights.reduce((a, b) => a + b, 0);
+    const sumWeights = weights.reduce((a, b) => a + b, 0);
     const sumValues = values.reduce((a, b) => a + b, 0);
-    return (sumValues / sumWeughts);
+    return (sumValues / sumWeights);
 }
 
 export async function initOptions(comboBox, key, projectName) {
@@ -561,6 +562,21 @@ export function decodeArray(base64Str, n_decimals=3) {
     return values;
 }
 
-
+export function updateMapByTime(setFunction, getFunction, layerMap, values, vmin, vmax, colorbarKey) {
+    for (let i = 0; i < getFunction().mapLayer.length; i++) {
+        const id = getFunction().mapLayer[i];
+        const value = values[id];
+        if (value === null || value === undefined) continue;
+        const { r, g, b, a } = getColorFromValue(value, vmin, vmax, colorbarKey);
+        const colorKey = `${r},${g},${b},${a}`;
+        if (getFunction().lastFeatureColors[id] === colorKey) continue;
+        getFunction().lastFeatureColors[id] = colorKey;
+        layerMap.setFeatureStyle(id, { 
+            fill: true, fillColor: `rgb(${r},${g},${b})`, 
+            fillOpacity: a, weight: 0, opacity: 1 
+        });
+    }
+    setFunction({ lastFeatureColors: getFunction().lastFeatureColors });
+}
 
 
