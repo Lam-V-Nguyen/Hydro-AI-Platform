@@ -3,14 +3,12 @@ import { L, getStateVisualization, setStateVisualization } from "./constant.js";
 import { map } from "./visualizationMap.js";
 import { plot2DMapStatic, plot2DMapDynamic, plot2DVectorMap } from "./map2DManager.js";
 
-
 const $ = (id) => document.getElementById(id);
 const obj = { 
     timeControl: $("time-controls"), substanceContainer: $("substance-container"),
     colorbarContainer: $("custom-colorbar"), colorbarVectorContainer: $("custom-colorbar-vector"),
     vectorScaler: $("custom-colorbar-scaler"), timeSeriesContainer: $("time-series-container")
 }
-
 
 let objContent = {}, newKey = '', newQuery = '', titleColorbar = '', colorbarKey = '';
 
@@ -157,14 +155,17 @@ export async function spatialMapManager(projectName) {
         if (obj.substanceContainer.style.display !== 'none') {
             obj.substanceContainer.style.display = 'none';
         }
-        Object.keys(getState().gisLayers).forEach(layerName => {
-            setState({gisLayers: {...getState().gisLayers, [layerName]: false}});
+        Object.keys(getStateVisualization().gisLayers).forEach(layerName => {
+            setStateVisualization({gisLayers: {
+                ...getStateVisualization().gisLayers, [layerName]: false
+            }});
         });
         setStateVisualization({
             hydLayer: null, sourceLayer: null, wqLoadsLayer: null, wqObsLayer: null, 
             isMultiLayer: false, isClickedInsideLayer: false, isThemocline: false, 
             crosssectionLayer: null, isPathQuery: false
         });
+        map.getContainer().style.cursor = '';
     });
 }
 

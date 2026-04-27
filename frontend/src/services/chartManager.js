@@ -1,8 +1,13 @@
 import { numberFormatter, formatDateTime, interpolateJet, signalSender, 
     jsonLoader, splitLines
 } from "./commonFunctions.js";
+import { setStateVisualization } from "./constant.js";
 
-let globalChartData = {title: "", data: null, checkBox: null, selectBox:null, titleX: "", titleY: "", validColumns: []};
+let globalChartData = {
+    title: "", data: null, checkBox: null, selectBox:null, 
+    titleX: "", titleY: "", validColumns: []
+};
+let animationToken = 0;
 
 export async function plotTimeSeries(plotContainer, title, data, titleChart, 
     titleX='Time', titleY='Value', selectedColumns=null) {
@@ -253,12 +258,10 @@ export async function plotChart(projectName, plotContainer, query, key, chartTit
     signalSender('hideOverlay');
 }
 
-export function plotProfileSingleLayer(plotContainer, pointContainer, polygonCentroids, title, titleY, titleX) {
+export function plotProfileSingleLayer(plotContainer, pointContainer, polygonCentroids, title, titleX, titleY) {
     const interpolatedPoints = splitLines(pointContainer, polygonCentroids, 20).map(([dist, val]) => [dist, val]);
-    const input = { columns: [titleX, titleY], data: interpolatedPoints };
-    // plotTimeSeries(plotWindow(), chartDiv(), checkboxList(), selectBox(), plotTitle(),
-    //     input, title, titleX, titleY);
-    plotTimeSeries(plotContainer, title, input, title, titleX, titleY);
+    const data = { columns: ['index', titleY], rows: interpolatedPoints };
+    plotTimeSeries(plotContainer, title, data, title, titleX, titleY);
 }
 
 export function plotProfileMultiLayer(key, query, data, title, unit) { 
@@ -353,47 +356,62 @@ export function plotProfileMultiLayer(key, query, data, title, unit) {
     // profileWindow().style.display = "flex";
 }
 
-export function thermoclinePlotter(key, data, name, titleX, titleY, chartTitle) {
+export function thermoclinePlotter(projectName, profileContainer, key, 
+    data, name, titleX, titleY, chartTitle) {
     animationToken++;
     const myToken = animationToken;
-    chartDivProfile().style.border = "1px solid #aaa"; 
-    chartDivProfile().style.borderRadius = "10px"; 
-    chartDivProfile().style.boxShadow = "0 2px 8px rgba(0,0,0,0.15)"; 
-    if (profileWindow()._resizeObserver) profileWindow()._resizeObserver.disconnect();
+    if (profileContainer._resizeObserver) profileContainer._resizeObserver.disconnect();
     // Hide components
-    colorCombo().style.display = "none"; minValue().style.display = "none"; maxValue().style.display = "none";
-    colorComboLabel().style.display = "none"; minLabel().style.display = "none"; maxLabel().style.display = "none";
+    const colorCombobox = profileContainer.querySelector('#chart-color-combobox');
+    const minValue = profileContainer.querySelector('#chart-min-value');
+    const maxValue = profileContainer.querySelector('#chart-max-value');
+    const colorComboLabel = profileContainer.querySelector('#chart-color-label');
+    const minLabel = profileContainer.querySelector('#chart-min-label');
+    const maxLabel = profileContainer.querySelector('#chart-max-label');
+    colorCombobox.style.display = "none"; minValue.style.display = "none"; 
+    maxValue.style.display = "none"; colorComboLabel.style.display = "none"; 
+    minLabel.style.display = "none"; maxLabel.style.display = "none";
     let animating = false, frameIndex = 0, duration;
     const { timestamps, depths, values } = data;
     // Set up time slider
-    timeSlider().min = 0; timeSlider().max = timestamps.length - 1;
-    timeSlider().step = 1; timeSlider().value = 0;
-    timeLabelStart().textContent = `Start: ${timestamps[0]}`;
-    timeLabelEnd().textContent = `End: ${timestamps[timestamps.length - 1]}`;
-    timeLabel().textContent = `Time: ${timestamps[0]}`;
+    const timeSlider = profileContainer.querySelector('#time-slider');
+    const timeLabelStart = profileContainer.querySelector('#time-start');
+    const timeLabelEnd = profileContainer.querySelector('#time-end');
+    const timeLabel = profileContainer.querySelector('#time-center');
+    timeSlider.min = 0; timeSlider.max = timestamps.length - 1;
+    timeSlider.step = 1; timeSlider.value = 0;
+    timeLabelStart.textContent = `Start: ${timestamps[0]}`;
+    timeLabelEnd.textContent = `End: ${timestamps[timestamps.length - 1]}`;
+    timeLabel.textContent = `Time: ${timestamps[0]}`;
     // Render plot
-    profileWindow()._resizeObserver = renderThermocline(key, chartDivProfile(), values,
-            depths, name, titleX, titleY, chartTitle);
+    const chartDiv = profileContainer.querySelector('#chart-div');
+    const controlBtn = profileContainer.querySelector('#profile-btn');
+    const durationValue = profileContainer.querySelector('#chart-duration-value');
+    const profileTitle = profileContainer.querySelector('#profile-title');
+    profileContainer._resizeObserver = renderThermocline(key, 
+        chartDiv, values, depths, name, titleX, titleY, chartTitle);
     // Change header title of window
-    profileWindowHeader().childNodes[0].nodeValue = 'Thermocline Plot';
+    profileTitle.textContent = 'Thermocline Chart';
     // Update a single frame
     async function updateFrame(index) {
         if (myToken !== animationToken) return;
-        const queryContents = { idx: index, type: 'thermocline_update', projectName: getState().projectName };
-        const updateData = await sendQuery('select_thermocline', queryContents);
+        const queryContents = { 
+            idx: index, type: 'thermocline_update', projectName: projectName 
+        };
+        const updateData = await jsonLoader('select_thermocline', queryContents);
         if (updateData.status === "error") { 
             alert(updateData.message); animating = false;
-            playPauseBtn().textContent = '▶ Play'; return;
+            controlBtn.textContent = '▶ Play'; return;
         }
         const values = updateData.content;
         // Update the frame
-        await Plotly.update(chartDivProfile(), { x: [values], y: [depths]}, {}, [0]);
+        await Plotly.update(chartDiv, { x: [values], y: [depths]}, {}, [0]);
         // Update time slider
-        timeSlider().value = index; timeLabel().textContent = `Time: ${timestamps[index]}`;
+        timeSlider.value = index; timeLabel.textContent = `Time: ${timestamps[index]}`;
     }
     // === Play / Pause control === 
     async function playAnimation() { 
-        duration = parseFloat(durationValue().value)*1000
+        duration = parseFloat(durationValue.value)*1000
         while (animating && frameIndex < timestamps.length && myToken === animationToken) {
             await updateFrame(frameIndex);
             frameIndex++;
@@ -401,28 +419,29 @@ export function thermoclinePlotter(key, data, name, titleX, titleY, chartTitle) 
         }
         if (myToken !== animationToken) return;
         if (frameIndex >= timestamps.length) { 
-            animating = false; playPauseBtn().textContent = '▶ Play'; 
+            animating = false; controlBtn.textContent = '▶ Play'; 
             frameIndex = 0; // Reset index
         }
     }
-    playPauseBtn().onclick = () => { 
+    controlBtn.onclick = () => { 
         if (!animating){ 
-            animating = true; playPauseBtn().textContent = '⏸ Pause'; 
+            animating = true; controlBtn.textContent = '⏸ Pause'; 
             playAnimation(); 
         } else { 
-            animating = false; playPauseBtn().textContent = '▶ Play'; 
+            animating = false; controlBtn.textContent = '▶ Play'; 
         } 
     };
     // === Slider control === 
-    timeSlider().addEventListener('input', async(e) => {
-        animating = false; playPauseBtn().textContent = '▶ Play';
+    timeSlider.addEventListener('input', async(e) => {
+        animating = false; controlBtn.textContent = '▶ Play';
         frameIndex = parseInt(e.target.value);
     });
     // === Duration control ===
-    durationValue().addEventListener('change', () => { 
-        animating = false; playPauseBtn().textContent = '▶ Play';
+    durationValue.addEventListener('change', () => { 
+        animating = false; controlBtn.textContent = '▶ Play';
     });
-    profileWindow().style.display = "flex"; setState({isThemocline: false});
+    profileContainer.style.display = "flex"; 
+    setStateVisualization({isThemocline: false});
 }
 
 function renderThermocline(key, plotDiv, xValues, yValues, legend, xTitle, yTitle, title){

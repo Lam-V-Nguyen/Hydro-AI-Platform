@@ -6,14 +6,14 @@ import { map, initMap } from "./visualizationMap.js";
 
 const $ = (id) => document.getElementById(id);
 const obj = {
-    baseMap: $("basemap-btn"), locationSearcher: $("search"), locationList: $("suggestions"), 
-    popupMenu: $("popup-menu"), closeSummaryBtn: $("close-summary-btn"),
-    summaryContainer: $("summary-container"), summaryHeader: $("summary-header"), 
-    closeTimeSeriesBtn: $("close-time-series-btn"), timeSeriesContainer: $("time-series-container"),
-    timeSeriesHeader: $("time-series-header"), substanceContainer: $("substance-container"), 
-    substanceHeader: $("substance-header"), closeSubstanceBtn: $("close-substance-btn"), 
-    profileContainer: $("profile-window"), profileHeader: $("profile-header"), 
-    closeProfileBtn: $("close-profile-btn")
+    baseMap: $("basemap-btn"), locationSearcher: $("search"), 
+    locationList: $("suggestions"), popupMenu: $("popup-menu"), 
+    closeSummaryBtn: $("close-summary-btn"), summaryContainer: $("summary-container"), 
+    summaryHeader: $("summary-header"), closeTimeSeriesBtn: $("close-time-series-btn"), 
+    timeSeriesContainer: $("time-series-container"), timeSeriesHeader: $("time-series-header"), 
+    substanceContainer: $("substance-container"), substanceHeader: $("substance-header"), 
+    closeSubstanceBtn: $("close-substance-btn"), profileContainer: $("profile-window"), 
+    profileHeader: $("profile-header"), closeProfileBtn: $("close-profile-btn")
 }
 
 
@@ -24,8 +24,7 @@ let currentProject = null, currentParams = null, userName = null,
 await getProject(); await initMap(); updateManager();
 
 async function getProject() { 
-    userName = await getUser(); userName = userName.split('/').shift();
-    initState(userName);
+    userName = await getUser(); initState(userName.split('/').shift());
     currentProject = getState()?.currentProject || 'demo';
     model = getState()?.waqModel || 'coliform';
     currentParams = getState()?.currentParams || 
@@ -67,10 +66,6 @@ function updateManager() {
             await projectChecker(getState().currentProject, params, modelType, message, false);
             initializeMenu(waqName); 
         }
-
-
-
-
     });
     // Moving window
     moveWindow(obj.summaryHeader, obj.summaryContainer);
@@ -81,12 +76,6 @@ function updateManager() {
     closeWindow(obj.closeProfileBtn, obj.profileContainer);
     moveWindow(obj.substanceHeader, obj.substanceContainer);
     closeWindow(obj.closeSubstanceBtn, obj.substanceContainer);
-
-
-
-
-
-
     document.addEventListener('click', (e) => {
         // Hide suggestions for location search
         if (e.target !== obj.locationSearcher) {
@@ -185,128 +174,3 @@ async function GISLayerChange(currentProject, id, checked){
     if (layer.getLayers().length < 2000) { map.fitBounds(layer.getBounds()); }
     signalSender('hideOverlay');
 }
-
-
-
-// export async function openDemoProject() { 
-//     const currentProject = getState().currentProject, currentParams = getState().currentParams;
-//     await projectChecker(currentProject, currentParams);
-//     // Load temperature dynamic map
-//     const query = '|-1', key = 'temp_multi_dynamic', titleColorbar = 'Temperature (°C)';
-//     const colorbarKey = 'Layer: Average temperature';
-//     plot2DMapDynamic(false, query, key, titleColorbar, colorbarKey);
-// }
-
-// function refresh() {
-//     // Close windows if open
-//     if (summaryWindow().style.display !== 'none') summaryWindow().style.display = 'none';
-//     if (plotWindow().style.display !== 'none') plotWindow().style.display = 'none';
-//     if (substanceWindowHis().style.display !== 'none') substanceWindowHis().style.display = 'none';
-// }
-
-// function hideMap() {
-//     // Clear map
-//     map.eachLayer((layer) => { if (!(layer instanceof L.TileLayer)) map.removeLayer(layer); });
-//     timeControl().style.display = 'none'; colorbar_container().style.display = 'none';
-//     colorbar_vector_container().style.display = 'none';
-//     if (substanceWindowMap().style.display !== 'none') substanceWindowMap().style.display = 'none';
-// }
-
-
-
-
-
-
-// function updateEvents() {
-
-
-
-//     map.on('mousemove', function (e) {
-//         if (!pickerState.location && !pickerState.point && !pickerState.source && !pickerState.crosssection && 
-//             !pickerState.boundary) {
-//             if (hoverTooltip) map.closeTooltip(hoverTooltip);
-//             mapContainer().style.cursor = 'grab'; return;
-//         }
-//         if (pickerState.crosssection || pickerState.boundary) {
-//             if (!hoverTooltip) hoverTooltip = L.tooltip({
-//                 permanent: false, direction: 'bottom',
-//                 sticky: true, offset: [0, 10],
-//                 className: 'custom-tooltip'
-//             });
-//             const html = `- Click the left mouse button to select a point.<br>- Right-click to finish the selection.`;
-//             hoverTooltip.setLatLng(e.latlng).setContent(html);
-//             map.openTooltip(hoverTooltip);
-//         }
-//         mapContainer().style.cursor = 'crosshair';
-//     })
-//     map.on('click', function(e) {
-//         if (pickerState.location) { hidePicker('location', e.latlng, 'locationPicked'); }
-//         if (pickerState.point) { 
-//             // Add marker
-//             const marker = L.marker([parseFloat(e.latlng.lat), parseFloat(e.latlng.lng)]).addTo(map);
-//                 markersPoints.push(marker);
-//             hidePicker('point', e.latlng, 'pointPicked'); 
-//         }
-//         if (pickerState.crosssection && e.type === "click" && e.originalEvent.button === 0) { 
-//             // Add marker
-//             const marker = L.circleMarker(e.latlng, {
-//                 radius: 5, color: 'blue', fillColor: 'cyan', fillOpacity: 0.9
-//             }).addTo(map);
-//             markersCrosssection.push(marker);
-//             // Add point
-//             crosssectionContainer.push({ lat: e.latlng.lat, lng: e.latlng.lng });
-//             // Plot line
-//             const latlngs = crosssectionContainer.map(p => [p.lat, p.lng]);
-//             if (pathLineCrosssection) { pathLineCrosssection.setLatLngs(latlngs);
-//             } else {
-//                 pathLineCrosssection = L.polyline(latlngs, {
-//                     color: 'orange', weight: 2, dashArray: '5,5'
-//                 }).addTo(map);
-//             }
-//         }
-//         if (pickerState.boundary && e.type === "click" && e.originalEvent.button === 0) { 
-//             // Add marker
-//             const marker = L.circleMarker(e.latlng, {
-//                 radius: 5, color: 'red', fillColor: 'pink', fillOpacity: 0.9
-//             }).addTo(map);
-//             markersBoundary.push(marker);
-//             boundaryContainer.push({ lat: e.latlng.lat, lng: e.latlng.lng });  // Add point
-//             // Plot line
-//             const latlngs = boundaryContainer.map(p => [p.lat, p.lng]);
-//             if (pathLineBoundary) { pathLineBoundary.setLatLngs(latlngs);
-//             } else {
-//                 pathLineBoundary = L.polyline(latlngs, {
-//                     color: 'orange', weight: 2, dashArray: '5,5'
-//                 }).addTo(map);
-//             }
-//         }
-//         if (pickerState.source) { 
-//             const marker = L.marker([parseFloat(e.latlng.lat), parseFloat(e.latlng.lng)]).addTo(map);
-//                 markersPoints.push(marker);
-//             hidePicker('source', e.latlng, 'sourcePicked'); 
-//         }
-//     });
-//     map.on('contextmenu', function(e) {
-//         e.originalEvent.preventDefault(); // Suppress context menu
-//         // Right-click
-//         if (pickerState.crosssection) {
-//             if (crosssectionContainer.length < 2) {
-//                 alert("Not enough points selected. Please select at least two points."); return;
-//             }
-//             hidePicker('crosssection', crosssectionContainer, 'crossSectionPicked');
-//         }
-//         if (pickerState.boundary) {
-//             if (boundaryContainer.length < 2) {
-//                 alert("Not enough points selected. Please select at least two points."); return;
-//             }
-//             hidePicker('boundary', boundaryContainer, 'boundaryPicked');
-//         }
-//         if (hoverTooltip) map.closeTooltip(hoverTooltip); // Remove tooltip
-//     });
-// }
-
-
-
-
-
-

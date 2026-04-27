@@ -87,7 +87,7 @@ body {
   background: rgba(0,0,0,0.6); padding: 8px; border-radius: 6px;
 }
 
-.overlay-window, .time-series-window, .profile-window {
+.overlay-window, .time-series-window {
   position: fixed; top: 50%; left: 50%; display: none;
   border-radius: 10px; min-width: 600px; min-height: 300px;
   width: 900px; height: 400px; z-index: 3000;
@@ -176,17 +176,8 @@ body {
   padding: 8px; background-color: #2c3e50; color: white;
   cursor: move; user-select: none; display: flex; flex: 0 0 auto;
   border-top-left-radius: 10px; border-top-right-radius: 10px;
-  justify-content: space-between; align-items: center;
+  justify-content: space-between; align-items: center; flex-shrink: 0;
 }
-
-.plot-area { 
-  display: flex; flex: 1 1 auto;
-  overflow: auto; min-height: 0;
-}
-#myChart { 
-  flex: 1 1 auto; width: 100%; min-height: 0; 
-}
-
 
 .substance-window {
   position: fixed; top: 60px; left: calc(100% - 430px); 
@@ -219,7 +210,46 @@ body {
 }
 .time-slider button:hover { background-color: #019475; }
 
+.profile-window {
+  position: fixed; top: 50%; left: 50%; display: none;
+  width: 900px; height: 500px; transform: translate(-50%, -50%);
+  resize: both; overflow: hidden; background-color: #c2bdbdff;
+  border: 2px solid #0d048f; border-radius: 10px; z-index: 3000;
+  min-width: 800px; min-height: 400px; flex-direction: column;
+}
+.profile-content {
+  display: flex; flex-direction: column; background-color: #fff;
+  flex: 1; height: 100%; width: 100%; min-height: 0;
+}
+.profile-plot-area {
+  flex: 1; min-height: 0; overflow: hidden;
+}
+.profile-time-controls {
+  display: flex; flex-shrink: 0; flex-direction: column; width: 100%;
+  align-items: center; padding: 5px 15px; background-color: #a39e9eff;
+  box-sizing: border-box; overflow: hidden; height: 70px;
+}
+.profile-time-slider {
+  width: 100%; cursor: pointer; padding: 5px; max-width: 100%;
+}
+.profile-time-labels {
+  display: flex; width: 100%; justify-content: space-between; 
+  font-size: 15px; color: #000;
+}
+.profile-time-labels span { flex: 1; }
+.profile-time-labels .time-left { text-align: left; }
+.profile-time-labels .time-right { text-align: right; }
+.profile-time-labels .time-center { text-align: center; font-weight: bold; }
 
-/* .profile-window {
-  display: flex;
-} */
+.profile-controls {
+  background-color: #a39e9eff; flex-shrink: 0; justify-content: center;
+  padding: 10px 15px; display: flex; flex-wrap: wrap; 
+  align-items: center; gap: 10px; margin-top: auto;
+}
+.profile-controls button{
+  padding: 8px 16px; border: none; background-color: #27ae60; width: 100px;
+  color: white; border-radius: 6px; cursor: pointer; font-size: 14px;
+}
+.profile-controls button:hover { background-color: #0ac457; }
+.profile-controls input { width: 120px; text-align: center; }
+.profile-controls label { margin-left: 0; }

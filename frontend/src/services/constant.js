@@ -5,6 +5,7 @@ export const ZOOM = 13, L = window.L, n_decimals = 2;
 export const gridId = 'grid-generation-map', 
     hydMapId = 'new-hyd-map', waqMapId = 'new-waq-map';
 
+let state = {}, currentProjectId = null, pendingRequest = null;
 
 export const superscriptMap = {
     '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³',
@@ -35,7 +36,6 @@ const defaultState = {
     currentParams: ['FlowFM_his.zarr', 'FlowFM_map.zarr', 'Coliform_his.zarr', 'Coliform_map.zarr']
 }
 
-let state = {}, currentProjectId = null;
 const getKey = (projectId) => `app_state_${projectId}`;
 const loadState = (projectId) => {
     const saved = localStorage.getItem(getKey(projectId));
@@ -60,7 +60,6 @@ export const resetState = () => {
     if (currentProjectId) saveState(currentProjectId, state);
 };
 
-
 const defaultVisualization = { 
     hydLayer: null, sourceLayer: null, crosssectionLayer: null, 
     wqObsLayer: null, wqLoadsLayer: null, isPathQuery: false, 
@@ -68,19 +67,13 @@ const defaultVisualization = {
     polygonCentroids: [], showedQuery: '', isClickedInsideLayer: false,
     vectorSelected: '', layerSelected: '', sigmaSelected: '', isPlaying: null, 
     lastFeatureColors: {}, featureMap: {}, isHYD: false, sigma: null,
-    
-    //  
-    // globalChartData: {data: null, chartTitle: "", titleX: "", titleY: "", validColumns: []},
-    //  scalerValue: null, 
 }
 let stateVisualization = structuredClone(defaultVisualization);
 export const getStateVisualization = () => stateVisualization;
 export const setStateVisualization = (newState) => { stateVisualization = { ...stateVisualization, ...newState }; };
 // Reset state
+export const resetStateVisualization = () => { stateVisualization = structuredClone(defaultVisualization); };
 
-
-
-let pendingRequest = null;
 
 export function setPendingRequest(req) {
     pendingRequest = req;
@@ -93,7 +86,6 @@ export function getPendingRequest() {
 export function clearPendingRequest() {
     pendingRequest = null;
 }
-
 
 export const arrowShape = new Path2D();
 arrowShape.moveTo(0, 0);          // Origin

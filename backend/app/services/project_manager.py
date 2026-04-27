@@ -271,7 +271,25 @@ async def setup_database(request: Request, user=Depends(functions.basic_auth)):
             try: await extend_task
             except asyncio.CancelledError: pass
 
-
-
-
-
+# Remove folder configuration
+@router.post("/reset_config")
+async def reset_config(request: Request, user=Depends(functions.basic_auth)):
+    try:
+        body = await request.json()
+        project_name, _ = functions.project_definer(body.get('projectName'), user)
+        redis = request.app.state.redis
+        lock = redis.lock(f"{project_name}:reset_config", timeout=20)        
+        async with lock:
+            # Reset project data in Redis
+            folder = os.path.normpath(os.path.join(PROJECT_ROOT, project_name))
+            if not os.path.exists(folder): return JSONResponse({"message": "Project folder doesn't exist."})
+            config_dir = os.path.normpath(os.path.join(folder, "output", "config"))
+            if not os.path.exists(config_dir): return JSONResponse({"message": "Configuration folder doesn't exist."})
+            shutil.rmtree(config_dir, onerror=functions.remove_readonly)
+            # Delete config in Redis
+            await redis.hdel(project_name, "config", "layer_reverse_hyd", "layer_reverse_waq")
+            return JSONResponse({"status": "ok", "message": "Configuration reset successfully!"})
+    except Exception as e:
+        print('/reset_config:\n==============')
+        traceback.print_exc()
+        return JSONResponse({"status": "error", "message": f"Error: {e}"})
