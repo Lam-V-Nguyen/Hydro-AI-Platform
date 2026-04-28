@@ -12,6 +12,20 @@ export const superscriptMap = {
     '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹'
 };
 
+export function getColors(nColors){
+    if (nColors === 5) return ['#0416FF', '#03FFF8', '#02FF07', '#EDFF01', '#FF1E00'];
+    else if (nColors === 10) return ['#0416FF', '#0094FF', '#03DAFF', '#00A305',
+        '#71E507', '#DBF400', '#FFD602', '#FF9B0F', '#FF6301', '#FF1E00'];
+    else if (nColors === 15) return ['#0416FF', '#035AFF', '#039EFF', '#03E3FF', 
+        '#03FFD6', '#02FF91', '#02FF4C', '#02FF07', '#41FF02', '#86FF02',
+        '#CBFF01', '#FFED01', '#FFA801', '#FF6301', '#FF1E00']
+    return ['#0416FF', '#0348FF', '#037AFF', '#03ADFF', '#03DFFF', '#03FFEC',
+        '#03FFB9', '#02FF86', '#02FF54', '#02FF21', '#16FF02', '#49FF02', '#7BFF02',
+        '#AEFF01', '#E1FF01', '#FFEA01', '#FFB701', '#FF8401', '#FF5101', '#FF1E00']
+}
+
+
+
 function toSuperscript(num) {
     return String(num).split('').map(ch => superscriptMap[ch] || ch).join('');
 }

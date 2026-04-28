@@ -28,6 +28,4 @@ export function menuManager(menuContainer, menuContents) {
         });
     };
     initSubmenu();
-
-
 }

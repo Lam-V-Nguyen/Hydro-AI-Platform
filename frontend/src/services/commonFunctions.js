@@ -579,4 +579,18 @@ export function updateMapByTime(setFunction, getFunction, layerMap, values, vmin
     setFunction({ lastFeatureColors: getFunction().lastFeatureColors });
 }
 
+export function colorbarTicks(min, max, numStops){
+    if (Math.abs(max - min) < 1e-4) return [min];
+    const ticks = [], step = (max - min) / (numStops - 1);
+    for (let i = 0; i < numStops; i++) {
+        ticks.push(min + i * step);
+    }
+    return ticks;
+}
+
+
+
+
+
+
 

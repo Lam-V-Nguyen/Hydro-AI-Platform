@@ -184,7 +184,6 @@ async def load_general_dynamic(request: Request, user=Depends(functions.basic_au
         waq_his, waq_map = project_cache.get("waq_his"), project_cache.get("waq_map")
         if not any([hyd_his, hyd_map, waq_his, waq_map]): return JSONResponse({"status": "error", "message": "Project not initialized."})        
         temp = query.split('|')
-        print(query, key)
         is_hyd = temp[0] == '' # hydrodynamic or waq
         # Split cache data by hydrodynamic or waq
         dataset_type = "hyd" if is_hyd else "waq"

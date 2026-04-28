@@ -1,7 +1,7 @@
-import { CENTER, ZOOM, L } from "./constant.js";
+import { CENTER, ZOOM, L, getStateVisualization } from "./constant.js";
 
 export let map;
-let currentTileLayer = null, mapContainer = null, timeCounter = null;
+let currentTileLayer = null, mapContainer = null, timeCounter = null, html = null;
 
 const hoverTooltip = L.tooltip({
     permanent: false, direction: 'bottom',
@@ -9,13 +9,7 @@ const hoverTooltip = L.tooltip({
 });
 
 const $ = (id) => document.getElementById(id);
-const obj = {
-    baseMap: $("basemap-btn"),
-
-
-
-
-}
+const obj = { baseMap: $("basemap-btn") };
 
 export async function initMap() { 
     if (map) return;
@@ -39,63 +33,15 @@ export async function initMap() {
             baseMapPopup.classList.remove('show'); 
         } 
     });
-    // map.on('mousemove', function (e) { 
-    //     mapContainer.style.cursor = "grab";
-    //     if (refineChecked) {
-    //         if (pointContainer.length === 0) { html = "Select start point to refine"; }
-    //         hoverTooltip.setLatLng(e.latlng).setContent(html);
-    //         map.openTooltip(hoverTooltip);
-    //     }
-    //     else if (deleteChecked) {
-    //         if (pointContainer.length === 0) { html = "Select start point to delete"; }
-    //         hoverTooltip.setLatLng(e.latlng).setContent(html);
-    //         map.openTooltip(hoverTooltip);
-    //     }
-    //     if (drawChecked) { 
-    //         mapContainer.style.cursor = "crosshair";
-    //         if (pointContainer.length === 0) { 
-    //             html = `Draw a polygon with the left mouse button`; 
-    //         }
-    //         hoverTooltip.setLatLng(e.latlng).setContent(html);
-    //         map.openTooltip(hoverTooltip);
-    //     }
-    //     else if (moveChecked) { 
-    //         mapContainer.style.cursor = "move";
-    //         html = `Move a vertex using the left mouse button`;
-    //         hoverTooltip.setLatLng(e.latlng).setContent(html);
-    //         map.openTooltip(hoverTooltip);
-    //     }
-    // });
-    // map.on('click', async function (e) {
-    //     if (drawChecked) { 
-    //         mapContainer.style.cursor = "crosshair";
-    //         html = `Finish drawing with the right mouse button`;
-    //         // Add marker
-    //         L.circleMarker(e.latlng, {
-    //             radius: 5, color: 'red', fillColor: 'pink', fillOpacity: 0.9
-    //         }).addTo(map);
-    //         pointContainer.push([e.latlng.lat, e.latlng.lng]);
-    //         // Plot polygon
-    //         if (tempLine) { tempLine.setLatLngs(pointContainer);
-    //         } else {
-    //             tempLine = L.polyline(pointContainer, { 
-    //                 color: 'red', weight: 2
-    //             }).addTo(map);
-    //         }
-    //         if (hoverTooltip) map.closeTooltip(hoverTooltip); return; 
-    //     }
-    // });
-    // map.on('contextmenu', async function (e) { 
-    //     e.originalEvent.preventDefault();
-    //     if (drawChecked) { 
-    //         if (pointContainer.length < 3) { 
-    //             alert("Polygon must have at least 3 points."); return; 
-    //         }
-    //         tempLine = clearMap(tempLine, map); 
-    //         lakeLayer = clearMap(lakeLayer, map);
-    //         // Plot polygon
-    //         await drawPolygon(pointContainer); drawChecked = false;
-    //         pointContainer = []; mapContainer.style.cursor = "auto";
-    //     }
-    // });
+    map.on('mousemove', function (e) { 
+        if (getStateVisualization().isPathQuery) {
+            html = `- Click the left mouse button to draw a profile.<br>- Right-click to finish.`;
+        } else if (getStateVisualization().isThemocline) {
+            html = `- Click the left mouse button to select a point.<br>- Then change the name (optional).`;
+        } else { 
+            map.closeTooltip(hoverTooltip); mapContainer.style.cursor = ""; return; 
+        }
+        hoverTooltip.setLatLng(e.latlng).setContent(html);
+        map.openTooltip(hoverTooltip);
+    });
 }

@@ -234,7 +234,7 @@ body {
 }
 .profile-time-labels {
   display: flex; width: 100%; justify-content: space-between; 
-  font-size: 15px; color: #000;
+  font-size: 13px; color: #000;
 }
 .profile-time-labels span { flex: 1; }
 .profile-time-labels .time-left { text-align: left; }

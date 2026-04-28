@@ -305,7 +305,6 @@ function initDynamicMap(projectName, map, timeControl, colorbarContainer,
     playHandlerAttached = true;
 }
 
-
 export async function plot2DMapDynamic(projectName, map, timeControl, colorbarContainer, 
     colorbarVectorContainer, scaleObj, waterQuality, query, key, colorbarTitle, colorbarKey, vectorScaler) {
     signalSender('showOverlay', `Preparing dynamic map.\nPlease wait...`);

@@ -159,6 +159,7 @@ async def setup_database(request: Request, user=Depends(functions.basic_auth)):
             if not os.path.exists(gis_dir): os.makedirs(gis_dir, exist_ok=True)
             output_dir = os.path.normpath(os.path.join(project_dir, "output"))
             config_dir = os.path.normpath(os.path.join(output_dir, "config"))
+            if not os.path.exists(config_dir): os.makedirs(config_dir, exist_ok=True)
             hyd_dir = os.path.normpath(os.path.join(output_dir, 'HYD'))
             waq_dir = os.path.normpath(os.path.join(output_dir, 'WAQ'))
             if not hasattr(request.app.state, "project_cache"):
@@ -182,7 +183,11 @@ async def setup_database(request: Request, user=Depends(functions.basic_auth)):
             print(f"Current WAQ model: {waq_model}, New WAQ model: {model_type}")
             if model_type != waq_model:
                 print('Model changed. Updating config...')
-                config, waq_model = {"hyd": {}, "waq": {}, "meta": {"hyd_scanned": False, "waq_scanned": False}, "model_type": ''}, ''
+                config = {
+                    "hyd": {}, "waq": {}, "meta": {"hyd_scanned": False, "waq_scanned": False},
+                    "model_type": '', 'gis_layers':  []
+                }
+                waq_model = ''
                 # Lazy scan HYD variables only once
                 if (hyd_map or hyd_his) and not config['meta']['hyd_scanned']:
                     print('Scanning HYD variables...')
@@ -242,7 +247,9 @@ async def setup_database(request: Request, user=Depends(functions.basic_auth)):
                 if 'wq_loads' in temp_data: obs['wq_loads'] = temp_data['wq_loads']
             # Save config if GIS changed
             if gisChecked:
-                config['gis_layers'] = [f.replace('.geojson', '') for f in os.listdir(gis_dir) if f.endswith(".geojson")]
+                gis_file = [f.replace('.geojson', '') for f in os.listdir(gis_dir) if f.endswith(".geojson")]
+                if len(gis_file) > 0: config['gis_layers'] = gis_file
+                else: config.pop('gis_layers', None)
                 open(config_path, "w", encoding=functions.encoding_detect(config_path)).write(json.dumps(config))
             # Restructure configuration
             result = {**config.get("hyd", {}), **config.get("waq", {})}
@@ -254,7 +261,8 @@ async def setup_database(request: Request, user=Depends(functions.basic_auth)):
                 "layer_reverse_hyd": msgpack.packb(layer_reverse_hyd, use_bin_type=True),
                 "layer_reverse_waq": msgpack.packb(layer_reverse_waq_depth, use_bin_type=True),
                 "config": msgpack.packb(result, use_bin_type=True), "waq_model": waq_model,
-                "waq_obs": msgpack.packb(obs, use_bin_type=True)
+                "waq_obs": msgpack.packb(obs, use_bin_type=True), 
+                'gis_layers': msgpack.packb(config['gis_layers'], use_bin_type=True)
             }
             # Save to Redis
             await redis.delete(project_name)

@@ -4,6 +4,7 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi import Depends, HTTPException, status
 from redis.asyncio.lock import Lock
 from scipy.spatial import cKDTree
+from scipy.ndimage import distance_transform_edt, gaussian_filter
 from config import PROJECT_ROOT
 from uuid import uuid4
 import numpy as np, xarray as xr, pandas as pd
@@ -1158,7 +1159,51 @@ def decode_array(b64_str: str, shape, dtype=np.float32) -> np.ndarray:
     arr = np.frombuffer(base64.b64decode(b64_str), dtype=dtype)
     return arr.reshape(shape)
 
-    
+def meshProcess(is_hyd: bool, arr: np.ndarray, cache: dict) -> np.ndarray:
+    """
+    Optimized mesh processing using vectorization and interp1d interpolation.
+
+    Parameters
+    ----------
+    is_hyd: bool
+        True if HYD, False if WAQ.
+    arr: np.ndarray
+        The array to be processed.
+    cache: dict
+        Cache containing 'df', 'depth_values', 'n_rows'.
+
+    Returns
+    -------
+    np.ndarray
+        The smoothed values.
+    """
+    cache_copy = cache.copy()
+    data = cache_copy["df"]
+    df = pd.DataFrame(data=data["data"], columns=data["columns"], index=data["index"])
+    df_depth = np.array(df["depth"].values, dtype=float)
+    depth_values = np.array(cache_copy["depth_values"], dtype=float)
+    depth_rounded, n_rows = abs(np.round(depth_values, 0)), cache_copy["n_rows"]
+    if is_hyd: index_map = {int(v): len(depth_rounded)-i-1 for i, v in enumerate(depth_rounded)}
+    else: index_map = {int(v): i for i, v in enumerate(depth_rounded)}
+    # Pre-allocate frame
+    frame = np.full((len(df), abs(n_rows)), np.nan, float)
+    values_filtered = arr[df.index.values, :]
+    depth_int = depth_rounded.astype(int)
+    valid_depth = np.unique(depth_int[depth_int < abs(n_rows)])
+    col_idx = np.array([index_map[d] for d in valid_depth])
+    mask = df_depth[:, None] <= -valid_depth[None, :]
+    vals = values_filtered[:, col_idx]
+    frame[:, valid_depth] = np.where(mask, vals, frame[:, valid_depth])
+    # Interpolate and fill missing values row-wise
+    mask = ~np.isnan(frame)
+    _, (ix, iy) = distance_transform_edt(~mask, return_indices=True)
+    frame_filled = gaussian_filter(frame[ix, iy], sigma=(1.2, 0.6))
+    frame = np.clip(frame_filled, 0, None)
+    mask_valid = -np.arange(abs(n_rows))[None, :] >= df_depth[:, None]
+    max_row = np.max(np.where(mask_valid.T)[0])
+    frame[~mask_valid] = np.nan
+    smoothed_transpose = frame.T[:max_row + 2, :]
+    return smoothed_transpose    
 
 
 

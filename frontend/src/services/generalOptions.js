@@ -1,4 +1,4 @@
-import { jsonLoader, signalSender, splitLines, initOptions } from "./commonFunctions.js";
+import { jsonLoader, signalSender, splitLines, initOptions, getUser } from "./commonFunctions.js";
 import { L, ZOOM, getStateVisualization, setStateVisualization, resetStateVisualization, initState, resetState } from "./constant.js";
 import { map } from "./visualizationMap.js";
 import { plotChart, plotProfileSingleLayer, plotProfileMultiLayer, thermoclinePlotter } from "./chartManager.js";
@@ -146,13 +146,13 @@ function generalEvents(){
     });
     objContent.resetConfig.addEventListener('click', async() => { 
         const userName = await getUser(); initState(userName.split('/').shift()); resetState();
-        const data = await jsonLoader('reset_config', {projectName: projectName});
+        const data = await jsonLoader('reset_config', {projectName: currentProject});
         resetStateVisualization(); alert(data.message); location.reload(); return;
     });
 }
 
 // Create grid for thermocline plot and add click event to each cell
-async function thermoclineGridCreator(projectName, map, key, query, titleX, titleY, chartTitle) {
+async function thermoclineGridCreator(currentProject, map, key, query, titleX, titleY, chartTitle) {
     const content = { key: key, query: query, type: 'thermocline_grid', projectName: currentProject };
     const data = await jsonLoader('select_thermocline', content);
     if (data.status === "error") {
@@ -415,7 +415,7 @@ async function mapPath(e) {
                 points: orderedPoints, projectName: currentProject};
             const data = await jsonLoader('select_meshes', queryContents);
             if (data.status === "error") { alert(data.message); return; }
-            plotProfileMultiLayer(key, query, data.content, title, unit);
+            plotProfileMultiLayer(currentProject, obj.profileContainer, key, query, data.content, title, unit);
             signalSender('hideOverlay');
         }
     }

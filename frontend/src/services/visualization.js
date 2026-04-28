@@ -121,12 +121,6 @@ export async function showPopupMenu(waqName, id, htmlFile) {
     } catch (error) { alert(error + ': ' + htmlFile); }
 }
 
-async function waqMenuCreator() {
-    const response = await fetch('/load_waqMenu');
-    if (!response.ok) { alert(response.message); return; }
-    return await response.text();
-}
-
 function timeSeriesManager(projectName) {
     // Set function for plot using Plotly
     const plotContainer = document.getElementById('time-series-container');

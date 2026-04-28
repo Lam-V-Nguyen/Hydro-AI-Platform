@@ -1,5 +1,4 @@
 import { valueFormatter, L } from "./constant.js";
-import { signalSender, jsonLoader } from "./commonFunctions.js";
 
 function getAdaptiveCellSize(polygon, targetCells = 50) {
     const bbox = turf.bbox(polygon); // [minX, minY, maxX, maxY]

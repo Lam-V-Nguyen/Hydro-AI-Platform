@@ -67,7 +67,6 @@ const obj = {
     outputRestart: $('write-restart-file'), rstStart: $('restart-output-start'), rstStop: $('restart-output-end'),
 }
 
-let dragging = false, offsetX = 0, offsetY = 0;
 
 setupTabs(document); projectOptions(); hydManager();
 
