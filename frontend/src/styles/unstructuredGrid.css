@@ -5,8 +5,8 @@
 }
 
 html, body { 
-    margin: 0; padding: 0; height: 100%; overflow: auto;
-    font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, "Noto Sans", sans-serif;
+  margin: 0; padding: 0; height: 100%; overflow: auto;
+  font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, "Noto Sans", sans-serif;
 }
 body {
   color: #e6eefc; display: flex; flex-direction: column;
@@ -16,56 +16,56 @@ body {
 * { box-sizing: border-box; }
 
 .data-source {
-    display: flex; align-items: center; 
-    justify-content: center; margin: 10px 0 5px 0;
-    font-size: 20px; font-weight: bold; 
+  display: flex; align-items: center; 
+  justify-content: center; margin: 10px 0 5px 0;
+  font-size: 20px; font-weight: bold; 
 }
 .data-source label { margin-right: 10px; }
 
 .municipality-container {
-    display: flex; align-items: center; 
-    justify-content: center; gap: 20px; position: relative;
+  display: flex; align-items: center; 
+  justify-content: center; gap: 20px; position: relative;
 }
 #municipality-name {
-    width: 350px; text-align: center; font-size: 18px;
+  width: 350px; text-align: center; font-size: 18px;
 }
 #municipality-list {
-    list-style: none; margin: 0; padding: 0; background: var(--card);
-    border: 1px solid var(--border); border-radius: 8px; max-height: 300px;
-    width: 350px; top: 100%; font-size: 18px; font-weight: normal;
-    overflow-y: auto; position: absolute; z-index: 5000;
+  list-style: none; margin: 0; padding: 0; background: var(--card);
+  border: 1px solid var(--border); border-radius: 8px; max-height: 300px;
+  width: 350px; top: 100%; font-size: 18px; font-weight: normal;
+  overflow-y: auto; position: absolute; z-index: 5000;
 }
 #municipality-list li { padding: 6px 12px; cursor: pointer; }
 #municipality-list li:hover { background-color: rgba(30,136,229,0.2); }
 #lake-name { width: 200px; text-align: center; font-size: 18px; }
 .search-box {
-    position: relative; align-items: center;  margin-left: 50px;
-    display: flex; gap: 10px; font-size: 16px;
+  position: relative; align-items: center;  margin-left: 50px;
+  display: flex; gap: 10px; font-size: 16px;
 }
 .search-input-wrapper { position: relative; width: 250px; gap: 5px; }
 #lake-search {
-    text-align: center; font-size: 18px; width: 220px;
+  text-align: center; font-size: 18px; width: 220px;
 }
 #lake-name-label, #lake-name, #lake-suggestions, 
 #menu-container, #lake-name-label, #lake-name { display: none; }
 #lake-suggestions {
-    position: absolute; top: 100%; left: 0; width: 220px; margin-top: 4px; 
-    border: 1px solid #ddd; border-radius: 4px; max-height: 300px;
-    overflow-y: auto; z-index: 3000; color: #333; font-size: 15px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.2); background: #e2d8d8;
+  position: absolute; top: 100%; left: 0; width: 220px; margin-top: 4px; 
+  border: 1px solid #ddd; border-radius: 4px; max-height: 300px;
+  overflow-y: auto; z-index: 3000; color: #333; font-size: 15px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2); background: #e2d8d8;
 }
 #lake-suggestions div {
-    padding: 6px 6px; cursor: pointer;
+  padding: 6px 6px; cursor: pointer;
 }
 #lake-suggestions div:hover {
-    background-color: rgba(10, 103, 184, 0.692);
+  background-color: rgba(10, 103, 184, 0.692);
 }
 
 .attributes-table { 
-    margin-top: 5px; font-size: 15px; width: 100%; border-collapse: collapse;
+  margin-top: 5px; font-size: 15px; width: 100%; border-collapse: collapse;
 }
 .attributes-table th { 
-    font-size: 16px; font-weight: 600; background: rgba(255,255,255,0.05);
+  font-size: 16px; font-weight: 600; background: rgba(255,255,255,0.05);
 }
 .attributes-table th, .attributes-table td {
   border: 1px solid var(--border); padding: 6px 8px; text-align: center;
@@ -80,20 +80,20 @@ body {
 }
 
 .control-tab { 
-    display: flex; flex-direction: column;
-    gap: 10px; padding: 5px;
+  display: flex; flex-direction: column;
+  gap: 10px; padding: 5px;
 } 
 .control-tab label { 
-    width: 165px; display: flex; 
-    align-items: center; justify-content: space-between; 
+  width: 165px; display: flex; 
+  align-items: center; justify-content: space-between; 
 } 
 .control-tab input { text-align: center; }
 .control-tab-inline { 
-    display: grid; grid-template-columns: minmax(90px, 130px) 1fr;
-    align-items: center; gap: 20px;
+  display: grid; grid-template-columns: minmax(90px, 130px) 1fr;
+  align-items: center; gap: 20px;
 }
 .control-tab-inline input { 
-    width: 100px; text-align: center; 
+  width: 100px; text-align: center; 
 }
 #scale-factor { justify-self: end; }
 
@@ -102,18 +102,18 @@ body {
 }
 
 .checkbox-right { 
-    display: flex; align-items: center; gap: 8px;
-    justify-content: space-between; width: 100%;
+  display: flex; align-items: center; gap: 8px;
+  justify-content: space-between; width: 100%;
 }
 .checkbox-right span { margin-left: auto; }
 
 .button-grid, .save-grid { 
-    padding: 4px; border-radius: 10px; cursor: pointer;
-    font-weight: bold; text-align: center; display: flex; 
-    align-items: center; justify-content: center; width: auto; 
+  padding: 4px; border-radius: 10px; cursor: pointer;
+  font-weight: bold; text-align: center; display: flex; 
+  align-items: center; justify-content: center; width: auto; 
 } 
 .button-grid { 
-    background-color: #184bd6; color: #fff; 
+  background-color: #184bd6; color: #fff; 
 } 
 
 .map-container, .grid-optimization-container {
@@ -137,13 +137,13 @@ body {
 }
 
 .grid-optimization-container { 
-    flex-direction: column; gap: 10px;
+  flex-direction: column; gap: 10px;
 }
 .control-tab-inline-grid {
   display: flex; flex-direction: row; gap: 10px; margin: 0 10px;
 }
 .control-tab-inline-grid .button-grid { 
-    min-width: 200px; cursor: pointer; height: 40px;
+  min-width: 200px; cursor: pointer; height: 40px;
 }
 .progress-container {
   display: flex; flex-direction: column; margin: 10px 0; gap: 10px;

@@ -24,24 +24,24 @@ async function login() {
     const data = await jsonLoader('auth_check', {}); 
     if (data.user === 'admin') { userName = ''; } else { userName = data.user; }
     initState(userName);
-    currentProject = getState()?.currentProject || 'demo',
-    waqModel = getState()?.waqModel || 'coliform', 
-    currentParams = getState()?.currentParams || 
-    ['FlowFM_his.zarr', 'FlowFM_map.zarr', 'Coliform_his.zarr', 'Coliform_map.zarr'];
+    currentProject = getState()?.currentProject || 'demo';
+    // waqModel = getState()?.waqModel || 'coliform', 
+    // currentParams = getState()?.currentParams || 
+    // ['FlowFM_his.zarr', 'FlowFM_map.zarr', 'Coliform_his.zarr', 'Coliform_map.zarr'];
 }
 
 async function projectChecker() { 
     if (getState().currentProject === 'admin' || getState().currentProject === null) return; 
-    startLoading('Setting up Database.\nThis takes a while (especially the first time).\nPlease wait...'); 
-    await new Promise(requestAnimationFrame);
-    setState({ 
-        currentProject: currentProject, currentParams: currentParams, waqModel: waqModel 
-    });
-    const data = await jsonLoader('setup_database', { 
-        projectName: getState().currentProject, 
-        params: getState().currentParams, waqModel: getState().waqModel
-    }); stopLoading();
-    if (data.status === "error") { alert(data.message); return; }
+    // startLoading('Setting up Database.\nThis takes a while (especially the first time).\nPlease wait...'); 
+    // await new Promise(requestAnimationFrame);
+    // setState({ 
+    //     currentProject: currentProject, currentParams: currentParams, waqModel: waqModel 
+    // });
+    // const data = await jsonLoader('setup_database', { 
+    //     projectName: getState().currentProject, 
+    //     params: getState().currentParams, waqModel: getState().waqModel
+    // }); stopLoading();
+    // if (data.status === "error") { alert(data.message); return; }
     showNotes(`${userName}/${getState().currentProject}`);
     // console.log('mainManager:', getState().currentProject, getState().waqModel, getState().currentParams);
 } 
