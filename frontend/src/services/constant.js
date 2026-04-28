@@ -80,7 +80,7 @@ const defaultVisualization = {
     isThemocline: false, mapLayer: null, isMultiLayer: false, gisLayers: {},
     polygonCentroids: [], showedQuery: '', isClickedInsideLayer: false,
     vectorSelected: '', layerSelected: '', sigmaSelected: '', isPlaying: null, 
-    lastFeatureColors: {}, featureMap: {}, isHYD: false, sigma: null,
+    lastFeatureColors: {}, featureMap: {}, isHYD: false, sigma: null
 }
 let stateVisualization = structuredClone(defaultVisualization);
 export const getStateVisualization = () => stateVisualization;
