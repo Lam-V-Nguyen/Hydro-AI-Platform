@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 from services import functions
 from config import PROJECT_ROOT
 import geopandas as gpd
-from services.dataFunctions import Regnbyge as regnbyge
+from services.data_functions import Regnbyge as regnbyge
 from datetime import datetime
 
 router = APIRouter()
@@ -74,24 +74,32 @@ async def plot_station(request: Request):
         if df.empty: 
             return JSONResponse({'status': 'error', 'message': f"No data available for station '{name}' between '{start}' and '{end}'."})
         if 'id' in df.columns: df = df.drop(columns=['id'])
-        content = json.loads(df.to_json(orient='split', date_format='iso', indent=3))
+        df['timestamp'] = df['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        content = {'columns': df.columns.tolist(), 'rows': df.values.tolist()}
         return JSONResponse({'status': 'ok', 'content': content})
     except Exception as e:
         print('/plot_station:\n==============')
         traceback.print_exc()
         return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+@router.post("/download_station")
+async def download_station(request: Request):
+    try:
+        body = await request.json()
+        mode, download_interval = body.get('mode'), body.get('downloadInterval')
+        start, end, id = body.get('startTime'), body.get('endTime'), body.get('id')
+        start_time = datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
+        end_time = datetime.strptime(end, '%Y-%m-%d %H:%M:%S')
+        if start_time >= end_time:
+            return JSONResponse({'status': 'error', 'message': "Error: Start time is later than end time."})
+        df = regnbyge().get_Values(mode, id, download_interval, start_time, end_time)
+        if df.empty: 
+            return JSONResponse({'status': 'error', 'message': f"No data available between '{start_time}' and '{end_time}'."})
+        if 'id' in df.columns: df = df.drop(columns=['id'])
+        df['timestamp'] = df['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        csv_string = df.to_csv(index=False)
+        return JSONResponse({'status': 'ok', 'content': csv_string})
+    except Exception as e:
+        print('/download_station:\n==============')
+        traceback.print_exc()
+        return JSONResponse({'status': 'error', 'message': f"Error: {e}"})

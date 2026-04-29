@@ -8,9 +8,10 @@ if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
 # Import internally backend modules
-from config import SOURCE_BACKEND, SOURCE_FRONTEND, PROJECT_ROOT, lifespan
+from config import SOURCE_BACKEND, SOURCE_FRONTEND, lifespan
 from services import route_page, project_manager, grid_preparation, \
-    process_manager, hydFunctions, sim_manager, waqFuntions, data_preparation
+    process_manager, sim_manager, data_preparation, hyd_functions, waq_funtions, \
+    flow_preparation
 # , wq_process, \
 #     run_simulation, flow_preparation
 
@@ -32,15 +33,16 @@ app.include_router(route_page.router)
 app.include_router(project_manager.router)
 app.include_router(grid_preparation.router)
 app.include_router(process_manager.router)
-app.include_router(hydFunctions.router)
-app.include_router(waqFuntions.router)
+app.include_router(hyd_functions.router)
+app.include_router(waq_funtions.router)
 app.include_router(sim_manager.router)
 app.include_router(data_preparation.router)
+app.include_router(flow_preparation.router)
 # app.include_router(wq_process.router)
 # app.include_router(run_simulation.router)
 
 
-# app.include_router(flow_preparation.router)
+
 
 if __name__ == "__main__":
     uvicorn.run("app.main:app", host="0.0.0.0", port=8080, reload_dirs=['.'], reload=True) # Remove reload=True for production

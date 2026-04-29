@@ -63,9 +63,9 @@ function widgetMenuManager() {
         const item = e.target.closest(".submenu-item") || e.target.closest(".menu-link"); 
         if (!item) return;
         const id = item.id; if (!id) return;
-        const title = item.textContent.replace(/▸|◂/g, '').trim();
         const url = item.dataset?.url;
         let w = 11, h = 7, user = userName.split('/').shift();
+        let title = item.textContent.replace(/▸|◂/g, '').trim();
         const closeMenu = () => { menuContainer.style.display = 'none'; saveWidget(); };
         if (hasWidget(id)) { alert('Widget already exists.'); closeMenu(); return; }
         if (id === 'new-project') { projectMaker(); closeMenu(); return; }
@@ -75,6 +75,9 @@ function widgetMenuManager() {
         else if (id === 'run-hyd' || id === 'run-waq') { w = 9; h = 3; }
         else if (id === 'grid-generation') { w = 10; h = 8; }
         else if (id === 'visualization') { w = 12; h = 9; }
+        else if (id === 'flow-data-preparation') { 
+            w = 11; h = 8; title = 'Data Preparation for Flow Estimation';
+        }
         else if (id === 'about') { w = 8; h = 5; }
         addWidget(w, h, title, id, url); closeMenu();
     });
@@ -106,9 +109,6 @@ function widgetMenuManager() {
     //     layout = layout.filter(item => !exits.includes(item.id));
     //     localStorage.setItem('grid-layout', JSON.stringify(layout));
     // }
-
-
-
 }
 
 function updateComponent() {
@@ -156,14 +156,15 @@ function updateComponent() {
                 source: event.source, requestId: event.data.type,
                 content: event.data.content
             });
-        // } else if (event.data.type === 'gridOptions') { 
-        //     const requestId = event.data.content?.requestId;
-        //     if (requestId) pendingRequests.set(requestId, { source: event.source });
-        //     const req = { 
-        //         source: event.source, requestId: event.data.type,
-        //         content: event.data.content
-        //     }
-        //     setPendingRequest(req); renderPreview(req);
+        } else if (event.data.type === 'flowOptions') { 
+            console.log('mainManager', event.data);
+            const requestId = event.data.content?.requestId;
+            if (requestId) pendingRequests.set(requestId, { source: event.source });
+            const req = { 
+                source: event.source, requestId: requestId, content: event.data.content
+            }
+            // setPendingRequest(req); 
+            renderPreview(req);
 
 
 
@@ -173,15 +174,15 @@ function updateComponent() {
 
 
 
-        // } else if (event.data.type === 'updateUIState') {
-        //     const requestId = event.data.content?.requestId;
-        //     if (requestId && pendingRequests.has(requestId)) {
-        //         const { source } = pendingRequests.get(requestId);
-        //         source.postMessage({ type: 'updateReturn', 
-        //             content: event.data.content, requestId: requestId
-        //         }, origin);
-        //         pendingRequests.delete(requestId);
-        //     }
+        } else if (event.data.type === 'updateUIState') {
+            const requestId = event.data.content?.requestId;
+            if (requestId && pendingRequests.has(requestId)) {
+                const { source } = pendingRequests.get(requestId);
+                source.postMessage({ type: 'updateReturn', 
+                    content: event.data.content, requestId: requestId
+                }, origin);
+                pendingRequests.delete(requestId);
+            }
         }
     });
 

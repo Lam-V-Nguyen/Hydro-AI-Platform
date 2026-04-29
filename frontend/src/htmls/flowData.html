@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="/src_frontend/styles/tabControler.css?v=0">
+    <link rel="stylesheet" href="/src_frontend/styles/flowPreparation.css?v=0">
+</head>
+<body>
+    <div class="wrapper">
+        <section class="main-tab" id="control-tab">
+            <div class="tab-header" id="main-tabs">
+                <div class="tabs-list">
+                    <button class="tab-btn" data-tab="terrain-tab">Topography</button>
+                    <button class="tab-btn" data-tab="soil-tab">Soil</button>
+                    <button class="tab-btn" data-tab="land-tab">Land Cover</button>
+                    <button class="tab-btn" data-tab="river-network-tab">River Network</button>
+                    <button class="tab-btn" data-tab="initial-conditions-tab">Initial Conditions</button>
+                    <button class="tab-btn" data-tab="weather-data-tab">Weather Data</button>
+                    <button class="tab-btn" data-tab="settings-tab">Settings</button>
+                </div>
+            </div>
+            <div class="tabs-content">
+                <!-- Tab 1: Topography -->
+                <div class="tabpanel main-panel" data-panel="terrain-tab">
+                    <div class="grid">
+                        <div class="tile"><h3>Catchment Import</h3>
+                            <div class="row-radio" data-tab="catchment">
+                                <input type="radio" id="catchment-dtm" name="catchment" checked>
+                                <label for="catchment-dtm">Create from DTM</label>
+                                <input type="radio" id="catchment-upload" name="catchment">
+                                <label for="catchment-upload">Upload a Catchment</label>
+                            </div>
+                            <div class="row" id="catchment-upload-container" style="display: none; width: 100%;">
+                                <input type="file" id="catchment-input-file" accept=".geojson" hidden>
+                                <button  type="button" id="catchment-upload-btn">Upload GeoJSON</button>
+                            </div>
+                        </div>
+                        <div class="tile"><h3>Terrain Import</h3>
+                            <div class="row" style="white-space: nowrap;">
+                                <label for="terrain-input">Raw Terrain:</label>
+                                <input type="file" id="terrain-input-file" accept=".tif" hidden>
+                                <input type="text" id="terrain-input-text" placeholder="No file selected" readonly>
+                                <button type="button" id="terrain-btn" style="width: 20px;">...</button>
+                            </div>
+                            <div class="row">
+                                <div class="row-radio" data-tab="terrain">
+                                    <input type="radio" id="terrain-raw" name="terrain" value="terrain-raw">
+                                    <label for="terrain-raw">Show/Hide Terrain</label>
+                                </div>
+                                <div class="row-radio" data-tab="terrain">
+                                    <input type="radio" id="hide-all" name="terrain" value="hide-all" checked=true>
+                                    <label for="hide-all">Upload a Catchment</label>
+                                </div>
+
+                            </div>
+                        </div>
+                        <div class="tile"><h3>Terrain Processing</h3>
+                            <div class="row">
+                                <button type="button" id="terrain-fill-btn">1. Fill sinks/depressions</button>
+                                <div class="row-radio" data-tab="terrain">
+                                    <input type="checkbox" id="terrain-fill">
+                                    <label for="terrain-fill">Show/Hide</label>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <button type="button" id="terrain-direction-btn">2. Flow direction</button>
+                                <div class="row-radio" data-tab="terrain">
+                                    <input type="checkbox" id="terrain-direction">
+                                    <label for="terrain-direction">Show/Hide</label>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <button type="button" id="terrain-accumulation-btn">3. Flow accumulation</button>
+                                <div class="row-radio" data-tab="terrain">
+                                    <input type="checkbox" id="terrain-accumulation">
+                                    <label for="terrain-accumulation">Show/Hide</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tile"><h3>Catchment Delineation</h3>
+                            <div class="row pourpoint-container" id="pourpoint-container" style="justify-content: center;">
+                                <div class="row-radio" data-tab="terrain">
+                                    <input type="checkbox" id="pourpoint-checkbox">
+                                    <label for="pourpoint-checkbox">4. Select Pour point and Create Catchment</label>
+                                </div>
+                                <div class="pourpoint-group">
+                                    <div class="pourpoint-latlon">
+                                        <input type="text" id="pourpoint-lat" placeholder="Latitude" readonly>
+                                        <input type="text" id="pourpoint-lon" placeholder="Longitude" readonly>
+                                    </div>
+                                    <div class="pourpoint-settings">
+                                        <div class="field-inline">
+                                            <label for="pourpoint-threshold">Threshold:</label>
+                                            <input type="text" id="pourpoint-threshold" value="50.0">
+                                            <label>(m)</label>
+                                        </div>
+                                        <div class="field-inline">
+                                            <label>Distance:</label>
+                                            <input type="text" id="pourpoint-dist" value="10.0">
+                                            <label>(m)</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <button type="button" id="export-catchment-btn" style="margin-top: '-30px';">
+                                        Export Catchment (GeoJSON)
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+
+
+
+
+
+
+            </div>
+        </section>
+
+
+
+    </div>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+        flatpickr(".datetime", {
+            enableTime: true, enableSeconds: true, dateFormat: "Y-m-d H:i:S", time_24hr: true,
+            defaultHour: 0, defaultMinute: 0, defaultSecond: 0
+        });
+    </script>
+    <script type="module" src="/src_frontend/services/flowPreparation.js"></script>
+</body>
+</html>

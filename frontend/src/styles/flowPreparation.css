@@ -1,0 +1,44 @@
+:root {
+  --bg: #10192c; --text: #e6eefc; --card: #0f1b30;
+}
+
+* { box-sizing: border-box; }
+html, body { 
+  margin: 0; padding: 0; overflow: auto;
+  box-sizing: border-box; height: 100%;
+  font-family: Arial, sans-serif;}
+body {
+  color: var(--text); display: flex; flex-direction: column;
+  background: radial-gradient(1200px 600px at 10% -10%, rgba(30,136,229,0.25), transparent),
+    radial-gradient(800px 600px at 100% 0%, rgba(21,101,192,0.25), transparent), var(--bg);
+}
+.wrapper { 
+  max-width: 100%; padding: 10px;  margin: 10px 0; height: 100%;
+}
+
+.pourpoint-container {
+    display: flex; flex-direction: column; align-items: center; width: 100%;
+}
+.pourpoint-group {
+    display: grid; grid-template-columns: 200px 1fr;
+    gap: 6px 12px; align-items: start; margin-top: -20px;
+    width: 100%; max-width: 100%;
+}
+.field-inline {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap; width: 100%;
+}
+.pourpoint-settings {
+    display: flex; flex-direction: column;
+    gap: 4px; min-width: 0; 
+}
+.pourpoint-latlon {
+    align-self: start;
+}
+
+.pourpoint-latlon input {
+    height: auto; align-self: flex-start;
+}
+
+/* .pourpoint-settings input {
+    text-align: center; max-width: 100%; box-sizing: border-box;
+} */

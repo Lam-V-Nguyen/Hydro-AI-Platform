@@ -90,6 +90,7 @@ class Regnbyge():
             # elif variable=='weir': # Using Weir
             #     pass
             df['id'] = item['id']
+            if df.drop(columns=['timestamp']).isna().all().all(): continue
             data = pd.concat([data, df], ignore_index=True)
         data.reset_index(inplace=True, drop=True)
         data = data.replace(float("nan"), None) # Fill NaN values

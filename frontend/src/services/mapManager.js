@@ -1,4 +1,5 @@
 import { CENTER, ZOOM, L, getPendingRequest, clearPendingRequest, origin } from "./constant.js";
+import { signalSender } from "./commonFunctions.js";
 
 export let currentMap;
 let currentTileLayer = null, timeCounter = null, html='', markersObs = [], 
@@ -98,8 +99,9 @@ export async function renderPreview(request=null) {
             waqLoads.forEach(marker => marker.remove()); waqLoads.length = 0; 
             iconAdd(iconUrl, waqLoads, currentMap, request.content.rows);
         }
-    // } else if (type === 'gridOptions') {
-    //     const layer = request.content.layer;
+    } else if (type === 'flowOptions') {
+        const layer = request.content;
+        console.log('mapManager', layer);
     //     if (layer === 'vertexGrid') {
     //         pointLayer = clearMap(pointLayer, currentMap);
     //         pointLayer = addPointLayer(
@@ -120,7 +122,7 @@ export async function renderPreview(request=null) {
 
     //     }
 
-
+        signalSender('updateUIState', { requestId: request.content.requestId });
     }
 }
 

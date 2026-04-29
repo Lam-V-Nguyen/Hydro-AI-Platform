@@ -61,7 +61,7 @@
                                         </table>
                                     </div>
                                     <!-- Plot options -->
-                                    <div class="tile" id="plot-container" style="display: none; flex-direction: column; width: 350px;">
+                                    <div class="tile" id="plot-container" style="display: flex; flex-direction: column; width: 350px;">
                                         <h3>Plot Options</h3>
                                         <div class="row inline-row">
                                             <label for="start-plot">Start time:</label>
@@ -225,12 +225,12 @@
                     <div class="checkbox-list" id="checkbox-list"></div>
                 </div>
                 <div class="button-group">
-                    <button type="button" id="view-station-btn">View Data</button>
-                    <button type="button" id="download-station-excel">Download as Excel File</button>
+                    <button type="button" id="viewDataBtn">View Data</button>
+                    <button type="button" id="downloadExcel">Download as Excel File</button>
                 </div>
             </div>
             <div class="plot-area-data" id="plot-station-content">
-                <div class="myChart-data" id="station-chart"></div>
+                <div class="myChart-data" id="myChart"></div>
             </div>
         </div>
     </div>

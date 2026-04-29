@@ -1,7 +1,7 @@
 import { L, getState, setState, initState } from "./constant.js";
 import { getUser, signalSender, jsonLoader, moveWindow, closeWindow } from "./commonFunctions.js";
 import { locationFinder, initializeMenu, projectChecker } from "./visualization.js";
-import { map, initMap } from "./visualizationMap.js";
+import { initMap } from "./visualizationMap.js";
 
 
 const $ = (id) => document.getElementById(id);
@@ -17,11 +17,11 @@ const obj = {
 }
 
 
-let currentProject = null, currentParams = null, userName = null, 
+let currentProject = null, currentParams = null, userName = null, mapObj = null,
     model = null, waqName = null, hideTimeout = null, gisLayers = {};
 
 
-await getProject(); await initMap(); updateManager();
+await getProject(); mapObj = await initMap('leaflet-map'); updateManager();
 
 async function getProject() { 
     userName = await getUser(); initState(userName.split('/').shift());
@@ -39,7 +39,7 @@ async function getProject() {
 
 function updateManager() { 
     // Search locations
-    locationFinder(obj.locationSearcher, obj.locationList, map);
+    locationFinder(obj.locationSearcher, obj.locationList, mapObj);
     initializeMenu(waqName); 
     // Show popup menu on click or leave
     if (obj.popupMenu) {
@@ -132,10 +132,10 @@ function updateManager() {
 async function GISLayerChange(currentProject, id, checked){
     setState({gisLayers: {...getState().gisLayers, [id]: checked}});
     if (!checked) {
-        if (gisLayers[id]) { map.removeLayer(gisLayers[id]); }
+        if (gisLayers[id]) { mapObj.removeLayer(gisLayers[id]); }
         return;
     }
-    if (gisLayers[id]) { map.addLayer(gisLayers[id]); return; }
+    if (gisLayers[id]) { mapObj.addLayer(gisLayers[id]); return; }
     // Load gis layer
     signalSender('showOverlay', 'Loading GIS Layer.\nPlease wait...');
     const response = await jsonLoader('get_gis_layer', { projectName: currentProject, layer: id });
@@ -170,7 +170,7 @@ async function GISLayerChange(currentProject, id, checked){
             });
         }
     });
-    gisLayers[id] = layer; map.addLayer(layer); 
-    if (layer.getLayers().length < 2000) { map.fitBounds(layer.getBounds()); }
+    gisLayers[id] = layer; mapObj.addLayer(layer); 
+    if (layer.getLayers().length < 2000) { mapObj.fitBounds(layer.getBounds()); }
     signalSender('hideOverlay');
 }

@@ -119,7 +119,7 @@ function layerCreator(colorbarContainer, map, meshes, values, key, vmin, vmax, l
 export async function plot2DMapStatic(
     currentProject, map, timeControl, substanceContainer, 
     colorbarContainer, key, legend, colorbarKey) {
-    signalSender('showOverlay', 'Plotting Map.\nPlease wait...');
+    signalSender('showOverlay', 'Preparing Static Map.\nPlease wait...');
     const content = { query: key, projectName: currentProject, key: 'static' };
     const data = await jsonLoader('process_data', content);
     if (data.status === 'error') { 
@@ -307,7 +307,7 @@ function initDynamicMap(projectName, map, timeControl, colorbarContainer,
 
 export async function plot2DMapDynamic(projectName, map, timeControl, colorbarContainer, 
     colorbarVectorContainer, scaleObj, waterQuality, query, key, colorbarTitle, colorbarKey, vectorScaler) {
-    signalSender('showOverlay', `Preparing dynamic map.\nPlease wait...`);
+    signalSender('showOverlay', `Preparing Dynamic map.\nPlease wait...`);
     let data_below = null, data_above = null, colorbarTitleAbove = null, 
         colorbarKeyAbove = null, key_below = key, key_above = null;
     setStateVisualization({showedQuery: key}); 

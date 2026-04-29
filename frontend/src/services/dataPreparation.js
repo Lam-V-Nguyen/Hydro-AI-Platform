@@ -4,8 +4,8 @@ import { initMap } from "./visualizationMap.js";
 import { moveWindow, formatDate,closeWindow, deleteTable, getUser,
     getDataFromTable, signalSender, jsonLoader, fillTable
 } from "./commonFunctions.js";
-import { plotTimeSeries, saveToExcelFromPlot, viewDatafromPlot } from "./chartManager.js";
-import { L, setStateVisualization, getStateVisualization } from "./constant.js";
+import { plotTimeSeries } from "./chartManager.js";
+import { L } from "./constant.js";
 
 const hoverTooltip = L.tooltip({
     permanent: false, direction: 'bottom',
@@ -17,27 +17,17 @@ const $ = (id) => document.getElementById(id);
 const obj = { 
     plotDataContainer: $("plot-station-window"), plotDataHeader: $("plot-station-header"),
     plotDataCloseBtn: $("close-station-plot"), selectBox: $("select-object"),
-    checkboxList: $("checkbox-list"), dropdown: $("select-object"), 
+    checkboxList: $("checkbox-list"), dropdown: $("select-object"), downloadInterval: $("interval-download"),
     stationSelectedTable: $("station-selected-table"), plotStart: $("start-plot"), 
-    plotEnd: $("end-plot"), plotInterval: $("interval-plot"), 
+    plotEnd: $("end-plot"), plotInterval: $("interval-plot"), downloadBtn: $("download-btn"), 
     downloadStart: $("start-download"), downloadEnd: $("end-download"),
     typeSelector: $("type-download"), plotContainer: $("plot-container"), 
     stationTable: $("station-table"), waterFlowCheckbox: $("water-flow-checkbox"),
     waterLevelCheckbox: $("water-level-checkbox"), rainfallCheckbox: $("rainfall-checkbox"),
     // overFlowCheckbox: $("overflow-checkbox"), temperatureCheckbox: $("temperature-checkbox"),
     // evaporationCheckbox: $("evaporation-checkbox"), weirCheckbox: $("weir-checkbox"),
-    stationSelectedLabel: $("station-selected-label"),
-    plotDiv: $("station-chart"), viewDataBtn: $("view-station-btn"),
-    downloadExcelBtn: $("download-station-excel"),
-    
-    
-    resertStationBtn: $("reset-station-btn")
-
-
-
-
-
-
+    stationSelectedLabel: $("station-selected-label"), resertStationBtn: $("reset-station-btn"),
+    downloadListContainer: $("download-list-container"), downloadListArea: $("download-list")
 };
 
 let plotChecked = true, waterFlowLayer = null, waterLevelLayer = null,
@@ -106,88 +96,58 @@ function updateManager() {
             );
         } else { preLayer = clearMap(preLayer); deleteTable(obj.stationTable); }
     });
-    // obj.overFlowCheckbox.addEventListener('change', async (e) => {
-    //     if (e.target.checked === true) {
-    //         overFlowLayer = await loadStations(
-    //             currentProject, e.target, obj.stationTable, 'water overflow', 'overflow', overFlowLayer
-    //         );
-    //     } else { overFlowLayer = clearMap(overFlowLayer); deleteTable(obj.stationTable); }
-    // });
-    // obj.temperatureCheckbox.addEventListener('change', async (e) => {
-    //     if (e.target.checked === true) {
-    //         tempLayer = await loadStations(
-    //             currentProject, e.target, obj.stationTable, 'temperature', 'temperature', tempLayer
-    //         );
-    //     } else { tempLayer = clearMap(tempLayer); deleteTable(obj.stationTable); }
-    // });
-    // obj.evaporationCheckbox.addEventListener('change', async (e) => {
-    //     if (e.target.checked === true) {
-    //         evaLayer = await loadStations(
-    //             currentProject, e.target, obj.stationTable, 'evaporation', 'evaporation', evaLayer
-    //         );
-    //     } else { evaLayer = clearMap(evaLayer); deleteTable(obj.stationTable); }
-    // });
-    // obj.weirCheckbox.addEventListener('change', async (e) => {
-    //     if (e.target.checked === true) {
-    //         weirLayer = await loadStations(
-    //             currentProject, e.target, obj.stationTable, 'weir', 'weir', weirLayer
-    //         );
-    //     } else { weirLayer = clearMap(weirLayer); deleteTable(obj.stationTable); }
-    // });
-    obj.viewDataBtn.addEventListener('click', () => { viewDatafromPlot(obj.plotDiv) });
-    obj.downloadExcelBtn.addEventListener('click', () => { saveToExcelFromPlot(obj.plotDiv) });
     obj.typeSelector.addEventListener('change', () => {
         selectStations(obj.typeSelector.value, obj.stationSelectedTable, obj.stationSelectedLabel);
     });
-//     downloadBtn().addEventListener('click', async () => { 
-//         const tableData = getDataFromTable(obj.stationSelectedTable, true);
-//         const n = obj.stationSelectedTable.querySelectorAll('tr.selected').length;
-//         if (tableData.rows.length === 0 || n === 0) { 
-//             alert('No station selected. Please select a station from the map first.'); return; 
-//         }
-//         const startTime = downloadStart().value, endTime = downloadEnd().value,
-//             downloadType = obj.typeSelector.value, interval = downloadInterval().value;
-//         try { 
-//             const dirHandle = await window.showDirectoryPicker();
-//             downloadListContainer().style.display = 'flex'; downloadListArea().value = '';
-//             for (const file of tableData.rows) {
-//                 const name = `${file[0]}_${startTime.replace(' ', '_')}-${endTime.replace(' ', '_')}`;
-//                 downloadListArea().value += `Downloading: ${name} ...\n`;
-//                 const contents = { mode: downloadType, downloadInterval: interval,
-//                     startTime: startTime, endTime: endTime, id: [Number(file[1].trim())] };
-//                 const response = await sendQuery('download_station', contents);
-//                 if (response.status === 'error') { 
-//                     alert(response.message);
-//                     downloadListArea().value += `Error downloading: [${response.message}] \n`;
-//                     downloadListArea().value += `Downloading [${name}] is skipped.\n`;
-//                     continue; 
-//                 }
-//                 let nameSaved = name.replace('Å', 'Aa').replace('å', 'aa').replace('Æ', 'Ae').replace('æ', 'ae');
-//                 nameSaved = nameSaved.replace('Ø', 'oo').replace(/[^a-zA-Z0-9_\-]/g, '_');
-//                 nameSaved = `${nameSaved}.csv`;
-//                 if (dirHandle !== null) {
-//                     const fileHandle = await dirHandle.getFileHandle(nameSaved, {create: true});
-//                     const writable = await fileHandle.createWritable();
-//                     await writable.write("\uFEFF" + response.content);
-//                     await writable.close();
-//                 } else { 
-//                     const blob = new Blob([response.content], { type: 'text/csv;charset=utf-8;' });
-//                     const url = URL.createObjectURL(blob);
-//                     const link = document.createElement('a');
-//                     link.setAttribute('href', url);
-//                     link.setAttribute('download', nameSaved);
-//                     document.body.appendChild(link);
-//                     link.click();
-//                     document.body.removeChild(link);
-//                 }
-//                 downloadListArea().value += `Saved file: ${nameSaved}.\n`;
-//             }
-//             downloadListArea().value += '\nDownload complete.'; alert('Download complete.');
-//         } catch (error) { 
-//             alert(error.message || error); downloadListContainer().style.display = 'none';
-//             downloadListArea().value = ''; return;
-//         }
-//     });
+    obj.downloadBtn.addEventListener('click', async () => { 
+        const tableData = getDataFromTable(obj.stationSelectedTable, true);
+        const n = obj.stationSelectedTable.querySelectorAll('tr.selected').length;
+        if (tableData.rows.length === 0 || n === 0) { 
+            alert('No station selected. Please select a station from the map first.'); return; 
+        }
+        const startTime = obj.downloadStart.value, endTime = obj.downloadEnd.value,
+            downloadType = obj.typeSelector.value, interval = obj.downloadInterval.value;
+        try { 
+            const dirHandle = await window.showDirectoryPicker();
+            obj.downloadListContainer.style.display = 'flex'; obj.downloadListArea.value = '';
+            for (const file of tableData.rows) {
+                const name = `${file[0]}_${startTime.replace(' ', '_')}-${endTime.replace(' ', '_')}`;
+                obj.downloadListArea.value += `Downloading: ${name} ...\n`;
+                const contents = { mode: downloadType, downloadInterval: interval,
+                    startTime: startTime, endTime: endTime, id: [Number(file[1].trim())] };
+                const response = await jsonLoader('download_station', contents);
+                if (response.status === 'error') { 
+                    alert(response.message);
+                    obj.downloadListArea.value += `Error downloading: [${response.message}] \n`;
+                    obj.downloadListArea.value += `Downloading [${name}] is skipped.\n`;
+                    continue; 
+                }
+                let nameSaved = name.replace('Å', 'Aa').replace('å', 'aa').replace('Æ', 'Ae').replace('æ', 'ae');
+                nameSaved = nameSaved.replace('Ø', 'oo').replace(/[^a-zA-Z0-9_\-]/g, '_');
+                nameSaved = `${nameSaved}.csv`;
+                if (dirHandle !== null) {
+                    const fileHandle = await dirHandle.getFileHandle(nameSaved, {create: true});
+                    const writable = await fileHandle.createWritable();
+                    await writable.write("\uFEFF" + response.content);
+                    await writable.close();
+                } else { 
+                    const blob = new Blob([response.content], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', nameSaved);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+                obj.downloadListArea.value += `Saved file: ${nameSaved}.\n`;
+            }
+            obj.downloadListArea.value += '\nDownload complete.'; alert('Download complete.');
+        } catch (error) { 
+            alert(error.message || error); obj.downloadListContainer.style.display = 'none';
+            obj.downloadListArea.value = ''; return;
+        }
+    });
     obj.resertStationBtn.addEventListener('click', async () => {
         if (obj.waterFlowCheckbox.checked === false && 
             obj.waterLevelCheckbox.checked === false && 
@@ -227,7 +187,6 @@ function mapOptions(mapObject) {
         }
     });
 }
-
 
 function hightlightRows(table) {
     const tbody = table.querySelector('tbody');
@@ -306,10 +265,6 @@ async function pointPloter(points, pointType) {
     if (pointType === 'flow') { iconUrl = `/src_frontend/images/water_flow.png?v=${Date.now()}`; }
     else if (pointType === 'level') { iconUrl = `/src_frontend/images/water_level.png?v=${Date.now()}`; }
     else if (pointType === 'rain') { iconUrl = `/src_frontend/images/rain.png?v=${Date.now()}`; }
-    // else if (pointType === 'overflow') { iconUrl = `/static_backend/images/overflow.png?v=${Date.now()}`; }
-    // else if (pointType === 'temperature') { iconUrl = `/static_backend/images/temperature.png?v=${Date.now()}`; }
-    // else if (pointType === 'evaporation') { iconUrl = `/static_backend/images/evaporation.png?v=${Date.now()}`; }
-    // else if (pointType === 'weir') { iconUrl = `/static_backend/images/weir.png?v=${Date.now()}`; }
     const tempLayer = L.geoJSON(points, {
         pointToLayer: (_, latlng) => {
             const marker = L.marker(latlng, {
@@ -334,10 +289,9 @@ async function pointPloter(points, pointType) {
                     const response = await jsonLoader('plot_station', contents);
                     signalSender('hideOverlay');
                     if (response.status === "error") { alert(response.message); return; }
-                    const chartTitle = `Station: ${name} - ${mode}`, titleX = 'Time';
-                    console.log(response.content);
+                    const chartTitle = `Station: ${name}`, titleX = 'Time';
                     await plotTimeSeries(
-                        obj.plotDataContainer, chartTitle, response.content, chartTitle, titleX, titleY
+                        obj.plotDataContainer, chartTitle, response.content, name, titleX, titleY
                     );
                 } else {
                     const type = feature.properties.type;

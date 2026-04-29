@@ -1,6 +1,5 @@
 import { signalSender, jsonLoader, initOptions } from "./commonFunctions.js";
-import { L, getStateVisualization, setStateVisualization } from "./constant.js";
-import { map } from "./visualizationMap.js";
+import { L, getStateVisualization, setStateVisualization, getMap } from "./constant.js";
 import { plot2DMapStatic, plot2DMapDynamic, plot2DVectorMap } from "./map2DManager.js";
 
 const $ = (id) => document.getElementById(id);
@@ -10,7 +9,7 @@ const obj = {
     vectorScaler: $("custom-colorbar-scaler"), timeSeriesContainer: $("time-series-container")
 }
 
-let objContent = {}, newKey = '', newQuery = '', titleColorbar = '', colorbarKey = '';
+let objContent = {}, newKey = '', newQuery = '', titleColorbar = '', colorbarKey = '', mapObj = null;
 
 export async function spatialMapManager(projectName) {
     const popupContent = document.getElementById('popup-content');
@@ -23,7 +22,7 @@ export async function spatialMapManager(projectName) {
     await initOptions(objContent.layerSelector, 'layer_hyd', projectName); 
     await initOptions(objContent.vectorSelector, 'vector', projectName);
     await initOptions(objContent.sigmaSelector, 'sigma_waq', projectName); 
-    await checkVectorComponents();
+    await checkVectorComponents(); mapObj = getMap();
     setStateVisualization({layerSelected: objContent.layerSelector.value});
     setStateVisualization({vectorSelected: objContent.vectorSelector.value});
     setStateVisualization({sigmaSelected: objContent.sigmaSelector.value});
@@ -45,7 +44,7 @@ export async function spatialMapManager(projectName) {
             } else titleColorbar = legend;
             const query = `|${objContent.layerSelector.value}`;
             plot2DMapDynamic(
-                projectName, map, obj.timeControl, obj.colorbarContainer, obj.colorbarVectorContainer,
+                projectName, mapObj, obj.timeControl, obj.colorbarContainer, obj.colorbarVectorContainer,
                 objContent.scale, false, query, key, titleColorbar, colorbarKey, obj.vectorScaler
             );
         });
@@ -86,7 +85,7 @@ export async function spatialMapManager(projectName) {
             }
             setStateVisualization({sigma: objContent.sigmaSelector});
             plot2DMapDynamic(
-                projectName, map, obj.timeControl, obj.colorbarContainer, obj.colorbarVectorContainer,
+                projectName, mapObj, obj.timeControl, obj.colorbarContainer, obj.colorbarVectorContainer,
                 objContent.scale, true, newQuery, newKey, titleColorbar, '', obj.vectorScaler
             );
         });
@@ -110,7 +109,7 @@ export async function spatialMapManager(projectName) {
                     : `${titleColorbar}\n${sigma.selectedOptions[0].text}`;
             }
             plot2DMapDynamic(
-                projectName, map, obj.timeControl, obj.colorbarContainer, obj.colorbarVectorContainer,
+                projectName, mapObj, obj.timeControl, obj.colorbarContainer, obj.colorbarVectorContainer,
                 objContent.scale, true, newQuery, newKey, titleColorbar, '', obj.vectorScaler
             );
         }
@@ -129,7 +128,7 @@ export async function spatialMapManager(projectName) {
             ? `${titleColorbar}\nLayer: ${objContent.layerSelector.selectedOptions[0].text}` 
             : `${titleColorbar}\n${objContent.layerSelector.selectedOptions[0].text}`;
         plot2DVectorMap(
-            projectName, map, obj.timeControl, obj.colorbarContainer, obj.colorbarVectorContainer,
+            projectName, mapObj, obj.timeControl, obj.colorbarContainer, obj.colorbarVectorContainer,
             objContent.scale, 'load', layerName, colorbarTitle, colorbarKey, obj.vectorScaler
         );
     });
@@ -138,7 +137,7 @@ export async function spatialMapManager(projectName) {
         plot.addEventListener('click', () => {
             const [key, title, colorbarKey] = plot.dataset.info.split('|');
             plot2DMapStatic(
-                projectName, map, obj.timeControl, obj.substanceContainer, 
+                projectName, mapObj, obj.timeControl, obj.substanceContainer, 
                 obj.colorbarContainer, key, title, colorbarKey
             );
         });
@@ -146,8 +145,8 @@ export async function spatialMapManager(projectName) {
     // Hide maps
     document.querySelector('.hide-maps').addEventListener('click', () => {
         // Clear map
-        map.eachLayer((layer) => { 
-            if (!(layer instanceof L.TileLayer)) map.removeLayer(layer); layer = null; 
+        mapObj.eachLayer((layer) => { 
+            if (!(layer instanceof L.TileLayer)) mapObj.removeLayer(layer); layer = null; 
         });
         obj.timeControl.style.display = 'none'; 
         obj.colorbarContainer.style.display = 'none';
@@ -165,7 +164,7 @@ export async function spatialMapManager(projectName) {
             isMultiLayer: false, isClickedInsideLayer: false, isThemocline: false, 
             crosssectionLayer: null, isPathQuery: false
         });
-        map.getContainer().style.cursor = '';
+        mapObj.getContainer().style.cursor = '';
     });
 }
 

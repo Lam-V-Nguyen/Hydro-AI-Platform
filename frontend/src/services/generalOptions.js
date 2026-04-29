@@ -1,8 +1,14 @@
 import { jsonLoader, signalSender, splitLines, initOptions, getUser } from "./commonFunctions.js";
-import { L, ZOOM, getStateVisualization, setStateVisualization, resetStateVisualization, initState, resetState } from "./constant.js";
-import { map } from "./visualizationMap.js";
+import { L, ZOOM, getStateVisualization, setStateVisualization, 
+    resetStateVisualization, initState, resetState, getMap
+} from "./constant.js";
 import { plotChart, plotProfileSingleLayer, plotProfileMultiLayer, thermoclinePlotter } from "./chartManager.js";
 import { clearMap } from "./mapManager.js";
+
+const hoverTooltip = L.tooltip({
+    permanent: false, direction: 'bottom',
+    sticky: true, offset: [0, 10], className: 'custom-tooltip'
+});
 
 
 const $ = (id) => document.getElementById(id);
@@ -12,23 +18,12 @@ const obj = {
     colorBarTitle: $("colorbar-title"), profileContainer: $("profile-window")
 }
 
-let objContent = null, currentProject = null, pathLine = null, gridLayer = null,
-    selectedMarkers = [], pointContainer = [], selectedCell = null, marker = null;
+let objContent = null, currentProject = null, pathLine = null,
+    mapObj = null, html = null, selectedMarkers = [], gridLayer = null,  
+    pointContainer = [], selectedCell = null, marker = null;
 
-function checkUpdater(setLayer, objCheckbox, checkFunction){
-    objCheckbox.checked = getStateVisualization()[setLayer] !== null;
-    objCheckbox.addEventListener('change', async (e) => {
-        if (e.target.checked) { 
-            const layer = await checkFunction();
-            setStateVisualization({[setLayer]: layer});
-        } else { 
-            const currentLayer = getStateVisualization()[setLayer];
-            if (currentLayer) { map.removeLayer(currentLayer); }
-            setStateVisualization({[setLayer]: null}); }
-    });
-}
 
-export function generalOptionsManager(projectName){
+export async function generalOptionsManager(projectName){
     const popupContent = document.getElementById('popup-content');
     const $$ = (id) => popupContent.querySelector(`#${id}`);
     objContent = {
@@ -38,22 +33,23 @@ export function generalOptionsManager(projectName){
         pathQuery: $$('path-query-checkbox'), thermoclineOptions: $$('thermocline-row'),
         thermoclineWAQ: $$('waq-thermocline-selector'), resetConfig: $$('reset-config')
     }
-    currentProject = projectName; generalEvents(); pathEvents(); 
+    currentProject = projectName; mapObj = getMap();
+    generalEvents(); pathEvents(mapObj); mapOptions(mapObj);
 }
 
-function pathEvents() {
+function pathEvents(mapObject) {
     objContent.pathQuery.checked = getStateVisualization().isPathQuery;
-    // if (getStateVisualization().isPathQuery === false) deActivePathQuery();
+    // if (getStateVisualization().isPathQuery === false) deActivePathQuery(mapObj);
     objContent.pathQuery.addEventListener('change', () => { 
         if (objContent.pathQuery.checked) { 
             setStateVisualization({isThemocline: false}); 
             if (getStateVisualization().mapLayer === null){
-                alert("No map layer available"); deActivePathQuery();
+                alert("No map layer available"); deActivePathQuery(mapObj);
             } else {
-                map.getContainer().style.cursor = "crosshair";
-                map.on("click", mapPath); map.on("contextmenu", mapPath);
+                mapObject.getContainer().style.cursor = "crosshair";
+                mapObject.on("click", mapPath); mapObject.on("contextmenu", mapPath);
             }
-        } else deActivePathQuery();
+        } else deActivePathQuery(mapObj);
         setStateVisualization({isPathQuery: objContent.pathQuery.checked});
     });
 }
@@ -114,11 +110,11 @@ function generalEvents(){
             signalSender('showOverlay', 'Preparing grid for hydrodynamic thermocline plot...');
             const titleX = 'Temperature (°C)', titleY = 'Depth (m)';
             setStateVisualization({isThemocline: true}); 
-            if (getStateVisualization().isPathQuery) deActivePathQuery();
+            if (getStateVisualization().isPathQuery) deActivePathQuery(mapObj);
             const chartTitle = 'Thermocline for Hydrodynamic Simulation';
             const key = 'thermocline_hyd', query = 'temp_multi_dynamic';
             await thermoclineGridCreator(
-                currentProject, map, key, query, titleX, titleY, chartTitle
+                currentProject, mapObj, key, query, titleX, titleY, chartTitle
             );
             signalSender('hideOverlay');
         }
@@ -134,13 +130,13 @@ function generalEvents(){
         const selected = e.target.value;
         if (selected === '') return;
         setStateVisualization({isThemocline: true}); 
-        if (getStateVisualization().isPathQuery) { deActivePathQuery(); }
+        if (getStateVisualization().isPathQuery) { deActivePathQuery(mapObj); }
         const titleX = e.target.options[e.target.selectedIndex].text, titleY = 'Depth (m)';
         const chartTitle = 'Vertical Profile for Water Quality Simulation';
         const key = 'thermocline_waq', query = `mesh2d_${selected}`;
         signalSender('showOverlay', 'Preparing grid for water quality thermocline plot...');
         await thermoclineGridCreator(
-            currentProject, map, key, query, titleX, titleY, chartTitle
+            currentProject, mapObj, key, query, titleX, titleY, chartTitle
         );
         signalSender('hideOverlay'); objContent.thermoclineOptions.style.display = 'none';
     });
@@ -152,13 +148,13 @@ function generalEvents(){
 }
 
 // Create grid for thermocline plot and add click event to each cell
-async function thermoclineGridCreator(currentProject, map, key, query, titleX, titleY, chartTitle) {
+async function thermoclineGridCreator(currentProject, mapObject, key, query, titleX, titleY, chartTitle) {
     const content = { key: key, query: query, type: 'thermocline_grid', projectName: currentProject };
     const data = await jsonLoader('select_thermocline', content);
     if (data.status === "error") {
         signalSender('hideOverlay'); alert(data.message); return;
     }
-    gridLayer = clearMap(gridLayer, map);
+    gridLayer = clearMap(gridLayer, mapObject);
     gridLayer = L.geoJSON(data.content, {
         style: {color: 'black', weight: 1},
         onEachFeature: function (feature, layer) {
@@ -210,7 +206,7 @@ async function thermoclineGridCreator(currentProject, map, key, query, titleX, t
                 }, 200);
             });
         }
-    }).addTo(map);
+    }).addTo(mapObject);
 }
 
 // Load hydrodynamic observation points
@@ -218,8 +214,9 @@ async function loadHYDStations() {
     signalSender('showOverlay', 'Reading Hydrodynamic Observation Points from Database.\nPlease wait...');
     const content = { projectName: currentProject, key: 'hyd_station' };
     const data = await jsonLoader('process_data', content); // Load data
+    signalSender('hideOverlay');    
     if (data.status === "error") { alert(data.message); return; }
-    if (getStateVisualization().hydLayer) { map.removeLayer(getStateVisualization().hydLayer); }
+    if (getStateVisualization().hydLayer) { mapObj.removeLayer(getStateVisualization().hydLayer); }
     // Add station layer to the map
     const indx = data.message;
     const layer = L.geoJSON(data.content, {
@@ -252,8 +249,7 @@ async function loadHYDStations() {
             return marker;
         }
     });
-    map.addLayer(layer); map.setView(layer.getBounds().getCenter(), ZOOM);
-    signalSender('hideOverlay');
+    mapObj.addLayer(layer); mapObj.setView(layer.getBounds().getCenter(), ZOOM);
     return layer;
 }
 
@@ -262,8 +258,9 @@ async function loadSourceStations() {
     signalSender('showOverlay', 'Reading Sources/Sinks from Database.\nPlease wait...');
     const content = { projectName: currentProject, key: 'sources' };
     const data = await jsonLoader('process_data', content);
+    signalSender('hideOverlay');    
     if (data.status === "error") { alert(data.message); return; }
-    if (getStateVisualization().sourceLayer) { map.removeLayer(getStateVisualization().sourceLayer); }
+    if (getStateVisualization().sourceLayer) { mapObj.removeLayer(getStateVisualization().sourceLayer); }
     const layer = L.geoJSON(data.content, {
         pointToLayer: function (feature, latlng) {
             const customIcon = L.icon({
@@ -279,8 +276,7 @@ async function loadSourceStations() {
             return marker;
         }
     });
-    map.addLayer(layer); map.setView(layer.getBounds().getCenter(), ZOOM);
-    signalSender('hideOverlay');
+    mapObj.addLayer(layer); mapObj.setView(layer.getBounds().getCenter(), ZOOM);
     return layer;
 }
 
@@ -289,8 +285,9 @@ async function loadCrossSection() {
     signalSender('showOverlay', 'Reading Cross-Sections from Database.\nPlease wait...');
     const content = { projectName: currentProject, key: 'crosssections' };
     const data = await jsonLoader('process_data', content);
-    if (data.status === "error") { alert(data.message); showLeafletMap(); return; }
-    if (getStateVisualization().crosssectionLayer) { map.removeLayer(getStateVisualization().crosssectionLayer); }
+    signalSender('hideOverlay');
+    if (data.status === "error") { alert(data.message); return; }
+    if (getStateVisualization().crosssectionLayer) { mapObj.removeLayer(getStateVisualization().crosssectionLayer); }
     const indx = data.message;
     const layer = L.geoJSON(data.content, { 
         color: 'blue', weight: 3,
@@ -314,8 +311,7 @@ async function loadCrossSection() {
             layer.bindPopup(popupContent, {offset: [0, 40]});      
         }
     });
-    map.addLayer(layer); map.setView(layer.getBounds().getCenter(), ZOOM);
-    signalSender('hideOverlay');
+    mapObj.addLayer(layer); mapObj.setView(layer.getBounds().getCenter(), ZOOM);
     return layer;
 }
 
@@ -323,8 +319,9 @@ async function loadWAQStations() {
     signalSender('showOverlay', 'Loading Water Quality Observation Points from Database.\nPlease wait...');
     const content = { projectName: currentProject, key: 'wq_obs' };
     const data = await jsonLoader('process_data', content);
+    signalSender('hideOverlay');    
     if (data.status === "error") { alert(data.message); return; }
-    if (getStateVisualization().wqObsLayer) { map.removeLayer(getStateVisualization().wqObsLayer); }
+    if (getStateVisualization().wqObsLayer) { mapObj.removeLayer(getStateVisualization().wqObsLayer); }
     const layer = L.geoJSON(data.content, {
         // Custom marker icon
         pointToLayer: function (feature, latlng) {
@@ -344,8 +341,7 @@ async function loadWAQStations() {
             return marker;
         }
     });
-    map.addLayer(layer); map.setView(layer.getBounds().getCenter(), ZOOM);
-    signalSender('hideOverlay');
+    mapObj.addLayer(layer); mapObj.setView(layer.getBounds().getCenter(), ZOOM);
     return layer;
 }
 
@@ -353,8 +349,9 @@ async function loadWAQLoads() {
     signalSender('showOverlay', 'Loading Loads of Water Quality Observation Points from Database.\nPlease wait...');
     const content = { projectName: currentProject, key: 'wq_loads' };
     const data = await jsonLoader('process_data', content);
+    signalSender('hideOverlay');    
     if (data.status === "error") { alert(data.message); return; }
-    if (getStateVisualization().wqLoadsLayer) { map.removeLayer(getStateVisualization().wqLoadsLayer); }
+    if (getStateVisualization().wqLoadsLayer) { mapObj.removeLayer(getStateVisualization().wqLoadsLayer); }
     const layer = L.geoJSON(data.content, {
         // Custom marker icon
         pointToLayer: function (feature, latlng) {
@@ -374,18 +371,17 @@ async function loadWAQLoads() {
             return marker;
         }
     });
-    map.addLayer(layer); map.setView(layer.getBounds().getCenter(), ZOOM);
-    signalSender('hideOverlay');
+    mapObj.addLayer(layer); mapObj.setView(layer.getBounds().getCenter(), ZOOM);
     return layer;
 }
 
-export function deActivePathQuery() {
+export function deActivePathQuery(mapObject) {
     if (objContent.pathQuery !== null) { objContent.pathQuery.checked = false; }
     setStateVisualization({isPathQuery: false});
-    if (pathLine) { map.removeLayer(pathLine); pathLine = null;}
-    selectedMarkers.forEach(m => map.removeLayer(m));
+    if (pathLine) { mapObject.removeLayer(pathLine); pathLine = null;}
+    selectedMarkers.forEach(m => mapObject.removeLayer(m));
     selectedMarkers = []; pointContainer = [];
-    map.getContainer().style.cursor = ""; 
+    mapObject.getContainer().style.cursor = ""; 
     setStateVisualization({mapLayer: null});
 }
 
@@ -418,6 +414,7 @@ async function mapPath(e) {
             plotProfileMultiLayer(currentProject, obj.profileContainer, key, query, data.content, title, unit);
             signalSender('hideOverlay');
         }
+        pointContainer = [];
     }
     // Left-click
     if (e.type === "click" && e.originalEvent.button === 0) {
@@ -427,18 +424,46 @@ async function mapPath(e) {
                 // Add marker
                 marker = L.circleMarker(e.latlng, {
                     radius: 5, color: 'blue', fillColor: 'cyan', fillOpacity: 0.9
-                }).addTo(map);
+                }).addTo(mapObj);
                 selectedMarkers.push(marker);
                 // Add point
                 pointContainer.push({ lat: e.latlng.lat, lng: e.latlng.lng });
                 // Plot line
                 const latlngs = pointContainer.map(p => [p.lat, p.lng]);
-                if (pathLine) { pathLine.setLatLngs(latlngs);
+                if (pathLine && mapObj.hasLayer(pathLine)) { pathLine.setLatLngs(latlngs);
                 } else { pathLine = L.polyline(latlngs, { 
-                    color: 'orange', weight: 2, dashArray: '5,5' }).addTo(map); 
+                    color: 'orange', weight: 2, dashArray: '5,5' }).addTo(mapObj); 
                 }
             }
         }
         setStateVisualization({isClickedInsideLayer: false}); // Reset clicked inside layer
     }
+}
+
+function checkUpdater(setLayer, objCheckbox, checkFunction){
+    objCheckbox.checked = getStateVisualization()[setLayer] !== null;
+    objCheckbox.addEventListener('change', async (e) => {
+        if (e.target.checked) { 
+            const layer = await checkFunction();
+            setStateVisualization({[setLayer]: layer});
+        } else { 
+            const currentLayer = getStateVisualization()[setLayer];
+            if (currentLayer) { mapObj.removeLayer(currentLayer); }
+            setStateVisualization({[setLayer]: null}); }
+    });
+}
+
+function mapOptions(mapObject) {
+    mapObject.on('mousemove', function (e) { 
+        if (getStateVisualization().isPathQuery) {
+            html = `- Click the left mouse button to draw a profile.<br>- Right-click to finish.`;
+        } else if (getStateVisualization().isThemocline) {
+            html = `- Click the left mouse button to select a point.<br>- Then change the name (optional).`;
+        } else { 
+            mapObject.closeTooltip(hoverTooltip); 
+            mapObject.getContainer().style.cursor = ""; return; 
+        }
+        hoverTooltip.setLatLng(e.latlng).setContent(html);
+        mapObject.openTooltip(hoverTooltip);
+    });
 }

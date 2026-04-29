@@ -21,6 +21,7 @@ export async function plotTimeSeries(plotContainer, title, data, titleChart,
         chartDiv: $("#myChart"), viewDataBtn: $("#viewDataBtn"),
         downloadBtn: $("#downloadExcel")
     };
+    
     // Draw the chart using Plotly
     let checkboxInputs = obj.checkboxList.querySelectorAll('input[type="checkbox"]');
     if (selectedColumns === null) { checkboxInputs = []; checkboxInputs.legend = 0; }
