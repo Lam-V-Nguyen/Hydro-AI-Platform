@@ -13,7 +13,7 @@ const githubCache = {}, pendingRequests = new Map();
 let currentProject, waqModel, currentParams, isLoaded = false, userName = null;
 // const exits = ['hyd-plot-source', 'hyd-plot-meteo', 'run-hyd', 'run-waq'];
 
-
+// initRequestListener();
 
 await login(); await projectChecker(); loadWidget();
 widgetMenuManager(); updateComponent(); 
@@ -157,11 +157,10 @@ function updateComponent() {
                 content: event.data.content
             });
         } else if (event.data.type === 'flowOptions') { 
-            console.log('mainManager', event.data);
             const requestId = event.data.content?.requestId;
             if (requestId) pendingRequests.set(requestId, { source: event.source });
             const req = { 
-                source: event.source, requestId: requestId, content: event.data.content
+                source: event.source, requestId: event.data.type, content: event.data.content
             }
             // setPendingRequest(req); 
             renderPreview(req);

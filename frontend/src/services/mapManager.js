@@ -1,11 +1,15 @@
 import { CENTER, ZOOM, L, getPendingRequest, clearPendingRequest, origin } from "./constant.js";
 import { signalSender } from "./commonFunctions.js";
+import { updateColorbar } from "./unstructuredGrid.js";
 
 export let currentMap;
 let currentTileLayer = null, timeCounter = null, html='', markersObs = [], 
     markerCrossSection = [], currentPoints = [], markerBoundary = [], 
     pathCrossSection = null, pathBoundary = null, currentPointsCross = [], 
-    currentPointsBoundary = [], waqObs = [], waqLoads = [];
+    currentPointsBoundary = [], waqObs = [], waqLoads = [], 
+    catchmentLayer = null, markerLayer = null, terrainLayer = null, 
+    fillLayer = null, flowDirectionLayer = null, flowAccumulationLayer = null, 
+    lastLayer = null, layer = null;
 const configCrossSectionPoint = { color: 'blue', fillColor: 'yellow', radius: 4, fill: true, fillOpacity: 1 }, 
     configBoundaryPoint = { color: 'red', fillColor: 'green', radius: 4, fill: true, fillOpacity: 1 }, 
     configCrossSectionPath = { color: 'blue', weight: 2, dashArray: '5,5' }, 
@@ -100,10 +104,123 @@ export async function renderPreview(request=null) {
             iconAdd(iconUrl, waqLoads, currentMap, request.content.rows);
         }
     } else if (type === 'flowOptions') {
-        const layer = request.content;
-        console.log('mapManager', layer);
-    //     if (layer === 'vertexGrid') {
-    //         pointLayer = clearMap(pointLayer, currentMap);
+        const key = request.content.key;
+        if (key === 'catchmentLayer') {
+            catchmentLayer = clearMap(catchmentLayer, currentMap);
+        } else if (key === 'drawCatchment') {
+            catchmentLayer = clearMap(catchmentLayer, currentMap);
+            catchmentLayer = L.geoJSON(
+                request.content.data, { style: { color: 'red', weight: 2, opacity: 1 }}
+            ).addTo(currentMap);
+            const bounds = catchmentLayer.getBounds();
+            if (bounds.isValid()) { 
+                setTimeout(() => { 
+                    currentMap.invalidateSize(); currentMap.fitBounds(bounds); 
+                }, 0);
+            }
+        } else if (key === 'hideColorbar') {
+            const colorBar = document.querySelector('.custom-colorbar');
+            if (colorBar) colorBar.style.display = 'none';
+        } else if (key === 'markerLayer') {
+            markerLayer = clearMap(markerLayer, currentMap);
+        } else if (key === 'lastLayer') {
+            lastLayer = clearMap(lastLayer, currentMap);
+        } else if (key === 'drawTerrain') {
+            terrainLayer = clearMap(terrainLayer, currentMap);
+            terrainLayer = L.tileLayer(
+                request.content.data, { tileSize: 256, opacity: 1 }
+            ).addTo(currentMap);
+            
+            colorbarReset(request.content.min, request.content.max, request.content.title, request.content.colorKey);
+            setTimeout(() => { currentMap.invalidateSize(); }, 100);
+            // console.log('terrainLayer', terrainLayer);
+            // console.log('currentMap', currentMap);
+        
+            
+
+
+
+
+
+
+
+        } else if (key === 'drawLayer') {
+            const content = {
+                requestId: request.content.requestId, checked: null, ok: true, layer: null
+            }
+            const drawConfig = {
+                drawTerrain: {
+                    getLayer: () => terrainLayer, setLayer: (l) => terrainLayer = l,
+                    label: 'Raw Terrain (m)', type: 'terrain',
+                    alert: 'Please upload terrain data first.'
+                },
+                drawFill: {
+                    getLayer: () => fillLayer, setLayer: (l) => fillLayer = l,
+                    label: 'Filled Terrain (m)', type: 'terrain',
+                    alert: 'Please upload terrain data and run "Fill sinks/depressions" first.'
+                },
+                drawFlowDirection: {
+                    getLayer: () => flowDirectionLayer, setLayer: (l) => flowDirectionLayer = l,
+                    label: 'Flow direction (D8 code)', type: 'flow_direction',
+                    alert: 'Please upload terrain data and run "Flow direction" first.'
+                },
+                drawFlowAccumulation: {
+                    getLayer: () => flowAccumulationLayer, setLayer: (l) => flowAccumulationLayer = l,
+                    label: 'Flow accumulation', type: 'flow_accumulation',
+                    alert: 'Please upload terrain data and run "Flow accumulation" first.'
+                },
+                createCatchment: {
+                    getLayer: () => catchmentLayer, setLayer: (l) => catchmentLayer = l,
+                    label: 'Catchment', type: 'catchment',
+                    alert: 'Please upload terrain data and run "Catchment" first.'
+                }
+            }
+            const config = drawConfig[request.content.layer];
+            if (!config) return;
+            if (request.content.init === '1') {
+                const newLayer = L.tileLayer(request.content.data, { tileSize: 256 });
+                const cleared = clearMap(config.getLayer(), currentMap);
+                config.setLayer(newLayer.addTo(currentMap));
+            } else if (request.content.init === '0') {
+                const existing = config.getLayer();
+                if (existing) { 
+                    layer = existing; content.layer = true;
+                    colorbarReset(
+                        request.content.min, request.content.max, 
+                        config.label, config.type
+                    );
+                } else { 
+                    alert(config.alert); 
+                    content.checked = false; content.ok = false;
+                }
+            }
+            signalSender('updateUIState', content); return;
+        } else if (key === 'reCheck') {
+            if (request.content.ok) {
+                if (lastLayer) lastLayer.remove();
+                if (layer) layer.addTo(currentMap); lastLayer = layer; 
+            } else {
+                if (lastLayer) lastLayer.addTo(currentMap)
+            }
+
+
+
+
+
+
+
+
+            
+        } else if (key === 'clearAll') {
+            [terrainLayer, fillLayer, flowDirectionLayer, flowAccumulationLayer, catchmentLayer
+            ].forEach(layer => { if (layer) layer.remove(); });
+
+
+
+
+
+
+
     //         pointLayer = addPointLayer(
     //             request.content.currentProject, request.content.points, 
     //             currentMap, request.content.key, request.content.move
@@ -120,11 +237,22 @@ export async function renderPreview(request=null) {
     //             requestId: request.content.requestId, isPointLayer: isPointLayer
     //         });
 
-    //     }
+        }
 
         signalSender('updateUIState', { requestId: request.content.requestId });
     }
 }
+
+function colorbarReset(vmin, vmax, title, colorKey) {
+    const colorBar = document.querySelector('.custom-colorbar');
+    if (!colorBar) return;
+    const colorbarTitle = colorBar.querySelector(".colorbar-title");
+    const colorbarColor = colorBar.querySelector(".colorbar-gradient");
+    const colorbarLabel = colorBar.querySelector(".colorbar-labels");
+    colorBar.style.display = 'flex';
+    updateColorbar(vmin, vmax, title, colorKey, colorbarColor, colorbarTitle, colorbarLabel);
+}
+
 
 export function initMap(mapId='map') { 
     currentMap = L.map(`leaflet-${mapId}`, {

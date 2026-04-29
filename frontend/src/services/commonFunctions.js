@@ -448,17 +448,17 @@ export function sendRequest(type, content) {
         }, 10000);
     });
 }
-// export function initRequestListener() {
-//     window.addEventListener('message', (e) => {
-//         if (e.data?.type === 'updateReturn' && e.data.requestId) {
-//             const pending = pendingRequests.get(e.data.requestId);
-//             if (pending) {
-//                 pending.resolve(e.data.content);
-//                 pendingRequests.delete(e.data.requestId);
-//             }
-//         }
-//     });
-// }
+export function initRequestListener() {
+    window.addEventListener('message', (e) => {
+        if (e.data?.type === 'updateReturn' && e.data.requestId) {
+            const pending = pendingRequests.get(e.data.requestId);
+            if (pending) {
+                pending.resolve(e.data.content);
+                pendingRequests.delete(e.data.requestId);
+            }
+        }
+    });
+}
 
 // Split lines into smaller segments and sort by distance
 export function splitLines(pointContainer, polygonCentroids, subset_dis) {

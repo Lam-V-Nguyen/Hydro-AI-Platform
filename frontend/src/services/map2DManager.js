@@ -122,9 +122,8 @@ export async function plot2DMapStatic(
     signalSender('showOverlay', 'Preparing Static Map.\nPlease wait...');
     const content = { query: key, projectName: currentProject, key: 'static' };
     const data = await jsonLoader('process_data', content);
-    if (data.status === 'error') { 
-        signalSender('hideOverlay'); alert(data.message); return; 
-    }
+    signalSender('hideOverlay');
+    if (data.status === 'error') { alert(data.message); return; }
     setStateVisualization({isPlaying: false});
     // Hide timeslider
     timeControl.style.display = 'none'; substanceContainer.style.display = 'none';
@@ -132,7 +131,7 @@ export async function plot2DMapStatic(
     const vmin = data.content.min_max[0], vmax = data.content.min_max[1];
     const meshes = data.content.meshes, values = data.content.values;
     layerMap = layerCreator(colorbarContainer, map, meshes, values, key, vmin, vmax, legend, colorbarKey);
-    map.addLayer(layerMap); signalSender('hideOverlay');
+    map.addLayer(layerMap);
 }
 
 function buildFrameData(data) {
@@ -315,9 +314,8 @@ export async function plot2DMapDynamic(projectName, map, timeControl, colorbarCo
     // Process below layer
     const content = { query: `${query}|load`, key: key, projectName: projectName };
     const dataBelow = await jsonLoader('load_general_dynamic', content);
-    if (dataBelow.status === 'error') { 
-        signalSender('hideOverlay'); alert(dataBelow.message); return; 
-    }
+    signalSender('hideOverlay');
+    if (dataBelow.status === 'error') { alert(dataBelow.message); return; }
     data_below = dataBelow.content; data_below.values = decodeArray(data_below.values, 3);
     // If data is water depth, reverse values in below layer    
     if (key === 'wd_single_dynamic') {
@@ -346,20 +344,19 @@ export async function plot2DMapDynamic(projectName, map, timeControl, colorbarCo
         scaleObj, query, key_below, key_above, data_below, data_above, colorbarTitle, 
         colorbarTitleAbove, colorbarKey, colorbarKeyAbove, vectorScaler
     );
-    signalSender('hideOverlay');
 }
 
 export async function plot2DVectorMap(projectName, map, timeControl, colorbarContainer, 
     colorbarVectorContainer, scaleObj, query, key, colorbarTitle, colorbarKey, vectorScaler) {
     signalSender('showOverlay', 'Preparing Dynamic Vector Map.\nPlease wait...');
     const data = await jsonLoader('load_vector_dynamic', {query: query, key: key, projectName: projectName});
-    if (data.status === 'error') { signalSender('hideOverlay'); alert(data.message); return; }
+    signalSender('hideOverlay'); 
+    if (data.status === 'error') { alert(data.message); return; }
     layerMap = clearMap(layerMap, map); layerAbove = clearMap(layerAbove, map);
     initDynamicMap(
         projectName, map, timeControl, colorbarContainer, colorbarVectorContainer, scaleObj,
         query, null, key, null, data.content, null, colorbarTitle, null, colorbarKey, vectorScaler
     );
-    signalSender('hideOverlay');
 }
 
 function initScaler(scaleObj) {
