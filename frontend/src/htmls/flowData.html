@@ -61,32 +61,32 @@
                             <div class="row">
                                 <button type="button" id="terrain-fill-btn">1. Fill sinks/depressions</button>
                                 <div class="row-radio" data-tab="terrain">
-                                    <input type="checkbox" id="terrain-fill">
+                                    <input type="radio" id="terrain-fill" name="terrain" value="terrain-fill">
                                     <label for="terrain-fill">Show/Hide</label>
                                 </div>
                             </div>
                             <div class="row">
                                 <button type="button" id="terrain-direction-btn">2. Flow direction</button>
                                 <div class="row-radio" data-tab="terrain">
-                                    <input type="checkbox" id="terrain-direction">
+                                    <input type="radio" id="terrain-direction" name="terrain" value="terrain-direction">
                                     <label for="terrain-direction">Show/Hide</label>
                                 </div>
                             </div>
                             <div class="row">
                                 <button type="button" id="terrain-accumulation-btn">3. Flow accumulation</button>
                                 <div class="row-radio" data-tab="terrain">
-                                    <input type="checkbox" id="terrain-accumulation">
+                                    <input type="radio" id="terrain-accumulation" name="terrain" value="terrain-accumulation">
                                     <label for="terrain-accumulation">Show/Hide</label>
                                 </div>
                             </div>
                         </div>
                         <div class="tile"><h3>Catchment Delineation</h3>
-                            <div class="row pourpoint-container" id="pourpoint-container" style="justify-content: center;">
+                            <div class="row pourpoint-container" style="justify-content: center;">
                                 <div class="row-radio" data-tab="terrain">
                                     <input type="checkbox" id="pourpoint-checkbox">
                                     <label for="pourpoint-checkbox">4. Select Pour point and Create Catchment</label>
                                 </div>
-                                <div class="pourpoint-group">
+                                <div class="pourpoint-group" id="pourpoint-container" style="display: none;">
                                     <div class="pourpoint-latlon">
                                         <input type="text" id="pourpoint-lat" placeholder="Latitude" readonly>
                                         <input type="text" id="pourpoint-lon" placeholder="Longitude" readonly>
@@ -104,7 +104,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="row">
+                                <div class="row" id="export-container" style="display: none;">
                                     <button type="button" id="export-catchment-btn" style="margin-top: '-30px';">
                                         Export Catchment (GeoJSON)
                                     </button>
@@ -123,7 +123,7 @@
 
             </div>
         </section>
-
+        
 
 
     </div>

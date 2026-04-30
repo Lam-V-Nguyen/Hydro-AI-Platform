@@ -24,6 +24,30 @@ def fill_sink(dtm_path:str, fill_path:str) -> None:
     inflated = grid.resolve_flats(dem=filled).astype('float32')
     file_writer(grid, inflated, fill_path)
 
+def flow_direction(fill_path:str, flow_path:str) -> None:
+    grid = Grid.from_raster(data=fill_path, nodata=-9999)
+    fill = grid.read_raster(data=fill_path)
+    flow = grid.flowdir(dem=fill, routing='d8').astype('int16')
+    file_writer(grid, flow, flow_path)
+
+def flow_accumulation(flow_path:str, acc_path:str) -> None:
+    grid = Grid.from_raster(data=flow_path, nodata=-9999)
+    flow_dir = grid.read_raster(data=flow_path)
+    acc = grid.accumulation(fdir=flow_dir, routing='d8').astype('float32')
+    file_writer(grid, acc, acc_path)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

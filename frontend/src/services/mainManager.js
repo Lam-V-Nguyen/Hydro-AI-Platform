@@ -157,13 +157,17 @@ function updateComponent() {
                 content: event.data.content
             });
         } else if (event.data.type === 'flowOptions') { 
+            console.log('mainManager1', event.data.content);
             const requestId = event.data.content?.requestId;
             if (requestId) pendingRequests.set(requestId, { source: event.source });
             const req = { 
-                source: event.source, requestId: event.data.type, content: event.data.content
-            }
-            // setPendingRequest(req); 
-            renderPreview(req);
+                source: event.source, requestId: event.data.type, 
+                Id: event.data.content.requestId,
+                content: event.data.content
+            };
+            renderPreview(req); setPendingRequest(req);
+            // if (event.data.content.key === 'pourpoint') { setPendingRequest(req); }
+            
 
 
 
@@ -174,6 +178,7 @@ function updateComponent() {
 
 
         } else if (event.data.type === 'updateUIState') {
+            console.log('updateUIState', event.data.content);
             const requestId = event.data.content?.requestId;
             if (requestId && pendingRequests.has(requestId)) {
                 const { source } = pendingRequests.get(requestId);

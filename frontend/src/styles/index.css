@@ -157,9 +157,9 @@ h3 {
   font-weight: bold; color: white; text-align: center;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
-.colorbar-gradient { width: 20px; height: 200px; border: 1px solid #ccc; background: #e0e0e0; }
+.colorbar-gradient { width: 15px; height: 190px; border: 1px solid #ccc; background: #e0e0e0; }
 .colorbar-labels {
-  height: 200px; display: flex; flex-direction: column; justify-content: space-between;
+  height: 190px; display: flex; flex-direction: column; justify-content: space-between;
   font-size: 15px; color: white; margin-left: 6px; text-align: left;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }

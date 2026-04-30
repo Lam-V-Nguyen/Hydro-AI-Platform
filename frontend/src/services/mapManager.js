@@ -6,10 +6,10 @@ export let currentMap;
 let currentTileLayer = null, timeCounter = null, html='', markersObs = [], 
     markerCrossSection = [], currentPoints = [], markerBoundary = [], 
     pathCrossSection = null, pathBoundary = null, currentPointsCross = [], 
-    currentPointsBoundary = [], waqObs = [], waqLoads = [], 
+    currentPointsBoundary = [], waqObs = [], waqLoads = [], mapContainer = null,
     catchmentLayer = null, markerLayer = null, terrainLayer = null, 
     fillLayer = null, flowDirectionLayer = null, flowAccumulationLayer = null, 
-    lastLayer = null, layer = null;
+    lastLayer = null, layer = null, isPourpointActive = false, lat=null, lon=null;
 const configCrossSectionPoint = { color: 'blue', fillColor: 'yellow', radius: 4, fill: true, fillOpacity: 1 }, 
     configBoundaryPoint = { color: 'red', fillColor: 'green', radius: 4, fill: true, fillOpacity: 1 }, 
     configCrossSectionPath = { color: 'blue', weight: 2, dashArray: '5,5' }, 
@@ -57,6 +57,7 @@ function lineAdd(pointContainer, map, lineType) {
 
 export async function renderPreview(request=null) {
     currentPoints.length = 0; if (!request) return;
+    console.log('renderPreview:', request);
     const type = request.requestId;
     if (type === 'pickPoint' || type === 'updateObsPoint') {
         const iconUrl = `/src_frontend/images/station.png?v=${Date.now()}`;
@@ -125,73 +126,54 @@ export async function renderPreview(request=null) {
             markerLayer = clearMap(markerLayer, currentMap);
         } else if (key === 'lastLayer') {
             lastLayer = clearMap(lastLayer, currentMap);
-        } else if (key === 'drawTerrain') {
-            terrainLayer = clearMap(terrainLayer, currentMap);
-            terrainLayer = L.tileLayer(
-                request.content.data, { tileSize: 256, opacity: 1 }
-            ).addTo(currentMap);
-            
-            colorbarReset(request.content.min, request.content.max, request.content.title, request.content.colorKey);
-            setTimeout(() => { currentMap.invalidateSize(); }, 100);
-            // console.log('terrainLayer', terrainLayer);
-            // console.log('currentMap', currentMap);
-        
-            
-
-
-
-
-
-
-
         } else if (key === 'drawLayer') {
             const content = {
-                requestId: request.content.requestId, checked: null, ok: true, layer: null
+                requestId: request.content.requestId, checked: null, ok: true, message: null
             }
             const drawConfig = {
                 drawTerrain: {
                     getLayer: () => terrainLayer, setLayer: (l) => terrainLayer = l,
-                    label: 'Raw Terrain (m)', type: 'terrain',
+                    title: 'Raw Terrain (m)', colorKey: 'terrain',
                     alert: 'Please upload terrain data first.'
                 },
                 drawFill: {
                     getLayer: () => fillLayer, setLayer: (l) => fillLayer = l,
-                    label: 'Filled Terrain (m)', type: 'terrain',
+                    title: 'Filled Terrain (m)', colorKey: 'terrain',
                     alert: 'Please upload terrain data and run "Fill sinks/depressions" first.'
                 },
                 drawFlowDirection: {
                     getLayer: () => flowDirectionLayer, setLayer: (l) => flowDirectionLayer = l,
-                    label: 'Flow direction (D8 code)', type: 'flow_direction',
-                    alert: 'Please upload terrain data and run "Flow direction" first.'
+                    title: 'Flow direction (D8 code)', colorKey: 'flow_direction',
+                    alert: 'Please upload terrain data, run "Fill sinks/depressions" and "Flow direction".'
                 },
                 drawFlowAccumulation: {
                     getLayer: () => flowAccumulationLayer, setLayer: (l) => flowAccumulationLayer = l,
-                    label: 'Flow accumulation', type: 'flow_accumulation',
-                    alert: 'Please upload terrain data and run "Flow accumulation" first.'
+                    title: 'Flow accumulation', colorKey: 'flow_accumulation',
+                    alert: 'Please upload terrain data, run "Fill sinks/depressions", "Flow direction" and "Flow accumulation".'
                 },
                 createCatchment: {
                     getLayer: () => catchmentLayer, setLayer: (l) => catchmentLayer = l,
-                    label: 'Catchment', type: 'catchment',
+                    title: 'Catchment', colorKey: 'catchment',
                     alert: 'Please upload terrain data and run "Catchment" first.'
                 }
             }
             const config = drawConfig[request.content.layer];
-            if (!config) return;
+            if (!config) return
             if (request.content.init === '1') {
-                const newLayer = L.tileLayer(request.content.data, { tileSize: 256 });
-                const cleared = clearMap(config.getLayer(), currentMap);
-                config.setLayer(newLayer.addTo(currentMap));
+                lastLayer = clearMap(lastLayer, currentMap);
+                lastLayer = L.tileLayer(request.content.data, { tileSize: 256, opacity: 1 }).addTo(currentMap);
+                config.setLayer(lastLayer);
+                colorbarReset(request.content.min, request.content.max, config.title, config.colorKey);
+                setTimeout(() => { currentMap.invalidateSize(); }, 100);
             } else if (request.content.init === '0') {
                 const existing = config.getLayer();
                 if (existing) { 
-                    layer = existing; content.layer = true;
+                    layer = existing; layer.addTo(currentMap);
                     colorbarReset(
-                        request.content.min, request.content.max, 
-                        config.label, config.type
+                        request.content.min, request.content.max, config.title, config.colorKey
                     );
                 } else { 
-                    alert(config.alert); 
-                    content.checked = false; content.ok = false;
+                    content.checked = false; content.ok = false; content.message = config.alert;
                 }
             }
             signalSender('updateUIState', content); return;
@@ -199,25 +181,27 @@ export async function renderPreview(request=null) {
             if (request.content.ok) {
                 if (lastLayer) lastLayer.remove();
                 if (layer) layer.addTo(currentMap); lastLayer = layer; 
-            } else {
-                if (lastLayer) lastLayer.addTo(currentMap)
-            }
-
-
-
-
-
-
-
-
-            
+            } else { if (lastLayer) lastLayer.addTo(currentMap) }
         } else if (key === 'clearAll') {
             [terrainLayer, fillLayer, flowDirectionLayer, flowAccumulationLayer, catchmentLayer
-            ].forEach(layer => { if (layer) layer.remove(); });
+            ].forEach(layer => { if (layer) clearMap(layer, currentMap); });
+            const colorBar = document.querySelector('.custom-colorbar');
+            if (colorBar) colorBar.style.display = 'none';
+        } else if (key === 'pourpoint') {
+            const checked = request.content.checked;
+            const content = {requestId: request.content.requestId};
+            if (checked) {
+                isPourpointActive = true; mapContainer.style.cursor = 'crosshair';
+            } else {
+                isPourpointActive = false; lat = null; lon = null;
+                mapContainer.style.cursor = '';
+            }
+            clearPendingRequest();
+            
 
 
 
-
+            // signalSender('updateUIState', content); return;
 
 
 
@@ -249,8 +233,8 @@ function colorbarReset(vmin, vmax, title, colorKey) {
     const colorbarTitle = colorBar.querySelector(".colorbar-title");
     const colorbarColor = colorBar.querySelector(".colorbar-gradient");
     const colorbarLabel = colorBar.querySelector(".colorbar-labels");
-    colorBar.style.display = 'flex';
     updateColorbar(vmin, vmax, title, colorKey, colorbarColor, colorbarTitle, colorbarLabel);
+    colorBar.style.display = 'flex';
 }
 
 
@@ -281,7 +265,7 @@ export function initMap(mapId='map') {
             baseMapPopup.classList.remove('show'); 
         } 
     });
-    const mapContainer = currentMap.getContainer();
+    mapContainer = currentMap.getContainer();
     currentMap.on('mousemove', (e) => { 
         const req = getPendingRequest();
         if (!req) return;
@@ -299,20 +283,11 @@ export function initMap(mapId='map') {
         } else if (req.requestId === 'waqPoint') { html = 'Select a WAQ observation point';
         } else if (req.requestId === 'loadsPoint') { html = 'Select a WAQ load point';
         } else if (req.requestId === 'drawChecked') { html = 'Draw a polygon using the left mouse button';
-        // } else if (req.requestId === 'gridOptions') { 
-        //     if (req.content.key === 'moveChecked' && req.content.move && req.content.layer === 'vertexGrid') {
-        //         mapContainer.style.cursor = 'move';
-        //         html = 'Move a vertex using the left mouse button';
-        //     } else if (refinedChecked) {
-        //         if (currentPoints.length === 0) { html = "Select start point to refine."; }
-
-
-
-        //     } else {
-        //         mapContainer.style.cursor = ''; 
-        //         currentMap.closeTooltip(hoverTooltip);
-        //         currentMap.removeLayer(hoverTooltip);
-        //     }
+        } else if (req.requestId === 'flowOptions') { 
+            if (isPourpointActive) { html = "Click to set the pourpoint coordinates.";
+            } else {
+                mapContainer.style.cursor = ''; currentMap.closeTooltip(hoverTooltip);
+            }
             
 
         } else if (req.requestId === 'updateObsPoint') { 
@@ -351,7 +326,24 @@ export function initMap(mapId='map') {
                 line = L.polyline(latlngs, configPath).addTo(currentMap);
                 if (isCross) { pathCrossSection = line; } else { pathBoundary = line; }
             }
-        } else if (req.requestId === 'gridOptions') {
+        } else if (req.content.key === 'pourpoint') {
+            if (isPourpointActive) { 
+                result = e.latlng;
+                markerLayer = clearMap(markerLayer, currentMap);
+                markerLayer = L.circleMarker(e.latlng, {
+                    radius: 4, fillColor: 'blue', color: 'red', weight: 2, opacity: 1, fillOpacity: 1
+                }).addTo(currentMap);
+                console.log('OK', req);
+                signalSender('updateUIState', { requestId: req.content.requestId, result: result }); return;
+            
+            
+            }
+            
+            
+            
+            
+            
+            isPourpointActive = false; 
             // if (req.content.key === 'refineChecked' && req.content.checked) {
             //     // if (!currentPoints.includes(feature.properties.id)) { pointContainer.push(feature.properties.id); }
             //     // if (currentPoints.length === 1) { html = "Select end point to refine."; }
