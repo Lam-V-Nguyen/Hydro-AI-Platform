@@ -10,7 +10,8 @@ const widgetMenu = document.getElementById("widgetMenu");
 const menuContainer = document.getElementById('menu-container');
 
 const githubCache = {}, pendingRequests = new Map();
-let currentProject, waqModel, currentParams, isLoaded = false, userName = null;
+let currentProject, waqModel, currentParams, isLoaded = false, 
+    userName = null, prevSource = null;
 // const exits = ['hyd-plot-source', 'hyd-plot-meteo', 'run-hyd', 'run-waq'];
 
 // initRequestListener();
@@ -157,16 +158,13 @@ function updateComponent() {
                 content: event.data.content
             });
         } else if (event.data.type === 'flowOptions') { 
-            console.log('mainManager1', event.data.content);
-            const requestId = event.data.content?.requestId;
-            if (requestId) pendingRequests.set(requestId, { source: event.source });
+            const { requestId } = event.data.content;
+            pendingRequests.set(requestId, { source: event.source });
             const req = { 
-                source: event.source, requestId: event.data.type, 
-                Id: event.data.content.requestId,
-                content: event.data.content
+                source: event.source, requestId: requestId,
+                content: event.data.content, type: event.data.type
             };
             renderPreview(req); setPendingRequest(req);
-            // if (event.data.content.key === 'pourpoint') { setPendingRequest(req); }
             
 
 
@@ -178,14 +176,18 @@ function updateComponent() {
 
 
         } else if (event.data.type === 'updateUIState') {
-            console.log('updateUIState', event.data.content);
-            const requestId = event.data.content?.requestId;
+            const { requestId, result } = event.data.content;
             if (requestId && pendingRequests.has(requestId)) {
                 const { source } = pendingRequests.get(requestId);
+                prevSource = source;
                 source.postMessage({ type: 'updateReturn', 
                     content: event.data.content, requestId: requestId
                 }, origin);
                 pendingRequests.delete(requestId);
+            } else {
+                prevSource.postMessage({ type: 'updateUIDelay', 
+                    content: event.data.content,
+                }, origin);
             }
         }
     });

@@ -6,6 +6,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
+    
 
 # Import internally backend modules
 from config import SOURCE_BACKEND, SOURCE_FRONTEND, lifespan

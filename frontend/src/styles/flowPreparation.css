@@ -39,11 +39,32 @@ body {
   display: flex; flex-direction: column;
   gap: 4px; min-width: 0; 
 }
-.pourpoint-latlon {
-  align-self: start;
+.pourpoint-latlon { align-self: start; }
+.pourpoint-latlon input { height: auto; align-self: flex-start; }
+
+.data-link {
+  margin-top: 10px; font-size: 15px; color: aqua; 
+  text-decoration: underline; cursor: pointer;
+}
+.data-link:hover {color: yellow;}
+
+.initial-conditions-tile { 
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  display: grid; gap: 10px 10px; width: 100%; column-gap: 20px;
+}
+.initial-conditions-tile h3 { grid-column: 1 / -1; }
+.initial-conditions-tile .single-row {
+  display: flex; align-items: center; gap: 8px; margin: 10px 0;
+}
+.initial-conditions-tile .single-row label {
+  width: 200px; flex-shrink: 0; font-size: 16px;
+}
+.initial-conditions-tile .single-row input {
+  flex: 1 1 auto; padding: 8px 12px; border-radius: 12px; width: 50px;
+  border: 1px solid var(--border); background: var(--card); 
+  color: var(--text); outline: none; text-align: center; min-width: 0;
 }
 
-.pourpoint-latlon input {
-  height: auto; align-self: flex-start;
-}
+
+
 

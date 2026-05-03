@@ -450,11 +450,12 @@ export function sendRequest(type, content) {
 }
 export function initRequestListener() {
     window.addEventListener('message', (e) => {
-        if (e.data?.type === 'updateReturn' && e.data.requestId) {
-            const pending = pendingRequests.get(e.data.requestId);
+        const { type, requestId, content } = e.data || {};
+        if (type === 'updateReturn' && requestId) {
+            const pending = pendingRequests.get(requestId);
             if (pending) {
-                pending.resolve(e.data.content);
-                pendingRequests.delete(e.data.requestId);
+                pending.resolve(content);
+                pendingRequests.delete(requestId);
             }
         }
     });

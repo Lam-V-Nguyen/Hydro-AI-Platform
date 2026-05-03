@@ -1,24 +1,23 @@
-import os, json, traceback, mercantile, rasterio, shutil, io
+import os, json, traceback, mercantile, rasterio, shutil, io, sknw
 from fastapi import APIRouter, Request, Depends, UploadFile, File, Form, Response
 from fastapi.responses import JSONResponse
-import geopandas as gpd, numpy as np, matplotlib.cm as cm
+import geopandas as gpd, numpy as np, matplotlib.cm as cm, pandas as pd
 from config import PROJECT_ROOT
 from rasterio.enums import Resampling
 from rasterio.warp import calculate_default_transform, reproject
+from rasterio.features import shapes
+from shapely.geometry import shape, LineString
+from shapely.ops import unary_union, linemerge
 from PIL import Image
+from skimage.morphology import skeletonize
 from services import functions, flow_functions
 
-
-
-
-
 router = APIRouter()
-
 
 @router.get("/{name:path}/terrain/{key}/{folder}/{filename}/{z}/{x}/{y}.png")
 def terrain_tiles(name: str, key: str, folder: str, filename: str, z: int, x: int, y: int):
     try:
-        project = name #.replace("*", "/")
+        project = name
         tif_folder = os.path.normpath(os.path.join(PROJECT_ROOT, project, 'flows', "terrains", folder))
         tif_path = os.path.normpath(os.path.join(tif_folder, filename))
         if not os.path.exists(tif_path):
@@ -240,6 +239,163 @@ async def flow_accumulation(request: Request, user=Depends(functions.basic_auth)
         print('/flow_accumulation:\n==============')
         traceback.print_exc()
         return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
+
+@router.post("/catchment")
+async def catchment(request: Request, user=Depends(functions.basic_auth)):
+    try:
+        body = await request.json()
+        file_name, lat, lon = body.get('filename'), body.get('lat'), body.get('lon')
+        threshold, snap_distance = float(body.get('threshold')), float(body.get('snapDistance'))
+        folder = file_name.rstrip(".tif")
+        flowdir_name, flowacc_name = f"{folder}_flowdir.tif", f"{folder}_flowacc.tif"
+        catchment_name = f"{folder}_catchment.tif"
+        project_name, _ = functions.project_definer(body.get('projectName'), user)
+        flow_dir = os.path.normpath(os.path.join(PROJECT_ROOT, project_name, "flows"))
+        os.makedirs(flow_dir, exist_ok=True)
+        dir = os.path.normpath(os.path.join(flow_dir, "terrains", folder))
+        flowdir_path = os.path.normpath(os.path.join(dir, flowdir_name))
+        flowacc_path = os.path.normpath(os.path.join(dir, flowacc_name))
+        catchment_path = os.path.normpath(os.path.join(dir, catchment_name))
+        if os.path.exists(catchment_path): functions.safe_remove(catchment_path)
+        catchment = flow_functions.watershed(flowdir_path, flowacc_path, lat, lon, threshold, snap_distance)
+        if catchment.empty: return JSONResponse({'status': 'error', 'message': 'No catchment found.'})
+        return JSONResponse({'status': 'ok', 'content': json.loads(catchment.to_json())})
+    except Exception as e:
+        print('/catchment:\n==============')
+        traceback.print_exc()
+        return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
+
+@router.post("/data_upload")
+async def data_upload(file: UploadFile = File(...), projectName: str = Form(...),
+    key: str = Form(...), user=Depends(functions.basic_auth)):
+    try:
+        project_name, _ = functions.project_definer(projectName, user)
+        flow_dir = os.path.normpath(os.path.join(PROJECT_ROOT, project_name, "flows"))
+        os.makedirs(flow_dir, exist_ok=True)
+        if key == "soil": 
+            folder, func_codes = "soils", flow_functions.soil_codes
+            func_types = flow_functions.soil_types
+            new_cols = ["theta_s", "theta_r", "k_sat_ver", "soil_depth", "conductivity_decay", "brooks_corey"]
+        elif key == "land": 
+            folder, func_codes = "lands", flow_functions.land_codes
+            func_types = flow_functions.land_types
+            new_cols = ["LAI", "root_depth", "interception", "manning_n", "albedo", "kc"]
+        save_dir = os.path.normpath(os.path.join(flow_dir, folder))
+        os.makedirs(save_dir, exist_ok=True)
+        file_ext = file.filename.split(".")
+        soil_path = os.path.normpath(os.path.join(save_dir, file.filename))
+        with open(soil_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        if file_ext[-1].lower() in ["tif"]:
+            with rasterio.open(soil_path) as src:
+                data = src.read(1)
+                mask = data != src.nodata
+                data = data.astype(np.int32)
+                results = ({ "geometry": shape(geom), key: func_codes.get(value, "")
+                } for geom, value in shapes(data, mask=mask, transform=src.transform))
+                geoms = list(results)
+            del data
+            gdf = gpd.GeoDataFrame(geoms, crs=src.crs)
+        elif file_ext[-1].lower() in ["geojson"]: 
+            gdf = gpd.read_file(soil_path)
+        if gdf.empty: return JSONResponse({'status': 'error', 'message': 'No data found.'})
+        if '_id' not in gdf.columns: gdf.insert(0, '_id', range(1, len(gdf) + 1))
+        if key not in gdf.columns: gdf.insert(1, key, 'None')
+        mapped = gdf[key].map(lambda x: func_types.get(x, ["None"] * len(new_cols)))
+        gdf[new_cols] = pd.DataFrame(mapped.tolist(), columns=new_cols)
+        gdf[key] = np.where(gdf[key]=='', 'None', gdf[key])
+        gdf[key] = gdf[key].astype(str)
+        gdf = gdf[['_id', key, 'geometry'] + new_cols]
+        if gdf.crs != "EPSG:4326": gdf = gdf.to_crs("EPSG:4326")
+        return JSONResponse({'status': 'ok', 'content': json.loads(gdf.to_json())})
+    except Exception as e:
+        print('/data_upload:\n==============')
+        traceback.print_exc()
+        return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
+
+@router.post("/polygon_clip")
+async def polygon_clip(request: Request):
+    try:
+        body = await request.json()
+        base_layer, clip_layer = body.get('baseLayer'), body.get('clipLayer')
+        base_layer = gpd.GeoDataFrame.from_features(base_layer, crs="EPSG:4326")
+        clip_layer = gpd.GeoDataFrame.from_features(clip_layer, crs="EPSG:4326")
+        get_area = body.get('getArea')
+        # Clip the base layer to the clip layer
+        if get_area == 'inside': clipped_layer = gpd.clip(base_layer, clip_layer)
+        elif get_area == 'outside': clipped_layer = base_layer.overlay(clip_layer, how='difference')
+        if clipped_layer.empty: return JSONResponse({'status': 'error', 'message': 'No data found.'})
+        clipped_layer = clipped_layer.reset_index(drop=True)
+        clipped_layer['_id'] = clipped_layer.index + 1
+        return JSONResponse({'status': 'ok', 'content': json.loads(clipped_layer.to_json())})
+    except Exception as e:
+        print('/polygon_clip:\n==============')
+        traceback.print_exc()
+        return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
+
+@router.post("/assign_type")
+async def assign_type(request: Request):
+    try:
+        body = await request.json()
+        key, data = body.get('key'), body.get('data')
+        if key == "soil": content = flow_functions.soil_types[data]
+        elif key == "land": content = flow_functions.land_types[data]
+        content.insert(0, data)
+        return JSONResponse({'status': 'ok', 'content': content})
+    except Exception as e:
+        print('/assign_type:\n==============')
+        traceback.print_exc()
+        return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
+
+@router.post("/river_upload")
+async def river_upload(file: UploadFile = File(...), projectName: str = Form(...),
+    key: str = Form(...), threshold: float = Form(...), user=Depends(functions.basic_auth)):
+    try:
+        project_name, _ = functions.project_definer(projectName, user)
+        flow_dir = os.path.normpath(os.path.join(PROJECT_ROOT, project_name, "flows"))
+        os.makedirs(flow_dir, exist_ok=True)
+        save_dir = os.path.normpath(os.path.join(flow_dir, 'rivers'))
+        os.makedirs(save_dir, exist_ok=True)
+        file_ext = file.filename.split(".")
+        ext = file_ext[-1].lower()
+        if key == "river-raster" and not ext in ["tif"]:
+            return JSONResponse({'status': 'error', 'message': 'Flow accumulation data must be in *.tif format.'})
+        if key == "river-vector" and not ext in ["geojson"]:
+            return JSONResponse({'status': 'error', 'message': 'Vector data must be in *.geojson format.'})
+        river_path = os.path.normpath(os.path.join(save_dir, file.filename))
+        with open(river_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        if file_ext[-1].lower() in ["tif"]:
+            with rasterio.open(river_path) as src:
+                data = src.read(1, masked=True)
+                transform = src.transform
+            mask = (data >= float(threshold)).astype(np.uint8)
+            skeleton = skeletonize(mask).astype(np.uint8)
+            graph = sknw.build_sknw(skeleton, multi=False) 
+            del skeleton, mask, data
+            lines = []
+            for s, e in graph.edges():
+                pts = graph[s][e]['pts']  # Nx2 array: row, col
+                # Convert row, col to x, y CRS
+                xy_pts = [transform * (c, r) for r, c in pts]
+                lines.append(LineString(xy_pts))
+            merged = linemerge(unary_union(lines))
+            if merged.geom_type == "LineString": lines = [merged]
+            else: lines = list(merged.geoms)
+            gdf = gpd.GeoDataFrame(geometry=lines, crs=src.crs)
+        elif file_ext[-1].lower() in ["geojson"]: gdf = gpd.read_file(river_path)
+        if gdf.empty: return JSONResponse({'status': 'error', 'message': 'No data found.'})
+        if '_id' not in gdf.columns: gdf.insert(0, '_id', range(1, len(gdf) + 1))
+        gdf[['width', 'depth', 'manning_n']] = 'None'
+        if gdf.crs != "EPSG:4326": gdf = gdf.to_crs("EPSG:4326")
+        return JSONResponse({'status': 'ok', 'content': json.loads(gdf.to_json())})
+    except Exception as e:
+        print('/river_upload:\n==============')
+        traceback.print_exc()
+        return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
+
+
+
 
 
 

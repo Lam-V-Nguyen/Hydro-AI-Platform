@@ -32,7 +32,10 @@ export function getColors(nColors){
         '#AEFF01', '#E1FF01', '#FFEA01', '#FFB701', '#FF8401', '#FF5101', '#FF1E00']
 }
 
-
+export function highlightColor(id){
+    const hue = (id * 57) % 360;
+    return `hsl(${hue},70%,60%)`;
+}
 
 function toSuperscript(num) {
     return String(num).split('').map(ch => superscriptMap[ch] || ch).join('');
