@@ -25,22 +25,29 @@ const layerConfig = {
         alert: 'Please upload terrain data, run "Fill sinks/depressions", "Flow direction" and "Flow accumulation".'
     },
     catchmentLayer_Vector: {
-        getLayer: () => catchmentLayer_Vector, setLayer: (l) => catchmentLayer_Vector = l,
+        layer: null, data: null,
+        getLayer() { return this.layer; }, setLayer(l) { this.layer = l; },
+        getData() { return this.data; }, setData(d) { this.data = d; },
     },
     soilLayer_Vector: {
-        getLayer: () => soilLayer_Vector, setLayer: (l) => soilLayer_Vector = l,
+        layer: null, data: null,
+        getLayer() { return this.layer; }, setLayer(l) { this.layer = l; },
+        getData() { return this.data; }, setData(d) { this.data = d; },
     },
     landLayer_Vector: {
-        getLayer: () => landLayer_Vector, setLayer: (l) => landLayer_Vector = l,
+        layer: null, data: null,
+        getLayer() { return this.layer; }, setLayer(l) { this.layer = l; },
+        getData() { return this.data; }, setData(d) { this.data = d; },
     },
     riverLayer_Vector: {
         layer: null, data: null,
         getLayer() { return this.layer; }, setLayer(l) { this.layer = l; },
         getData() { return this.data; }, setData(d) { this.data = d; },
-        // getLayer: () => riverLayer_Vector, setLayer: (l) => riverLayer_Vector = l,
     },
     lakeLayer_Vector: {
-        getLayer: () => lakeLayer_Vector, setLayer: (l) => lakeLayer_Vector = l,
+        layer: null, data: null,
+        getLayer() { return this.layer; }, setLayer(l) { this.layer = l; },
+        getData() { return this.data; }, setData(d) { this.data = d; },
     },
 }
 
@@ -188,13 +195,7 @@ export async function renderPreview(request=null) {
                 content.message = 'Layer not found';
                 signalSender('updateUIState', content); return;
             }
-            // Delete layer if it is catchmentLayer
-            if (layerKey === 'catchmentLayer_Vector') {
-                const tempLayer = config.getLayer();
-                if (tempLayer) {
-                    currentMap.removeLayer(tempLayer); config.setLayer(null);
-                }
-            }
+            if (layerKey.includes('_Vector')) config.setData(request.content.data);
             // Hide all layers
             if (request.content.reset) resetMap(currentMap);
             const existing = config.getLayer();
@@ -206,14 +207,13 @@ export async function renderPreview(request=null) {
                     colorBar.style.display = 'flex'; 
                 }
             } else {
-                
                 if (layerKey.includes('_Vector')) {
                     lastLayer = L.geoJSON(
                         config.getData(), { style: { color: 'red', weight: 2, opacity: 1 }}
                     );
                     colorBar.style.display = 'none';
                 } else {
-                    lastLayer = L.tileLayer(config.getData(), {tileSize: 256, opacity: 1 })
+                    lastLayer = L.tileLayer(request.content.data, {tileSize: 256, opacity: 1 })
                     colorbarReset(
                         colorBar, request.content.min, 
                         request.content.max, config.title, config.colorKey
@@ -221,9 +221,8 @@ export async function renderPreview(request=null) {
                     colorBar.style.display = 'flex';
                 }
                 config.setLayer(lastLayer); config.min = request.content.min; 
-                config.max = request.content.max; config.getLayer().addTo(currentMap);
+                config.max = request.content.max; lastLayer.addTo(currentMap);
             }
-            
             signalSender('updateUIState', content); return;
         } else if (key === 'reCheck') {
             if (request.content.ok) {
@@ -251,7 +250,8 @@ export async function renderPreview(request=null) {
             currentMap.closeTooltip(hoverTooltip); clearPendingRequest();
         } else if (key === 'getLayer') {
             const config = layerConfig[request.content.layerKey];
-            const data = config.getData(); 
+            const data = config.getData();
+            console.log('getLayer', data);
             content.data = data;
             signalSender('updateUIState', content); return;
         } else if (key === 'mapPlotter') {
@@ -347,9 +347,10 @@ export async function renderPreview(request=null) {
                     values.unshift(id); content.ids = [id]; content.data = [values];
                 }
                 return f;
-            });
-
+            }); config.setData(data);
+            console.log('assignType', data);
             // const existing = config.getLayer();
+            // if (existing) currentMap.removeLayer(existing);
             // existing.eachLayer((layer) => { 
             //     if (Number(layer.feature.properties._id) === Number(id)) {
             //         const values = response.content.map(v => Number(v));
@@ -366,17 +367,27 @@ export async function renderPreview(request=null) {
             //     if (layer.getTooltip()) {
             //         layer.getTooltip().setContent(buildTooltip(layer.feature.properties, type));
             //     }
-            // });
-            // config.setLayer(existing);
+            // }); 
+            // config.setLayer(existing); existing.addTo(currentMap);
 
-            
-            config.setData(data);
             const oldLayer = config.getLayer();
             if (oldLayer) currentMap.removeLayer(oldLayer);
-            lastLayer = L.geoJSON(data, {
-                style: { color: 'red', weight: 2 }
-            });
+            // const newLayer = L.geoJSON(config.getData(), {
+            //     style: { color: 'red', weight: 2, opacity: 1 },
+            //     // config.getData(), { style: { color: 'red', weight: 2, opacity: 1 }}
+            //     onEachFeature: (feature, layer) => {
+            //         if (layer.getTooltip()) {
+            //             layer.getTooltip().setContent(
+            //                 buildTooltip(feature.properties, type)
+            //             );
+            //         }
+            //     }
+            // });
+            lastLayer = await mapPlotter(config.getData(), currentMap, type);
             config.setLayer(lastLayer); lastLayer.addTo(currentMap);
+            
+            
+
             signalSender('hideOverlay'); signalSender('updateUIState', content); return;
         } else if (key === 'deleteItem') {
             const layerKey = request.content.layerKey;

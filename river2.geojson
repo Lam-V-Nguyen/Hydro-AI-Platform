@@ -5,10 +5,12 @@
       "id": "0",
       "type": "Feature",
       "properties": {
+        "id": "0",
         "_id": 1,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -96,10 +98,12 @@
       "id": "1",
       "type": "Feature",
       "properties": {
+        "id": "1",
         "_id": 2,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -207,10 +211,12 @@
       "id": "2",
       "type": "Feature",
       "properties": {
+        "id": "2",
         "_id": 3,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -258,10 +264,12 @@
       "id": "3",
       "type": "Feature",
       "properties": {
+        "id": "3",
         "_id": 4,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -289,10 +297,12 @@
       "id": "4",
       "type": "Feature",
       "properties": {
+        "id": "4",
         "_id": 5,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -312,10 +322,12 @@
       "id": "5",
       "type": "Feature",
       "properties": {
+        "id": "5",
         "_id": 6,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -662,10 +674,12 @@
       "id": "6",
       "type": "Feature",
       "properties": {
+        "id": "6",
         "_id": 7,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -1277,10 +1291,12 @@
       "id": "7",
       "type": "Feature",
       "properties": {
+        "id": "7",
         "_id": 8,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -1512,11 +1528,12 @@
       "id": "8",
       "type": "Feature",
       "properties": {
+        "id": "8",
         "_id": 9,
-        "width": 200,
-        "depth": 25,
-        "manning_n": 0.12,
-        "river": "river"
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -1644,10 +1661,12 @@
       "id": "9",
       "type": "Feature",
       "properties": {
+        "id": "9",
         "_id": 10,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -1743,10 +1762,12 @@
       "id": "10",
       "type": "Feature",
       "properties": {
+        "id": "11",
         "_id": 12,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -1778,10 +1799,12 @@
       "id": "11",
       "type": "Feature",
       "properties": {
+        "id": "12",
         "_id": 13,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -1805,10 +1828,12 @@
       "id": "12",
       "type": "Feature",
       "properties": {
+        "id": "13",
         "_id": 14,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -1828,10 +1853,12 @@
       "id": "13",
       "type": "Feature",
       "properties": {
+        "id": "14",
         "_id": 15,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -1875,10 +1902,12 @@
       "id": "14",
       "type": "Feature",
       "properties": {
+        "id": "16",
         "_id": 17,
         "width": 100,
         "depth": 10,
-        "manning_n": 0.2
+        "manning_n": 0.2,
+        "river": "river"
       },
       "geometry": {
         "type": "LineString",
@@ -2046,10 +2075,12 @@
       "id": "15",
       "type": "Feature",
       "properties": {
+        "id": "17",
         "_id": 18,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -2149,10 +2180,12 @@
       "id": "16",
       "type": "Feature",
       "properties": {
+        "id": "18",
         "_id": 19,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -2472,10 +2505,12 @@
       "id": "17",
       "type": "Feature",
       "properties": {
+        "id": "19",
         "_id": 20,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -2519,10 +2554,12 @@
       "id": "18",
       "type": "Feature",
       "properties": {
+        "id": "20",
         "_id": 21,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -2778,10 +2815,12 @@
       "id": "19",
       "type": "Feature",
       "properties": {
+        "id": "21",
         "_id": 22,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -2937,10 +2976,12 @@
       "id": "20",
       "type": "Feature",
       "properties": {
+        "id": "22",
         "_id": 23,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "MultiLineString",
@@ -3300,10 +3341,12 @@
       "id": "21",
       "type": "Feature",
       "properties": {
+        "id": "23",
         "_id": 24,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -3407,10 +3450,12 @@
       "id": "22",
       "type": "Feature",
       "properties": {
+        "id": "25",
         "_id": 26,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -3602,10 +3647,12 @@
       "id": "23",
       "type": "Feature",
       "properties": {
+        "id": "26",
         "_id": 27,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -3693,10 +3740,12 @@
       "id": "24",
       "type": "Feature",
       "properties": {
+        "id": "27",
         "_id": 28,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -3728,10 +3777,12 @@
       "id": "25",
       "type": "Feature",
       "properties": {
+        "id": "28",
         "_id": 29,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -3793,10 +3844,12 @@
       "id": "26",
       "type": "Feature",
       "properties": {
+        "id": "30",
         "_id": 31,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -3900,10 +3953,12 @@
       "id": "27",
       "type": "Feature",
       "properties": {
+        "id": "32",
         "_id": 33,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -3970,10 +4025,12 @@
       "id": "28",
       "type": "Feature",
       "properties": {
+        "id": "33",
         "_id": 34,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -4229,10 +4286,12 @@
       "id": "29",
       "type": "Feature",
       "properties": {
+        "id": "34",
         "_id": 35,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -4354,10 +4413,12 @@
       "id": "30",
       "type": "Feature",
       "properties": {
+        "id": "35",
         "_id": 36,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -4439,10 +4500,12 @@
       "id": "31",
       "type": "Feature",
       "properties": {
+        "id": "36",
         "_id": 37,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -4584,10 +4647,12 @@
       "id": "32",
       "type": "Feature",
       "properties": {
+        "id": "37",
         "_id": 38,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -4734,10 +4799,12 @@
       "id": "33",
       "type": "Feature",
       "properties": {
+        "id": "38",
         "_id": 39,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -5024,10 +5091,12 @@
       "id": "34",
       "type": "Feature",
       "properties": {
+        "id": "39",
         "_id": 40,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -5049,10 +5118,12 @@
       "id": "35",
       "type": "Feature",
       "properties": {
+        "id": "40",
         "_id": 41,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -5184,10 +5255,12 @@
       "id": "36",
       "type": "Feature",
       "properties": {
+        "id": "41",
         "_id": 42,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -5244,10 +5317,12 @@
       "id": "37",
       "type": "Feature",
       "properties": {
+        "id": "42",
         "_id": 43,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -5274,10 +5349,12 @@
       "id": "38",
       "type": "Feature",
       "properties": {
+        "id": "43",
         "_id": 44,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -5489,10 +5566,12 @@
       "id": "39",
       "type": "Feature",
       "properties": {
+        "id": "44",
         "_id": 45,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -5814,10 +5893,12 @@
       "id": "40",
       "type": "Feature",
       "properties": {
+        "id": "45",
         "_id": 46,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -6074,10 +6155,12 @@
       "id": "41",
       "type": "Feature",
       "properties": {
+        "id": "46",
         "_id": 47,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -6314,10 +6397,12 @@
       "id": "42",
       "type": "Feature",
       "properties": {
+        "id": "47",
         "_id": 48,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -6499,10 +6584,12 @@
       "id": "43",
       "type": "Feature",
       "properties": {
+        "id": "48",
         "_id": 49,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -6724,10 +6811,12 @@
       "id": "44",
       "type": "Feature",
       "properties": {
+        "id": "49",
         "_id": 50,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -6889,10 +6978,12 @@
       "id": "45",
       "type": "Feature",
       "properties": {
+        "id": "50",
         "_id": 51,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -6999,10 +7090,12 @@
       "id": "46",
       "type": "Feature",
       "properties": {
+        "id": "51",
         "_id": 52,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -7244,10 +7337,12 @@
       "id": "47",
       "type": "Feature",
       "properties": {
+        "id": "52",
         "_id": 53,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -7379,10 +7474,12 @@
       "id": "48",
       "type": "Feature",
       "properties": {
+        "id": "53",
         "_id": 54,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -7489,10 +7586,12 @@
       "id": "49",
       "type": "Feature",
       "properties": {
+        "id": "54",
         "_id": 55,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -7759,10 +7858,12 @@
       "id": "50",
       "type": "Feature",
       "properties": {
+        "id": "55",
         "_id": 56,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "MultiLineString",
@@ -7855,10 +7956,12 @@
       "id": "51",
       "type": "Feature",
       "properties": {
+        "id": "56",
         "_id": 57,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "MultiLineString",
@@ -7986,10 +8089,12 @@
       "id": "52",
       "type": "Feature",
       "properties": {
+        "id": "57",
         "_id": 58,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -8025,10 +8130,12 @@
       "id": "53",
       "type": "Feature",
       "properties": {
+        "id": "58",
         "_id": 59,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -8144,10 +8251,12 @@
       "id": "54",
       "type": "Feature",
       "properties": {
+        "id": "59",
         "_id": 60,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -8359,10 +8468,12 @@
       "id": "55",
       "type": "Feature",
       "properties": {
+        "id": "60",
         "_id": 61,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -8474,10 +8585,12 @@
       "id": "56",
       "type": "Feature",
       "properties": {
+        "id": "61",
         "_id": 62,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "MultiLineString",
@@ -8818,10 +8931,12 @@
       "id": "57",
       "type": "Feature",
       "properties": {
+        "id": "62",
         "_id": 63,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -9468,10 +9583,12 @@
       "id": "58",
       "type": "Feature",
       "properties": {
+        "id": "63",
         "_id": 64,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -9615,10 +9732,12 @@
       "id": "59",
       "type": "Feature",
       "properties": {
+        "id": "64",
         "_id": 65,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -9730,10 +9849,12 @@
       "id": "60",
       "type": "Feature",
       "properties": {
+        "id": "65",
         "_id": 66,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -9865,10 +9986,12 @@
       "id": "61",
       "type": "Feature",
       "properties": {
+        "id": "66",
         "_id": 67,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",
@@ -10256,10 +10379,12 @@
       "id": "62",
       "type": "Feature",
       "properties": {
+        "id": "67",
         "_id": 68,
-        "width": null,
-        "depth": null,
-        "manning_n": null
+        "width": "None",
+        "depth": "None",
+        "manning_n": "None",
+        "river": null
       },
       "geometry": {
         "type": "LineString",

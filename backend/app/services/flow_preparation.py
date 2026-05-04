@@ -299,13 +299,18 @@ async def data_upload(file: UploadFile = File(...), projectName: str = Form(...)
         elif file_ext[-1].lower() in ["geojson"]: 
             gdf = gpd.read_file(soil_path)
         if gdf.empty: return JSONResponse({'status': 'error', 'message': 'No data found.'})
-        if '_id' not in gdf.columns: gdf.insert(0, '_id', range(1, len(gdf) + 1))
         if key not in gdf.columns: gdf.insert(1, key, 'None')
+        for k, v in func_types.items():
+            if len(v) != len(new_cols):
+                print("Lỗi tại:", k, "=>", v, "len =", len(v))
         mapped = gdf[key].map(lambda x: func_types.get(x, ["None"] * len(new_cols)))
         gdf[new_cols] = pd.DataFrame(mapped.tolist(), columns=new_cols)
         gdf[key] = np.where(gdf[key]=='', 'None', gdf[key])
         gdf[key] = gdf[key].astype(str)
+        if '_id' not in gdf.columns: gdf.insert(0, '_id', range(1, len(gdf) + 1))
         gdf = gdf[['_id', key, 'geometry'] + new_cols]
+        for col in new_cols:
+            gdf[col] = pd.to_numeric(gdf[col], errors='coerce')
         if gdf.crs != "EPSG:4326": gdf = gdf.to_crs("EPSG:4326")
         return JSONResponse({'status': 'ok', 'content': json.loads(gdf.to_json())})
     except Exception as e:
@@ -386,7 +391,12 @@ async def river_upload(file: UploadFile = File(...), projectName: str = Form(...
         elif file_ext[-1].lower() in ["geojson"]: gdf = gpd.read_file(river_path)
         if gdf.empty: return JSONResponse({'status': 'error', 'message': 'No data found.'})
         if '_id' not in gdf.columns: gdf.insert(0, '_id', range(1, len(gdf) + 1))
-        gdf[['width', 'depth', 'manning_n']] = 'None'
+        new_cols = ['width', 'depth', 'manning_n']
+        for col in new_cols:
+            if col not in gdf.columns: gdf[col] = 'None'
+            else: gdf[col] = pd.to_numeric(gdf[col], errors='coerce')
+        gdf = gdf[['_id', 'width', 'depth', 'manning_n', 'geometry']]
+        print(gdf.head())
         if gdf.crs != "EPSG:4326": gdf = gdf.to_crs("EPSG:4326")
         return JSONResponse({'status': 'ok', 'content': json.loads(gdf.to_json())})
     except Exception as e:

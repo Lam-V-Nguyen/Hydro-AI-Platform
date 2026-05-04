@@ -174,12 +174,16 @@
                                     <option value="16">Water</option>
                                 </select>
                             </div>
-                            <div class="row">
-                                <button type="button" id="assign-soil-btn">Assign soil type for selected ID</button>
-                                <button type="button" id="save-soil-btn">Export</button>
-                            </div>
+                            
                         </div>
-                        <div class="tile" style="grid-column: span 8;"><h3>Attribute Table</h3>
+                        <div class="tile" style="grid-column: span 8;">
+                            <div class="row" style="justify-items: center;">
+                                <h3 style="margin-top: 20px;">Attribute Table</h3>
+                                <button type="button" id="assign-soil-btn" style="max-width: 300px;">
+                                    Assign soil type for selected ID
+                                </button>
+                                <button type="button" id="save-soil-btn" style="max-width: 150px;">Export Soil Map</button>
+                            </div>
                             <div class="table-container">
                                 <table class="attributes-table" id="soil-attributes-table">
                                     <thead><tr>

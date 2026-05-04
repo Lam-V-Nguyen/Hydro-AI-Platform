@@ -379,6 +379,19 @@ function soilManager() {
         };
         await sendRequest('flowOptions', contents);
     });
+    obj.soilTypes.addEventListener('change', async (e) => { 
+        const value = e.target.value.trim(), id = obj.soilIds.value;
+        if (id === '') { alert('Please select a soil polygon first.'); obj.soilTypes.value = ''; return; }
+        if (value === '') {
+            const content = [`${id}`,'','','','','','',''];
+            deleteTable(obj.soilTable); fillTable([content], obj.soilTable); return;
+        }
+        const soilType = obj.soilTypes.options[obj.soilTypes.selectedIndex].textContent;
+        const data = await jsonLoader('assign_type', { key: 'soil', data: soilType });
+        if (data.status === "error") { alert(data.message); return; }
+        data.content.unshift(`${id}`);
+        fillTable([data.content], obj.soilTable, true);
+    });
     obj.assignSoilBtn.addEventListener('click', async () => { 
         const soilChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'soilLayer_Vector' });
         if (!soilChecker.exist) { alert('Please upload/create a soil layer first.'); return; }
@@ -516,6 +529,7 @@ function riverManager() {
             signalSender('showOverlay', 'Uploading and processing river data.\nPlease wait...');
             const response = await fetch('/river_upload', { method: 'POST', body: formData });
             const data = await response.json(); signalSender('hideOverlay');
+            console.log('uploadRiver', data);
             if (data.status === 'error') { alert(data.message); return; }
             const content = { 
                 key: 'mapPlotter', layerKey: 'riverLayer_Vector', 
@@ -627,6 +641,7 @@ function riverManager() {
         if (!riverChecker.exist) { alert('Please upload/create a river layer first.'); return; }
         const layer = await sendRequest('flowOptions', { key: 'getLayer', layerKey: 'riverLayer_Vector' });
         if (layer.data === null) { alert('Layer is empty. Please upload/create a river layer first.'); return; }
+        console.log('flowPreparation:', layer.data);
         await geoJSONExporter(layer.data, 'river.geojson');
     });
 
