@@ -1,5 +1,5 @@
 import { setupTabs } from "./tabManager.js";
-import { flowId, L } from "./constant.js";
+import { flowId } from "./constant.js";
 import { getUser, signalSender, sendRequest, initRequestListener, 
     jsonLoader, fillTable, deleteTable, addRowToTable, getDataFromTable
 } from "./commonFunctions.js";
@@ -84,7 +84,8 @@ function topographyManager() {
             const data = await response.json(); signalSender('hideOverlay');
             if (data.status === 'error') { alert(data.message); return; }
             const content = { 
-                key: 'drawLayer', layerKey: 'catchmentLayer_Vector', data: data.content, reset: false
+                key: 'drawLayer', layerKey: 'catchmentLayer_Vector', 
+                data: data.content, reset: false
             };
             await sendRequest('flowOptions', content );
         } catch (error) { alert(`Uploading catchment failed: ${error.message}`); }
@@ -188,14 +189,14 @@ function topographyManager() {
     lastRadio = document.querySelector('input[name="terrain"]:checked'); 
     document.querySelectorAll('input[name="terrain"]').forEach(radio => {
         radio.addEventListener('change', async (e) => {
-            let ok = true, content = {};
+            let content = {};
             const terrainValue = obj.terrainInputText.value;
             const value = e.target.value;            
             if (terrainValue === '' && value !== 'hide-all') { 
                 alert('Please upload terrain data first.'); 
                 e.target.checked = false; 
                 lastSelectedRadio.checked = true; 
-                const response = await sendRequest('flowOptions', { key: 'clearAll' }); return; 
+                await sendRequest('flowOptions', { key: 'clearAll' }); return; 
             }
             if (value === 'hide-all') { content = { key: 'clearAll' };
             } else if (value === 'terrain-raw') {
@@ -238,7 +239,7 @@ function topographyManager() {
                     alert('Please run "Flow direction" first.'); 
                     lastRadio.checked = true; e.target.checked = false; return;
                 }
-                const flowAccumulationCheck = await sendRequest('flowOptions', { 
+                await sendRequest('flowOptions', { 
                     key: 'layerChecker', layerKey: 'flowAccumulationLayer' 
                 });
                 content = { 
@@ -252,7 +253,7 @@ function topographyManager() {
                 }
                 content = { key: 'drawLayer', layerKey: 'catchmentLayer_Vector', reset: true };
             }
-            lastRadio = e.target; const response = await sendRequest('flowOptions', content);
+            lastRadio = e.target; await sendRequest('flowOptions', content);
         });
     });
     obj.pourpointCheckbox.addEventListener('change', async (e) => {
@@ -319,7 +320,7 @@ function soilManager() {
                 key: 'mapPlotter', layerKey: 'soilLayer_Vector', 
                 data: data.content, type: 'soil', reset: true
             };
-            const res = await sendRequest('flowOptions', content);
+            await sendRequest('flowOptions', content);
             obj.soilInputText.value = file.name; 
             obj.soilCheckbox.checked = true;
             obj.soilInvalidCheckerBtn.style.display = 'block'; 
@@ -356,7 +357,7 @@ function soilManager() {
         const layerChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'soilLayer_Vector' });
         if (!layerChecker.exist) { alert('Please upload/create a soil layer first.'); return; }
         deleteTable(obj.soilTable);
-        const check = await sendRequest('flowOptions', { key: 'invalidCheck', layerKey: 'soilLayer_Vector', type: 'soil' });
+        await sendRequest('flowOptions', { key: 'invalidCheck', layerKey: 'soilLayer_Vector', type: 'soil' });
     });
     obj.soilClipBtn.addEventListener('click', async () => { 
         const soilChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'soilLayer_Vector' });
@@ -376,7 +377,7 @@ function soilManager() {
             key: 'mapPlotter', layerKey: 'soilLayer_Vector', 
             data: request.content, type: 'soil', reset: true
         };
-        const res = await sendRequest('flowOptions', contents);
+        await sendRequest('flowOptions', contents);
     });
     obj.assignSoilBtn.addEventListener('click', async () => { 
         const soilChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'soilLayer_Vector' });
@@ -384,7 +385,7 @@ function soilManager() {
         const soilID = obj.soilIds.value;
         if (soilID === '') { alert('Please select a soil polygon first.'); return; }
         const soilType = obj.soilTypes.options[obj.soilTypes.selectedIndex].textContent;
-        const res = await sendRequest('flowOptions', { 
+        await sendRequest('flowOptions', { 
             key: 'assignType', layerKey: 'soilLayer_Vector', id: soilID, data: soilType, type: 'soil' 
         });
     });
@@ -412,7 +413,7 @@ function landManager() {
                 key: 'mapPlotter', layerKey: 'landLayer_Vector', 
                 data: data.content, type: 'land', reset: true
             };
-            const res = await sendRequest('flowOptions', content);
+            await sendRequest('flowOptions', content);
             obj.landInputText.value = file.name; 
             obj.landCheckbox.checked = true;
             obj.landInvalidCheckerBtn.style.display = 'block';
@@ -449,7 +450,7 @@ function landManager() {
         const layerChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'landLayer_Vector' });
         if (!layerChecker.exist) { alert('Please upload/create a land cover layer first.'); return; }
         deleteTable(obj.landTable);
-        const check = await sendRequest('flowOptions', { key: 'invalidCheck', layerKey: 'landLayer_Vector', type: 'land' });
+        await sendRequest('flowOptions', { key: 'invalidCheck', layerKey: 'landLayer_Vector', type: 'land' });
     });
     obj.landClipBtn.addEventListener('click', async () => { 
         const landChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'landLayer_Vector' });
@@ -468,7 +469,7 @@ function landManager() {
             key: 'mapPlotter', layerKey: 'landLayer_Vector', 
             data: request.content, type: 'land', reset: true
         };
-        const res = await sendRequest('flowOptions', contents);
+        await sendRequest('flowOptions', contents);
     });
     obj.assignLandBtn.addEventListener('click', async () => { 
         const landChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'landLayer_Vector' });
@@ -476,7 +477,7 @@ function landManager() {
         const landID = obj.landIds.value;
         if (landID === '') { alert('Please select a land polygon first.'); return; }
         const landType = obj.landTypes.options[obj.landTypes.selectedIndex].textContent;
-        const res = await sendRequest('flowOptions', { 
+        await sendRequest('flowOptions', { 
             key: 'assignType', layerKey: 'landLayer_Vector', id: landID, data: landType, type: 'land' 
         });
     });
@@ -520,7 +521,7 @@ function riverManager() {
                 key: 'mapPlotter', layerKey: 'riverLayer_Vector', 
                 data: data.content, type: 'river', reset: true
             };
-            const res = await sendRequest('flowOptions', content);
+            await sendRequest('flowOptions', content);
             obj.riverInputText.value = file.name; obj.riverCheckbox.checked = true;
         } catch (error) { 
             alert(`Uploading river data failed: ${error.message}`);
@@ -574,7 +575,7 @@ function riverManager() {
             key: 'mapPlotter', layerKey: 'riverLayer_Vector', 
             data: request.content, type: 'river', reset: true
         };
-        const res = await sendRequest('flowOptions', contents);
+        await sendRequest('flowOptions', contents);
         obj.riverCheckbox.checked = true;
     });
     obj.riverCatchmentClipBtn.addEventListener('click', async () => {
@@ -594,7 +595,7 @@ function riverManager() {
             key: 'mapPlotter', layerKey: 'riverLayer_Vector', 
             data: request.content, type: 'river', reset: true
         };
-        const res = await sendRequest('flowOptions', contents);
+        await sendRequest('flowOptions', contents);
         obj.riverCheckbox.checked = true;
     });
     obj.riverDeleteBtn.addEventListener('click', async () => {
@@ -602,11 +603,10 @@ function riverManager() {
         if (!riverChecker.exist) { alert('Please upload/create a river layer first.'); return; }
         const data = getDataFromTable(obj.riverTable, true).rows;
         if (data.length === 0) { alert('Please select a segment of the river on map to delete.'); return; }
-        const id = Number(data[0][0]); let selectedID = false;
-//         riverLayer.eachLayer((layer) => {
-//             if (Number(layer.feature.properties._id) === id) { layer.remove(); selectedID = true; }
-//         });
-//         if (selectedID) { alert(`Segment "${id}" was deleted from the river layer.`); }
+        await sendRequest('flowOptions', { 
+            key: 'deleteItem', layerKey: 'riverLayer_Vector', id: data[0][0], type: 'river' 
+        });
+        const content = ['Segment ID','Width','Depth','Manning Roughness'];
         deleteTable(obj.riverTable); addRowToTable(obj.riverTable, content);
     });
     obj.assignRiverBtn.addEventListener('click', async () => { 
@@ -617,20 +617,9 @@ function riverManager() {
         if (data[0].some(v => !v.trim() || Number.isNaN(Number(v)))) {
             alert('Values in the table must be numeric.'); return;
         }
-//         riverLayer.eachLayer((layer) => {
-//             if (layer.feature.properties._id === Number(data[0][0])) {
-//                 layer.feature.properties.width = data[0][1];
-//                 layer.feature.properties.depth = data[0][2];
-//                 layer.feature.properties.manning_n = data[0][3];
-//                 alert(`Attributes were assigned to segment "${data[0][0]}".`);
-//                 layer.setStyle({ color: 'green', weight: 3, fillOpacity: 0.8 });
-//             }
-//             if (layer.getTooltip()) {
-//                 layer.getTooltip().setContent( buildTooltip(layer.feature.properties, 'river'));
-//             }
-//         });
-        const res = await sendRequest('flowOptions', { 
-            key: 'assignType', layerKey: 'riverLayer_Vector', id: Number(data[0][0]), data: data, type: 'river' 
+        await sendRequest('flowOptions', { 
+            key: 'assignType', layerKey: 'riverLayer_Vector', 
+            id: data[0][0], data: data[0].slice(1), type: 'river' 
         });
     });
     obj.saveRiverBtn.addEventListener('click', async () => { 
@@ -844,32 +833,6 @@ function windowListener() {
 //     isPourpointActive = false, landLayer = null, riverLayer = null, lakeLayer = null,
 //     weatherLayer = null;
 
-
-
-// function createMap() {
-//     map = L.map(leafletMap(), { center: CENTER, zoom: ZOOM, zoomControl: false, attributionControl: true });
-//     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
-//     L.control.scale({imperial: false, metric: true, maxWidth: 200}).addTo(map);
-//     setTimeout(() => { map.invalidateSize(); }, 100);
-//     map.on("mousemove", function (e) {
-//         if (isPourpointActive) { 
-//             hoverTooltip.setLatLng(e.latlng).setContent("Click to set the pourpoint coordinates.");
-//             map.openTooltip(hoverTooltip); return;
-//         }
-//         map.closeTooltip(hoverTooltip); map.getContainer().style.cursor = 'grab';
-//     });
-//     map.on('click', async function (e) {
-//         if (isPourpointActive) {
-//             pourpointLat().value = e.latlng.lat.toFixed(8);
-//             pourpointLon().value = e.latlng.lng.toFixed(8);
-//             lat = e.latlng.lat; lon = e.latlng.lng;
-//             markerLayer = clearMap(markerLayer, map);
-//             markerLayer = L.circleMarker(e.latlng, {
-//                 radius: 4, fillColor: 'blue', color: 'red', weight: 2, opacity: 1, fillOpacity: 1
-//             }).addTo(map); await catchmentDelineation(); 
-//         }
-//     });
-// }
 
 
 

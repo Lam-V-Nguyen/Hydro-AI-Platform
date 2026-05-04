@@ -310,13 +310,13 @@
                     <div class="grid">
                         <div class="tile"><h3>River Import</h3>
                             <div class="row-radio">
-                                <input type="radio" name="river" value="river-raster" id="river-raster" checked>
-                                <label for="river-raster">Use Flow Accumulation (Raster)</label>
-                                <input type="radio" name="river" value="river-vector" id="river-vector">
+                                <input type="radio" name="river" value="river-vector" id="river-vector" checked>
                                 <label for="river-vector">Upload River (Vector)</label>
+                                <input type="radio" name="river" value="river-raster" id="river-raster">
+                                <label for="river-raster">Use Flow Accumulation (Raster)</label>
                             </div>
                             <div class="row">
-                                <div class="row" id="river-container" style="width: 250px;">
+                                <div class="row" id="river-container" style="width: 250px; display: none;">
                                     <label for="river-threshold" id="river-threshold-label">Threshold:</label>
                                     <input type="text" id="river-threshold" value="1000.0" style="width: 50px;">
                                 </div>

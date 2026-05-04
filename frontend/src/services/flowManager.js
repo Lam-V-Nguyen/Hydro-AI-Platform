@@ -1,4 +1,4 @@
-import { jsonLoader, signalSender, sendRequest } from "./commonFunctions.js";
+import { jsonLoader, signalSender } from "./commonFunctions.js";
 import { highlightColor } from "./constant.js";
 
 export async function catchmentDelineation(projectName, inputTextObj, lat, lon, threshold, snapDistance) {
@@ -56,11 +56,11 @@ export async function geoJSONExporter(data, fileName) {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
         }
-        alert(`Exporting succeeded: ${fileName}`);
+        alert(`Exporting succeeded.`);
     } catch (error) { alert(`Exporting failed: ${error.message}`); }
 }
 
-export async function mapPlotter(req, data, map, key) {
+export async function mapPlotter(data, map, key) {
     const isRiver = key === 'river'; let type = null;
     const resetStyle = (layer) => {
         const id = layer.feature.properties._id;

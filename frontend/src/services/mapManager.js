@@ -1,4 +1,4 @@
-import { CENTER, ZOOM, L, getPendingRequest, clearPendingRequest, origin, setPendingRequest } from "./constant.js";
+import { CENTER, ZOOM, L, getPendingRequest, clearPendingRequest, origin } from "./constant.js";
 import { signalSender, jsonLoader } from "./commonFunctions.js";
 import { updateColorbar } from "./unstructuredGrid.js";
 import { mapPlotter, buildTooltip } from "./flowManager.js";
@@ -34,7 +34,10 @@ const layerConfig = {
         getLayer: () => landLayer_Vector, setLayer: (l) => landLayer_Vector = l,
     },
     riverLayer_Vector: {
-        getLayer: () => riverLayer_Vector, setLayer: (l) => riverLayer_Vector = l,
+        layer: null, data: null,
+        getLayer() { return this.layer; }, setLayer(l) { this.layer = l; },
+        getData() { return this.data; }, setData(d) { this.data = d; },
+        // getLayer: () => riverLayer_Vector, setLayer: (l) => riverLayer_Vector = l,
     },
     lakeLayer_Vector: {
         getLayer: () => lakeLayer_Vector, setLayer: (l) => lakeLayer_Vector = l,
@@ -67,9 +70,8 @@ let currentTileLayer = null, timeCounter = null, html='', markersObs = [],
     currentPointsBoundary = [], waqObs = [], waqLoads = [], mapContainer = null,
     catchmentLayer_Vector = null, markerLayer = null, terrainLayer = null,
     fillLayer = null, flowDirectionLayer = null, flowAccumulationLayer = null, 
-    lastLayer = null, layer = null, isPourpointActive = false, lat=null, lon=null,
-    soilLayer_Vector = null, landLayer_Vector = null, riverLayer_Vector = null,
-    lakeLayer_Vector = null;
+    lastLayer = null, layer = null, isPourpointActive = false, soilLayer_Vector = null, 
+    landLayer_Vector = null, riverLayer_Vector = null, lakeLayer_Vector = null;
 const configCrossSectionPoint = { color: 'blue', fillColor: 'yellow', radius: 4, fill: true, fillOpacity: 1 }, 
     configBoundaryPoint = { color: 'red', fillColor: 'green', radius: 4, fill: true, fillOpacity: 1 }, 
     configCrossSectionPath = { color: 'blue', weight: 2, dashArray: '5,5' }, 
@@ -117,7 +119,7 @@ function lineAdd(pointContainer, map, lineType) {
 
 export async function renderPreview(request=null) {
     currentPoints.length = 0; if (!request) return;
-    const type = request.type; let data = null;
+    const type = request.type;
     if (type === 'pickPoint' || type === 'updateObsPoint') {
         const iconUrl = `/src_frontend/images/station.png?v=${Date.now()}`;
         iconAdd(iconUrl, markersObs, currentMap, request.content.rows);
@@ -196,7 +198,7 @@ export async function renderPreview(request=null) {
             // Hide all layers
             if (request.content.reset) resetMap(currentMap);
             const existing = config.getLayer();
-            if (existing) {
+            if (existing && !request.content.data) {
                 existing.addTo(currentMap);
                 if (layerKey.includes('_Vector')) { colorBar.style.display = 'none';
                 } else { 
@@ -204,13 +206,14 @@ export async function renderPreview(request=null) {
                     colorBar.style.display = 'flex'; 
                 }
             } else {
+                
                 if (layerKey.includes('_Vector')) {
                     lastLayer = L.geoJSON(
-                        request.content.data, { style: { color: 'red', weight: 2, opacity: 1 }}
+                        config.getData(), { style: { color: 'red', weight: 2, opacity: 1 }}
                     );
                     colorBar.style.display = 'none';
                 } else {
-                    lastLayer = L.tileLayer(request.content.data, {tileSize: 256, opacity: 1 })
+                    lastLayer = L.tileLayer(config.getData(), {tileSize: 256, opacity: 1 })
                     colorbarReset(
                         colorBar, request.content.min, 
                         request.content.max, config.title, config.colorKey
@@ -220,6 +223,7 @@ export async function renderPreview(request=null) {
                 config.setLayer(lastLayer); config.min = request.content.min; 
                 config.max = request.content.max; config.getLayer().addTo(currentMap);
             }
+            
             signalSender('updateUIState', content); return;
         } else if (key === 'reCheck') {
             if (request.content.ok) {
@@ -235,7 +239,6 @@ export async function renderPreview(request=null) {
             if (colorBar) colorBar.style.display = 'none';
         } else if (key === 'pourpoint') {  
             markerLayer = clearMap(markerLayer, currentMap);
-            const requestId = request.content.requestId;
             if (request.content.checked) {
                 isPourpointActive = true; mapContainer.style.cursor = 'crosshair';
             } else {
@@ -248,7 +251,7 @@ export async function renderPreview(request=null) {
             currentMap.closeTooltip(hoverTooltip); clearPendingRequest();
         } else if (key === 'getLayer') {
             const config = layerConfig[request.content.layerKey];
-            data = config.getLayer().toGeoJSON();
+            const data = config.getData(); 
             content.data = data;
             signalSender('updateUIState', content); return;
         } else if (key === 'mapPlotter') {
@@ -260,10 +263,11 @@ export async function renderPreview(request=null) {
                 signalSender('updateUIState', content); return;
             }
             if (request.content.reset) resetMap(currentMap);
-                lastLayer = await mapPlotter(
-                    request, request.content.data, currentMap, type
-                );
-                config.setLayer(lastLayer);
+            config.setData(request.content.data);
+            lastLayer = await mapPlotter(
+                config.getData(), currentMap, type
+            );
+            config.setLayer(lastLayer);
         } else if (key === 'layerChecker') {
             const layerKey = request.content.layerKey;
             const config = layerConfig[layerKey];
@@ -290,7 +294,6 @@ export async function renderPreview(request=null) {
                         const land = (props.land ?? '').toString().trim();
                         check = !land || land === '' || land === 'None';
                     }
-                    console.log(props._id, props.land, check);
                     // Highlight invalid polygons
                     if (check) {
                         layer.setStyle({ color: 'yellow', weight: 3 });
@@ -309,14 +312,14 @@ export async function renderPreview(request=null) {
                 signalSender('updateUIState', content); return;
             }, 500);
         } else if (key === 'assignType') {
-            const layerKey = request.content.layerKey;
-            const config = layerConfig[layerKey]; let typeIput = '', response = null;
+            const config = layerConfig[request.content.layerKey];
+            let typeIput = '', response = null;
             const id = request.content.id, type = request.content.type;
+            const objType = mapping[type];
             if (!config) {
                 content.message = 'Layer not found';
                 signalSender('updateUIState', content); return;
             }
-            const existing = config.getLayer();
             if (type === 'soil') typeIput = 'Soil';
             else if (type === 'land') typeIput = 'Land cover';
             else if (type === 'river') typeIput = 'River';
@@ -331,27 +334,71 @@ export async function renderPreview(request=null) {
             if (response.status === "error") { 
                 signalSender('hideOverlay'); alert(response.message); return; 
             }
+            let data = config.getData();
+            data.features = data.features.map(f => {
+                if (Number(f.properties._id) === Number(id)) {
+                    const values = response.content.map(v => Number(v));
+                    if (objType) {
+                        f.properties[objType.key] = type;
+                        objType.fields.forEach((field, i) => {
+                            f.properties[field] = values[i];
+                        });
+                    }
+                    values.unshift(id); content.ids = [id]; content.data = [values];
+                }
+                return f;
+            });
+
+            // const existing = config.getLayer();
+            // existing.eachLayer((layer) => { 
+            //     if (Number(layer.feature.properties._id) === Number(id)) {
+            //         const values = response.content.map(v => Number(v));
+            //         if (objType) {
+            //             layer.feature.properties[objType.key] = type;
+            //             objType.fields.forEach((field, i) => {
+            //                 layer.feature.properties[field] = values[i];
+            //             })
+            //         }
+            //         values.unshift(id); content.ids = [id]; content.data = [values];
+            //         alert(`${typeIput} type "${type}" assigned to polygon "${id}".`);
+            //         layer.setStyle({ color: 'green', weight: 3, fillOpacity: 0.8, fillColor: 'green' });
+            //     }
+            //     if (layer.getTooltip()) {
+            //         layer.getTooltip().setContent(buildTooltip(layer.feature.properties, type));
+            //     }
+            // });
+            // config.setLayer(existing);
+
+            
+            config.setData(data);
+            const oldLayer = config.getLayer();
+            if (oldLayer) currentMap.removeLayer(oldLayer);
+            lastLayer = L.geoJSON(data, {
+                style: { color: 'red', weight: 2 }
+            });
+            config.setLayer(lastLayer); lastLayer.addTo(currentMap);
+            signalSender('hideOverlay'); signalSender('updateUIState', content); return;
+        } else if (key === 'deleteItem') {
+            const layerKey = request.content.layerKey;
+            const id = request.content.id, type = request.content.type;
+            const config = layerConfig[layerKey]; let checked = false;
+            if (!config) {
+                content.message = 'Layer not found';
+                signalSender('updateUIState', content); return;
+            }
+            const existing = config.getLayer();
             existing.eachLayer((layer) => { 
                 if (Number(layer.feature.properties._id) === Number(id)) {
-                    const values = response.content.map(v => Number(v));
-                    const objType = mapping[type];
-                    if (objType) {
-                        layer.feature.properties[objType.key] = type;
-                        objType.fields.forEach((field, i) => {
-                            layer.feature.properties[field] = values[i];
-                        })
-                    }
-                    values.unshift(id);
-                    content.ids = [id]; content.data = [values]; content.key = key;
-                    alert(`${typeIput} type "${type}" assigned to polygon "${id}".`);
-                    layer.setStyle({ color: 'green', weight: 3, fillOpacity: 0.8, fillColor: 'green' });
+                    layer.remove(); existing.removeLayer(layer); checked = true;
                 }
                 if (layer.getTooltip()) {
                     layer.getTooltip().setContent(buildTooltip(layer.feature.properties, type));
                 }
-            }); 
-            signalSender('hideOverlay'); signalSender('updateUIState', content); return;
-        
+            });
+            if (checked) { alert(`Segment "${id}" was deleted from the river layer.`); }
+            config.setLayer(existing);
+            signalSender('updateUIState', content); return;
+
         
         
         }
