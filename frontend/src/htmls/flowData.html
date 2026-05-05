@@ -18,8 +18,8 @@
                     <button class="tab-btn" data-tab="land-tab">Land Cover</button>
                     <button class="tab-btn" data-tab="river-network-tab">River Network</button>
                     <button class="tab-btn" data-tab="initial-conditions-tab">Initial Conditions</button>
-                    <button class="tab-btn" data-tab="weather-data-tab">Weather Data</button>
-                    <button class="tab-btn" data-tab="settings-tab">Settings</button>
+                    <!-- <button class="tab-btn" data-tab="weather-data-tab">Weather Data</button>
+                    <button class="tab-btn" data-tab="settings-tab">Settings</button> -->
                 </div>
             </div>
             <div class="tabs-content">
@@ -434,7 +434,7 @@
                     </div>
                 </div>
                 <!-- Tab 6: Weather Data -->
-                <div class="tabpanel main-panel" data-panel="weather-data-tab">
+                <!-- <div class="tabpanel main-panel" data-panel="weather-data-tab">
                     <div class="grid">
                         <div class="tile" style="grid-column: span 2;"><h3>Weather Data Import</h3>
                             <label class="row-radio">
@@ -453,9 +453,7 @@
                                 <label for="weather-station">Source:</label>
                                 <select id="weather-station" style="width: 100%;">
                                     <option value="" selected>--- Select a source ---</option>
-                                    <option value="ntnu">NTNU Weather Station</option>
-                                    <option value="eklima">Norwegian Meteorological Institute - MET</option>
-                                    <option value="nve">Norwegian Water Resources and Energy Directorate - NVE</option>
+                                    <option value="rosim">ROSIM (regnbyge.no)</option>  
                                 </select>
                             </div>
                             <div class="row" id="weather-station-start" style="display: none;">
@@ -468,6 +466,7 @@
                             </div>
                         </div>
                         <div class="tile" style="grid-column: span 6;"><h3>Attribute Table</h3>
+                            
                             <div class="table-container">
                                 <table class="attributes-table" id="weather-table">
                                     <thead><tr>
@@ -498,12 +497,14 @@
                                     target="_blank">Allen et al., (1998): Crop Evapotranspiration – FAO Irrigation and Drainage Paper 56
                                 </a>
                                 <div class="row">
-                                    <button type="button" id="weather-save-btn" style="width: 200px;">Export Table</button>
+                                    <button type="button" id="weather-save-btn" 
+                                        style="max-width: 250px; margin-left: auto; display: none;">Export Table
+                                    </button>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                </div> -->
             </div>
         </section>
     </div>

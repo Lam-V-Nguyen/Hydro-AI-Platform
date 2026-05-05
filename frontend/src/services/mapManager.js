@@ -1,5 +1,5 @@
 import { CENTER, ZOOM, L, getPendingRequest, clearPendingRequest, origin } from "./constant.js";
-import { signalSender, jsonLoader } from "./commonFunctions.js";
+import { signalSender } from "./commonFunctions.js";
 import { updateColorbar } from "./unstructuredGrid.js";
 import { mapPlotter, buildTooltip } from "./flowManager.js";
 
@@ -45,6 +45,11 @@ const layerConfig = {
         getData() { return this.data; }, setData(d) { this.data = d; },
     },
     lakeLayer_Vector: {
+        layer: null, data: null,
+        getLayer() { return this.layer; }, setLayer(l) { this.layer = l; },
+        getData() { return this.data; }, setData(d) { this.data = d; },
+    },
+    weather_Vector: {
         layer: null, data: null,
         getLayer() { return this.layer; }, setLayer(l) { this.layer = l; },
         getData() { return this.data; }, setData(d) { this.data = d; },
@@ -379,29 +384,22 @@ export async function renderPreview(request=null) {
             if (checked) { alert(`Segment "${id}" was deleted from the river layer.`); }
             config.setLayer(existing);
             signalSender('updateUIState', content); return;
+        
+        
+            // } else if (key === 'weather') {
+        //     let iCon = '';
+        //     const layerKey = request.content.layerKey, id = request.content.id;
+        //     if (id === 'rosim') iCon = `/src_frontend/images/rain.png?v=${Date.now()}`;
+        //     const config = layerConfig[layerKey];
+        //     if (!config) {
+        //         content.message = 'Layer not found';
+        //         signalSender('updateUIState', content); return;
+        //     }
 
         
         
         }
 
-
-
-
-    //         pointLayer = addPointLayer(
-    //             request.content.currentProject, request.content.points, 
-    //             currentMap, request.content.key, request.content.move
-    //         );
-    //         signalSender('updateUIState', { requestId: request.content.requestId });
-    //     } else if (layer === 'refineGrid') {
-    //         const isPointLayer = pointLayer !== null ? true : false;
-    //         if (isPointLayer) {
-    //             orthoLayer = clearMap(orthoLayer, currentMap);
-    //             gridLayer = clearMap(gridLayer, currentMap);
-    //         } else currentPoints = [];
-    //         refinedChecked = request.content.checked;
-    //         signalSender('updateUIState', { 
-    //             requestId: request.content.requestId, isPointLayer: isPointLayer
-    //         });
 
 
         signalSender('updateUIState', content);

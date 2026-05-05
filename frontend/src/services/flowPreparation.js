@@ -1,7 +1,7 @@
 import { setupTabs } from "./tabManager.js";
 import { flowId } from "./constant.js";
 import { getUser, signalSender, sendRequest, initRequestListener, csvUploader,
-    jsonLoader, fillTable, deleteTable, addRowToTable, getDataFromTable
+    jsonLoader, fillTable, deleteTable, addRowToTable, getDataFromTable, formatDate
 } from "./commonFunctions.js";
 import { catchmentDelineation, geoJSONExporter } from "./flowManager.js";
 
@@ -35,11 +35,11 @@ const obj = {
     riverCatchmentClipBtn: $('river-clip-catchment-btn'), riverTable: $('river-table'), 
     riverDeleteBtn: $('river-delete-btn'), invalidriverBtn: $('river-invalid-checker-btn'),
     riverIds: $('river-id'), assignRiverBtn: $('river-assign-btn'), saveRiverBtn: $('river-save-btn'),
-    weatherCSVContainer: $('weather-csv-container'), weatherStationContainer: $('weather-station-container'),
-    weatherBtn: $('weather-btn'), weatherInputFile: $('weather-input-file'), weatherInputText: $('weather-input-text'), 
-    weatherTable: $('weather-table'), weatherStationSelector: $('weather-station'), 
-    weatherStationStartContainer: $('weather-station-start'), weatherStationEndContainer: $('weather-station-end'), 
-    weatherStart: $('weather-start-date'), weatherEnd: $('weather-end-date'), 
+    // weatherCSVContainer: $('weather-csv-container'), weatherStationContainer: $('weather-station-container'),
+    // weatherBtn: $('weather-btn'), weatherInputFile: $('weather-input-file'), weatherInputText: $('weather-input-text'), 
+    // weatherTable: $('weather-table'), weatherStationSelector: $('weather-station'), 
+    // weatherStationStartContainer: $('weather-station-start'), weatherStationEndContainer: $('weather-station-end'), 
+    // weatherStart: $('weather-start-date'), weatherEnd: $('weather-end-date'), saveweatherBtn: $('weather-save-btn'),
 }
 
 
@@ -48,7 +48,8 @@ let currentProject, minTerrain = null, maxTerrain = null, minFill = null, maxFil
     maxFlowAccumulation = null, isTerrain = false, isFill = false, isFlowDirection = false;
 
 initRequestListener(); setupTabs(document); await getProject(); windowListener();
-topographyManager(); soilManager(); landManager(); riverManager(); weatherManager();
+topographyManager(); soilManager(); landManager(); riverManager(); 
+// weatherManager();
 
 async function getProject() { 
     const userName = await getUser();
@@ -358,7 +359,6 @@ function soilManager() {
     obj.soilInvalidCheckerBtn.addEventListener('click', async () => { 
         const layerChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'soilLayer_Vector' });
         if (!layerChecker.exist) { alert('Please upload/create a soil layer first.'); return; }
-        deleteTable(obj.soilTable);
         await sendRequest('flowOptions', { key: 'invalidCheck', layerKey: 'soilLayer_Vector', type: 'soil' });
     });
     obj.soilClipBtn.addEventListener('click', async () => { 
@@ -666,7 +666,7 @@ function riverManager() {
         }
         await sendRequest('flowOptions', { 
             key: 'assignType', layerKey: 'riverLayer_Vector', id: id, data: selectData[0], type: 'river' 
-        });        
+        });
         const otherData = data.filter(v => Number(v[0]) !== Number(id));        
         const firstValues = otherData.map(arr => arr[0]);
         obj.riverIds.textContent = '';
@@ -686,72 +686,73 @@ function riverManager() {
     });
 }
 
-function weatherManager() {
-    const startOfDay = new Date(), now = new Date(); startOfDay.setHours(0, 0, 0, 0);
-    document.querySelectorAll('input[name="weather"]').forEach(item => {
-        item.addEventListener('change', (e) => {            
-            if (e.target.value === 'weather-csv') { 
-                obj.weatherCSVContainer.style.display = 'flex';
-                obj.weatherStationContainer.style.display = 'none';
-            } else {
-                obj.weatherCSVContainer.style.display = 'none';
-                obj.weatherStationContainer.style.display = 'flex';
-            }
-        });
-    });
-    obj.weatherBtn.addEventListener('click', () => { obj.weatherInputFile.click(); });
-    obj.weatherInputFile.addEventListener('change', async (e) => {
-        signalSender('showOverlay', 'Uploading weather data from CSV file.\nPlease wait...');
-        try { await csvUploader(e, obj.weatherInputText, obj.weatherTable, 8);
-        } finally { signalSender('hideOverlay'); }
-    });
-    obj.weatherStationSelector.addEventListener('change', async(e) => {
-        const value = e.target.value; let response = null, iCon = null;
-        deleteTable(obj.weatherTable);
-        if (!value || value === '') {
-            obj.weatherStationStartContainer.style.display = 'none';
-            obj.weatherStationEndContainer.style.display = 'none'; return;
-        }
-        obj.weatherStationStartContainer.style.display = 'flex';
-        obj.weatherStationEndContainer.style.display = 'flex';
-        obj.weatherStart.value = formatDate(startOfDay); 
-        obj.weatherEnd.value = formatDate(now);
-//         if (value == 'ntnu') {
-//             startLoading('Getting location of the NTNU weather station. Please wait...');
-//             response = await sendQuery('weather_location', { key: 'ntnu' }); stopLoading();
-//             if (response.status === 'error') { alert(response.message); e.target.value = ''; return; }
-//             iCon = `/static_backend/images/ntnu.png?v=${Date.now()}`;
-//         } else if (value == 'eklima') {
-//             startLoading('Getting location of weather stations from Norwegian Meteorological Institute. Please wait...');
-//             response = await sendQuery('weather_location', { key: 'eklima' }); stopLoading();
-//             if (response.status === 'error') { alert(response.message); e.target.value = ''; return; }
-//             iCon = `/static_backend/images/met.png?v=${Date.now()}`;
-//         } else if (value == 'nve') {
-//             startLoading('Getting location of weather stations from Norwegian Water Resources and Energy Directorate. Please wait...');
-//             response = await sendQuery('weather_location', { key: 'nve' }); stopLoading();
-//             if (response.status === 'error') { alert(response.message); e.target.value = ''; return; }
-//             iCon = `/static_backend/images/nve.png?v=${Date.now()}`;
-//         }
-//         weatherLayer = clearMap(weatherLayer, map);
-//         weatherLayer = L.geoJSON(response.content, { 
-//             pointToLayer: (_, latlng) => {
-//                 const marker = L.marker(latlng, {
-//                     icon: L.icon({
-//                         iconUrl: iCon, iconSize: [30, 30], iconAnchor: [10, 10]
-//                     }),
-//                 });
-//                 return marker;
-//             },
-//             onEachFeature: (feature, featureLayer) => {
-//                 featureLayer.on('click', async (e) => { 
-//                     L.DomEvent.stopPropagation(e);
-//                     await getWeatherData(value, feature.properties.id, weatherStart().value, weatherEnd().value);
-//                 });
-//                 featureLayer.bindTooltip(`${buildTooltip(feature.properties, value)}`, {sticky: true});
+// function weatherManager() {
+//     const startOfDay = new Date(), now = new Date(); startOfDay.setHours(0, 0, 0, 0);
+//     document.querySelectorAll('input[name="weather"]').forEach(item => {
+//         item.addEventListener('change', (e) => {            
+//             if (e.target.value === 'weather-csv') { 
+//                 obj.weatherCSVContainer.style.display = 'flex';
+//                 obj.weatherStationContainer.style.display = 'none';
+//                 obj.saveweatherBtn.style.display = 'none';
+//             } else {
+//                 obj.weatherCSVContainer.style.display = 'none';
+//                 obj.weatherStationContainer.style.display = 'flex';
+//                 obj.saveweatherBtn.style.display = 'flex';
 //             }
-//         }).addTo(map);
-    });
-}
+//         });
+//     });
+//     obj.weatherBtn.addEventListener('click', () => { obj.weatherInputFile.click(); });
+//     obj.weatherInputFile.addEventListener('change', async (e) => {
+//         signalSender('showOverlay', 'Uploading weather data from CSV file.\nPlease wait...');
+//         try { await csvUploader(e, obj.weatherInputText, obj.weatherTable, 8);
+//         } finally { signalSender('hideOverlay'); }
+//     });
+//     obj.weatherStationSelector.addEventListener('change', async(e) => {
+//         const value = e.target.value;
+//         if (!value || value === '') {
+//             obj.weatherStationStartContainer.style.display = 'none';
+//             obj.weatherStationEndContainer.style.display = 'none'; return;
+//         }
+//         obj.weatherStationStartContainer.style.display = 'flex';
+//         obj.weatherStationEndContainer.style.display = 'flex';
+//         obj.weatherStart.value = formatDate(startOfDay); 
+//         obj.weatherEnd.value = formatDate(now);
+//         if (value == 'rosim') {
+//             signalSender('showOverlay', `Getting weather locations from 'regnbyge.no'.\nPlease wait...`);
+//             const response = await sendQuery('weather_location', { key: 'ntnu' }); signalSender('hideOverlay');
+//             if (response.status === 'error') { alert(response.message); e.target.value = ''; return; }
+//             await sendRequest('flowOptions', { key: 'weather', layerKey: 'weather_Vector', id: 'rosim' });
+// //         } else if (value == 'eklima') {
+// //             startLoading('Getting location of weather stations from Norwegian Meteorological Institute. Please wait...');
+// //             response = await sendQuery('weather_location', { key: 'eklima' }); stopLoading();
+// //             if (response.status === 'error') { alert(response.message); e.target.value = ''; return; }
+// //             iCon = `/static_backend/images/met.png?v=${Date.now()}`;
+// //         } else if (value == 'nve') {
+// //             startLoading('Getting location of weather stations from Norwegian Water Resources and Energy Directorate. Please wait...');
+// //             response = await sendQuery('weather_location', { key: 'nve' }); stopLoading();
+// //             if (response.status === 'error') { alert(response.message); e.target.value = ''; return; }
+// //             iCon = `/static_backend/images/nve.png?v=${Date.now()}`;
+//         }
+// //         weatherLayer = clearMap(weatherLayer, map);
+// //         weatherLayer = L.geoJSON(response.content, { 
+// //             pointToLayer: (_, latlng) => {
+// //                 const marker = L.marker(latlng, {
+// //                     icon: L.icon({
+// //                         iconUrl: iCon, iconSize: [30, 30], iconAnchor: [10, 10]
+// //                     }),
+// //                 });
+// //                 return marker;
+// //             },
+// //             onEachFeature: (feature, featureLayer) => {
+// //                 featureLayer.on('click', async (e) => { 
+// //                     L.DomEvent.stopPropagation(e);
+// //                     await getWeatherData(value, feature.properties.id, weatherStart().value, weatherEnd().value);
+// //                 });
+// //                 featureLayer.bindTooltip(`${buildTooltip(feature.properties, value)}`, {sticky: true});
+// //             }
+// //         }).addTo(map);
+//     });
+// }
 
 
 function windowListener() {
@@ -763,7 +764,7 @@ function windowListener() {
     window.addEventListener('message', (e) => {
         if (e.data?.type === 'updateUIDelay') {
             const content = e.data.content; let table = null, ids = null, objType = null;
-            // console.log('message', content);
+            console.log('message', content);
             if (content.key === 'soil') {
                 ids = obj.soilIds; table = obj.soilTable; objType = obj.soilTypes;
             } else if (content.key === 'land') {
@@ -789,110 +790,6 @@ function windowListener() {
         }
     });
 }
-
-
-
-
-
-// const terrainInputText = () => document.getElementById('terrain-input-text');
-// const terrainInputFile = () => document.getElementById('terrain-input-file');
-// const terrainBtn = () => document.getElementById('terrain-btn');
-// const fillBtn = () => document.getElementById('terrain-fill-btn');
-// const flowDirectionBtn = () => document.getElementById('terrain-direction-btn');
-// const flowAccumulationBtn = () => document.getElementById('terrain-accumulation-btn');
-// const catchmentExportBtn = () => document.getElementById('export-catchment-btn');
-// const pourpointContainer = () => document.getElementById('pourpoint-container');
-// const pourpointCheckbox = () => document.getElementById('pourpoint-checkbox');
-// const pourpointLat = () => document.getElementById('pourpoint-lat');
-// const pourpointLon = () => document.getElementById('pourpoint-lon');
-// const pourpointThreshold = () => document.getElementById('pourpoint-threshold');
-// const pourpointDist = () => document.getElementById('pourpoint-dist');
-// const exportContainer = () => document.getElementById('export-container');
-// const colorbar_container = () => document.getElementById('colorbar-container');
-// const colorbar_color = () => document.getElementById('colorbar-color');
-// const colorbar_title = () => document.getElementById('colorbar-title');
-// const colorbar_label = () => document.getElementById('colorbar-labels');
-// const catchmentUploadContainer = () => document.getElementById('catchment-upload-container');
-// const catchmentInputFile = () => document.getElementById('catchment-input-file');
-// const catchmentUploadBtn = () => document.getElementById('catchment-upload-btn');
-// const soilInputText = () => document.getElementById('soil-input-text');
-// const soilInputFile = () => document.getElementById('soil-input-file');
-// const soilBtn = () => document.getElementById('soil-btn');
-// const soilCheckbox = () => document.getElementById('soil-checker-checkbox');
-// const soilInvalidCheckerBtn = () => document.getElementById('soil-invalid-checker-btn');
-// const soilClipBtn = () => document.getElementById('soil-clip-btn');
-// const soilIds = () => document.getElementById('soil-id');
-// const soilTypes = () => document.getElementById('soil-type');
-// const assignSoilBtn = () => document.getElementById('assign-soil-btn');
-// const saveSoilBtn = () => document.getElementById('save-soil-btn');
-// const soilAttributesTable = () => document.getElementById('soil-attributes-table');
-// const landInputFile = () => document.getElementById('land-input-file');
-// const landInputText = () => document.getElementById('land-input-text');
-// const landBtn = () => document.getElementById('land-btn');
-// const landCheckbox = () => document.getElementById('land-checker-checkbox');
-// const landInvalidCheckerBtn = () => document.getElementById('land-invalid-checker-btn');
-// const landClipBtn = () => document.getElementById('land-clip-btn');
-// const landIds = () => document.getElementById('land-id');
-// const landTypes = () => document.getElementById('land-type');
-// const assignLandBtn = () => document.getElementById('assign-land-btn');
-// const saveLandBtn = () => document.getElementById('save-land-btn');
-// const landAttributesTable = () => document.getElementById('land-attributes-table');
-// const riverInputFile = () => document.getElementById('river-input-file');
-// const riverUploadBtn = () => document.getElementById('river-upload-btn');
-// const riverInputText = () => document.getElementById('river-input-text');
-// const thresholdLabel = () => document.getElementById('river-threshold-label');
-// const riverThreshold = () => document.getElementById('river-network-threshold');
-// const riverAttributesTable = () => document.getElementById('river-attributes-table');
-// const assignRiverBtn = () => document.getElementById('river-assign-btn');
-// const saveRiverBtn = () => document.getElementById('river-save-btn');
-// const lakeInputFile = () => document.getElementById('lake-input-file');
-// const lakeUploadBtn = () => document.getElementById('lake-upload-btn');
-// const riverLakeClipBtn = () => document.getElementById('river-clip-lake-btn');
-// const riverCatchmentClipBtn = () => document.getElementById('river-clip-catchment-btn');
-// const riverDeleteBtn = () => document.getElementById('river-delete-btn');
-// const riverCheckbox = () => document.getElementById('river-checker-checkbox');
-// const initialTopMoisture = () => document.getElementById('initial-top-moisture');
-// const initialSubMoisture = () => document.getElementById('initial-sub-moisture');
-// const initialGroundwater = () => document.getElementById('initial-groundwater');
-// const initialOverlandFlow = () => document.getElementById('initial-overland-flow');
-// const initialRiverStorage = () => document.getElementById('initial-river-storage');
-// const initialLakeStorage = () => document.getElementById('initial-lake-storage');
-// const initialSnowDepth = () => document.getElementById('initial-snow-depth');
-// const initialWaterDepth = () => document.getElementById('initial-water-depth');
-// const initialSaturationDeficit = () => document.getElementById('initial-saturation-deficit');
-// const weatherCSVContainer = () => document.getElementById('weather-csv-container');
-// const weatherInputFile = () => document.getElementById('weather-input-file');
-// const weatherInputText = () => document.getElementById('weather-input-text');
-// const weatherBtn = () => document.getElementById('weather-btn');
-// const weatherStationSelector = () => document.getElementById('weather-station');
-// const weatherStationContainer = () => document.getElementById('weather-station-container');
-// const weatherStationStartContainer = () => document.getElementById('weather-station-start');
-// const weatherStationEndContainer = () => document.getElementById('weather-station-end');
-// const weatherStart = () => document.getElementById('weather-start-date');
-// const weatherEnd = () => document.getElementById('weather-end-date');
-// const weatherAttributesTable = () => document.getElementById('weather-attributes-table');
-
-
-
-
-
-
-// let map = null,
-//     
-//     
-//     
-//      , 
-//     isPourpointActive = false, landLayer = null, riverLayer = null, lakeLayer = null,
-//     weatherLayer = null;
-
-
-
-
-
-
-
-
-
 
 // async function getWeatherData(source, station, start, end) {
 //     if (start === '' || end === '') { 
