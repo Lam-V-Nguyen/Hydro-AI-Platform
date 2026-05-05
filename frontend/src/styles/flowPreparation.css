@@ -65,6 +65,12 @@ body {
   color: var(--text); outline: none; text-align: center; min-width: 0;
 }
 
+.radio-button {
+  display: flex; align-items: center; gap: 10px;
+  justify-content: space-between; width: 100%;
+}
 
-
-
+.radio-button .row-radio {
+  display: inline-flex; align-items: center; margin-top: 30px;
+  gap: 6px; line-height: 1; vertical-align: middle;
+}

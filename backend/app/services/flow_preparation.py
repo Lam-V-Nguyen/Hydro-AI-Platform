@@ -1,4 +1,4 @@
-import os, json, traceback, mercantile, rasterio, shutil, io, sknw
+import os, json, traceback, mercantile, rasterio, shutil, io, sknw, copy
 from fastapi import APIRouter, Request, Depends, UploadFile, File, Form, Response
 from fastapi.responses import JSONResponse
 import geopandas as gpd, numpy as np, matplotlib.cm as cm, pandas as pd
@@ -274,11 +274,11 @@ async def data_upload(file: UploadFile = File(...), projectName: str = Form(...)
         os.makedirs(flow_dir, exist_ok=True)
         if key == "soil": 
             folder, func_codes = "soils", flow_functions.soil_codes
-            func_types = flow_functions.soil_types
+            func_types = copy.deepcopy(flow_functions.soil_types)
             new_cols = ["theta_s", "theta_r", "k_sat_ver", "soil_depth", "conductivity_decay", "brooks_corey"]
         elif key == "land": 
             folder, func_codes = "lands", flow_functions.land_codes
-            func_types = flow_functions.land_types
+            func_types = copy.deepcopy(flow_functions.land_types)
             new_cols = ["LAI", "root_depth", "interception", "manning_n", "albedo", "kc"]
         save_dir = os.path.normpath(os.path.join(flow_dir, folder))
         os.makedirs(save_dir, exist_ok=True)
@@ -300,9 +300,6 @@ async def data_upload(file: UploadFile = File(...), projectName: str = Form(...)
             gdf = gpd.read_file(soil_path)
         if gdf.empty: return JSONResponse({'status': 'error', 'message': 'No data found.'})
         if key not in gdf.columns: gdf.insert(1, key, 'None')
-        for k, v in func_types.items():
-            if len(v) != len(new_cols):
-                print("Lỗi tại:", k, "=>", v, "len =", len(v))
         mapped = gdf[key].map(lambda x: func_types.get(x, ["None"] * len(new_cols)))
         gdf[new_cols] = pd.DataFrame(mapped.tolist(), columns=new_cols)
         gdf[key] = np.where(gdf[key]=='', 'None', gdf[key])
@@ -343,8 +340,8 @@ async def assign_type(request: Request):
     try:
         body = await request.json()
         key, data = body.get('key'), body.get('data')
-        if key == "soil": content = flow_functions.soil_types[data]
-        elif key == "land": content = flow_functions.land_types[data]
+        if key == "soil": content = copy.deepcopy(flow_functions.soil_types[data])
+        elif key == "land": content = copy.deepcopy(flow_functions.land_types[data])
         content.insert(0, data)
         return JSONResponse({'status': 'ok', 'content': content})
     except Exception as e:
@@ -396,7 +393,6 @@ async def river_upload(file: UploadFile = File(...), projectName: str = Form(...
             if col not in gdf.columns: gdf[col] = 'None'
             else: gdf[col] = pd.to_numeric(gdf[col], errors='coerce')
         gdf = gdf[['_id', 'width', 'depth', 'manning_n', 'geometry']]
-        print(gdf.head())
         if gdf.crs != "EPSG:4326": gdf = gdf.to_crs("EPSG:4326")
         return JSONResponse({'status': 'ok', 'content': json.loads(gdf.to_json())})
     except Exception as e:

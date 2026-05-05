@@ -75,10 +75,9 @@ let currentTileLayer = null, timeCounter = null, html='', markersObs = [],
     markerCrossSection = [], currentPoints = [], markerBoundary = [], 
     pathCrossSection = null, pathBoundary = null, currentPointsCross = [], 
     currentPointsBoundary = [], waqObs = [], waqLoads = [], mapContainer = null,
-    catchmentLayer_Vector = null, markerLayer = null, terrainLayer = null,
+    markerLayer = null, terrainLayer = null, isPourpointActive = false,
     fillLayer = null, flowDirectionLayer = null, flowAccumulationLayer = null, 
-    lastLayer = null, layer = null, isPourpointActive = false, soilLayer_Vector = null, 
-    landLayer_Vector = null, riverLayer_Vector = null, lakeLayer_Vector = null;
+    lastLayer = null, layer = null;
 const configCrossSectionPoint = { color: 'blue', fillColor: 'yellow', radius: 4, fill: true, fillOpacity: 1 }, 
     configBoundaryPoint = { color: 'red', fillColor: 'green', radius: 4, fill: true, fillOpacity: 1 }, 
     configCrossSectionPath = { color: 'blue', weight: 2, dashArray: '5,5' }, 
@@ -251,7 +250,6 @@ export async function renderPreview(request=null) {
         } else if (key === 'getLayer') {
             const config = layerConfig[request.content.layerKey];
             const data = config.getData();
-            console.log('getLayer', data);
             content.data = data;
             signalSender('updateUIState', content); return;
         } else if (key === 'mapPlotter') {
@@ -293,14 +291,21 @@ export async function renderPreview(request=null) {
                     } else if (inputType === 'land') { 
                         const land = (props.land ?? '').toString().trim();
                         check = !land || land === '' || land === 'None';
+                    } else if (inputType === 'river') {
+                        const river = (props.width ?? '').toString().trim();
+                        check = !river || river === '' || river === 'None';
+
+
                     }
                     // Highlight invalid polygons
                     if (check) {
                         layer.setStyle({ color: 'yellow', weight: 3 });
-                        const id = props._id;
-                        const values = [
-                            id,'None','None','None','None','None','None','None'
-                        ]
+                        const id = props._id; let values = null;
+                        if (inputType === 'soil' || inputType === 'land') {
+                            values = [id,'None','None','None','None','None','None','None']
+                        } else if (inputType === 'river') {
+                            values = [id,'None','None','None']
+                        }
                         invalidContent.push(values); invalidIDs.push(id);
                     }
                 }); signalSender('hideOverlay');
@@ -313,7 +318,7 @@ export async function renderPreview(request=null) {
             }, 500);
         } else if (key === 'assignType') {
             const config = layerConfig[request.content.layerKey];
-            let typeIput = '', response = null;
+            let typeIput = '';
             const id = request.content.id, type = request.content.type;
             const objType = mapping[type];
             if (!config) {
@@ -324,70 +329,35 @@ export async function renderPreview(request=null) {
             else if (type === 'land') typeIput = 'Land cover';
             else if (type === 'river') typeIput = 'River';
             signalSender('showOverlay', `Assigning ${typeIput} attribute to the selected polygon.\nPlease wait...`);
-            if (type === 'soil' || type === 'land') {
-                response = await jsonLoader('assign_type', { 
-                    data: request.content.data, key: type
-                });
-            } else if (type === 'river') {
-                response = { content: request.content.data };
-            }
-            if (response.status === "error") { 
-                signalSender('hideOverlay'); alert(response.message); return; 
-            }
             let data = config.getData();
             data.features = data.features.map(f => {
                 if (Number(f.properties._id) === Number(id)) {
-                    const values = response.content.map(v => Number(v));
+                    const values = request.content.data.slice(1).map(v => Number(v));
                     if (objType) {
-                        f.properties[objType.key] = type;
+                        f.properties[objType.key] = request.content.data[0];
                         objType.fields.forEach((field, i) => {
                             f.properties[field] = values[i];
                         });
                     }
                     values.unshift(id); content.ids = [id]; content.data = [values];
+                    alert(`${typeIput} type "${type}" assigned to polygon "${id}".`);
                 }
                 return f;
             }); config.setData(data);
-            console.log('assignType', data);
-            // const existing = config.getLayer();
-            // if (existing) currentMap.removeLayer(existing);
-            // existing.eachLayer((layer) => { 
-            //     if (Number(layer.feature.properties._id) === Number(id)) {
-            //         const values = response.content.map(v => Number(v));
-            //         if (objType) {
-            //             layer.feature.properties[objType.key] = type;
-            //             objType.fields.forEach((field, i) => {
-            //                 layer.feature.properties[field] = values[i];
-            //             })
-            //         }
-            //         values.unshift(id); content.ids = [id]; content.data = [values];
-            //         alert(`${typeIput} type "${type}" assigned to polygon "${id}".`);
-            //         layer.setStyle({ color: 'green', weight: 3, fillOpacity: 0.8, fillColor: 'green' });
-            //     }
-            //     if (layer.getTooltip()) {
-            //         layer.getTooltip().setContent(buildTooltip(layer.feature.properties, type));
-            //     }
-            // }); 
-            // config.setLayer(existing); existing.addTo(currentMap);
-
             const oldLayer = config.getLayer();
             if (oldLayer) currentMap.removeLayer(oldLayer);
-            // const newLayer = L.geoJSON(config.getData(), {
-            //     style: { color: 'red', weight: 2, opacity: 1 },
-            //     // config.getData(), { style: { color: 'red', weight: 2, opacity: 1 }}
-            //     onEachFeature: (feature, layer) => {
-            //         if (layer.getTooltip()) {
-            //             layer.getTooltip().setContent(
-            //                 buildTooltip(feature.properties, type)
-            //             );
-            //         }
-            //     }
-            // });
             lastLayer = await mapPlotter(config.getData(), currentMap, type);
-            config.setLayer(lastLayer); lastLayer.addTo(currentMap);
-            
-            
-
+            config.setLayer(lastLayer);
+            const existing = config.getLayer();
+            existing.eachLayer((layer) => { 
+                if (Number(layer.feature.properties._id) === Number(id)) {
+                    layer.setStyle({ color: 'green', weight: 3, fillOpacity: 0.8, fillColor: 'green' });
+                }
+                if (layer.getTooltip()) {
+                    layer.getTooltip().setContent(buildTooltip(layer.feature.properties, type));
+                }
+            }); 
+            config.setLayer(existing); existing.addTo(currentMap);
             signalSender('hideOverlay'); signalSender('updateUIState', content); return;
         } else if (key === 'deleteItem') {
             const layerKey = request.content.layerKey;

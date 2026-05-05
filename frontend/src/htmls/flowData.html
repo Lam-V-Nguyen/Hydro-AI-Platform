@@ -129,13 +129,15 @@
                                 <input type="text" id="soil-input-text" placeholder="No file selected" readonly>
                                 <button type="button" id="soil-btn" style="min-width: 150px;">Select file (*.tif, *.geojson)</button>
                             </div>
-                            <label class="row-radio">
-                                <input type="checkbox" id="soil-checker-checkbox">Show/Hide Soil Layer
-                            </label>
-                            <div class="row">
-                                <button type="button" id="soil-invalid-checker-btn" style="display: none;">
-                                    Check soils without soil type
-                                </button>
+                            <div class="radio-button">
+                                <label class="row-radio">
+                                    <input type="checkbox" id="soil-checker-checkbox">Show/Hide Soil Layer
+                                </label>
+                                <div class="row">
+                                    <button type="button" id="soil-invalid-checker-btn" style="display: none; width: 200px;">
+                                        Check invalid soils
+                                    </button>
+                                </div>
                             </div>
                             <div class="row">
                                 <a style="margin-top: 10px;">Data Reference:</a>
@@ -207,15 +209,15 @@
                             <div class="row">
                                 <a style="margin-top: 10px;">References:</a>
                                 <a class="data-link" href="#"
-                                    onclick="window.open('/static_frontend/pdfs/Rawlsetal1982TransASAE.pdf', '_blank'); return false;"
+                                    onclick="window.open('/src_frontend/pdfs/Rawlsetal1982TransASAE.pdf', '_blank'); return false;"
                                     target="_blank">W. J. Rawls et al., (1982),
                                 </a>
                                 <a class="data-link" href="#"
-                                    onclick="window.open('/static_frontend/pdfs/Cosbyetal1984WRR.pdf', '_blank'); return false;"
+                                    onclick="window.open('/src_frontend/pdfs/Cosbyetal1984WRR.pdf', '_blank'); return false;"
                                     target="_blank">B. J. Cosby et al., (1984),
                                 </a>
                                 <a class="data-link" href="#"
-                                    onclick="window.open('/static_frontend/pdfs/GordonBonan.pdf', '_blank'); return false;"
+                                    onclick="window.open('/src_frontend/pdfs/GordonBonan.pdf', '_blank'); return false;"
                                     target="_blank">Gordon Bonan (2019)
                                 </a>
                             </div>
@@ -232,13 +234,15 @@
                                 <input type="text" id="land-input-text" placeholder="No file selected" readonly>
                                 <button type="button" id="land-btn" style="min-width: 150px;">Select File (*.tif, *.geojson)</button>
                             </div>
-                            <label class="row-radio">
-                                <input type="checkbox" id="land-checker-checkbox">Show/Hide LC Layer
-                            </label>
-                            <div class="row">
-                                <button type="button" id="land-invalid-checker-btn" style="display: none;">
-                                    Check invalid lands
-                                </button>
+                            <div class="radio-button">
+                                <label class="row-radio">
+                                    <input type="checkbox" id="land-checker-checkbox">Show/Hide LC Layer
+                                </label>
+                                <div class="row">
+                                    <button type="button" id="land-invalid-checker-btn" style="display: none; width: 200px;">
+                                        Check invalid lands
+                                    </button>
+                                </div>
                             </div>
                             <div class="row">
                                 <a style="margin-top: 10px;">Data Reference:</a>
@@ -297,11 +301,11 @@
                             <div class="row">
                                 <a style="margin-top: 10px;">References:</a>
                                 <a class="data-link" href="#"
-                                    onclick="window.open('/static_frontend/pdfs/WillemWflow2024.pdf', '_blank'); return false;"
+                                    onclick="window.open('/src_frontend/pdfs/WillemWflow2024.pdf', '_blank'); return false;"
                                     target="_blank">W. J. v. Verseveld et al., (2024),
                                 </a>
                                 <a class="data-link" href="#"
-                                    onclick="window.open('/static_frontend/pdfs/Schenk2002.pdf', '_blank'); return false;"
+                                    onclick="window.open('/src_frontend/pdfs/Schenk2002.pdf', '_blank'); return false;"
                                     target="_blank">H. J. Schenk et al., (2002),
                                 </a>
                             </div>
@@ -336,16 +340,38 @@
                             <div class="row">
                                 <input type="file" id="lake-input-file" accept=".geojson" hidden>
                                 <button type="button" id="lake-upload-btn">Upload Lake Boundary</button>
+                                <button type="button" id="lake-catchment-upload-btn">Upload Catchment Boundary</button>
                             </div>
                             <div class="row">
                                 <button type="button" id="river-clip-lake-btn">Clip River to Lake</button>
                                 <button type="button" id="river-clip-catchment-btn">Clip River to Catchment</button>
                             </div>
-                            <label class="row-radio">
-                                <input type="checkbox" id="river-checker-checkbox">Show/Hide River Layer
-                            </label>
+                            <div class="radio-button">
+                                <label class="row-radio">
+                                    <input type="checkbox" id="river-checker-checkbox">Show/Hide River Layer
+                                </label>
+                                <div class="row">
+                                    <button type="button" id="river-invalid-checker-btn" style="display: block; width: 300px;">
+                                        Check invalid river segments
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                         <div class="tile" style="grid-column: span 8;"><h3>Attribute Table</h3>
+                            <div class="row">
+                                <label for="river-id">Selected segment:</label>
+                                <select style="min-width: 100px; margin-right: 50px;" id="river-id"></select>
+                                <button type="button" id="river-delete-btn" 
+                                    style="background-color: azure; color: brown; max-width: 300px;">
+                                    Delete the selected segment
+                                </button>
+                                <button type="button" id="river-assign-btn" style="max-width: 200px;">
+                                    Save selected Attributes
+                                </button>
+                                <button type="button" id="river-save-btn" style="max-width: 100px;">
+                                    Export
+                                </button>
+                            </div>
                             <div class="table-container">
                                 <table class="attributes-table" id="river-table">
                                     <thead><tr>
@@ -361,24 +387,13 @@
                                     </tbody>
                                 </table>
                             </div>
-                            <div class="row">
-                                <button type="button" id="river-delete-btn" style="background-color: azure; color: brown;">
-                                    Delete the selected segment
-                                </button>
-                                <button type="button" id="river-assign-btn" style="width: 350px; margin-right: 20px;">
-                                    Save selected Attributes
-                                </button>
-                                <button type="button" id="river-save-btn" style="width: 100px;">
-                                    Export
-                                </button>
-                            </div>
                         </div>
                     </div>
                 </div>
                 <!-- Tab 5: Initial Conditions -->
                 <div class="tabpanel main-panel" data-panel="initial-conditions-tab">
                     <div class="grid">
-                        <div class="tile initial-conditions-tile"><h3>Parameters</h3>
+                        <div class="tile initial-conditions-tile" style="grid-column: span 8;"><h3>Parameters</h3>
                             <div class="single-row">
                                 <label for="initial-top-moisture">Top soil moisture (m³/m³):</label>
                                 <input type="text" id="initial-top-moisture" value='0.25'>
@@ -421,7 +436,7 @@
                 <!-- Tab 6: Weather Data -->
                 <div class="tabpanel main-panel" data-panel="weather-data-tab">
                     <div class="grid">
-                        <div class="tile" style="grid-column: span 2;"><h3>Weather Data Options</h3>
+                        <div class="tile" style="grid-column: span 2;"><h3>Weather Data Import</h3>
                             <label class="row-radio">
                                 <input type="radio" name="weather" value="weather-csv" checked>Upload from CSV file
                             </label>
@@ -436,7 +451,7 @@
                             </div>
                             <div class="row" id="weather-station-container" style="display: none;">
                                 <label for="weather-station">Source:</label>
-                                <select id="weather-station">
+                                <select id="weather-station" style="width: 100%;">
                                     <option value="" selected>--- Select a source ---</option>
                                     <option value="ntnu">NTNU Weather Station</option>
                                     <option value="eklima">Norwegian Meteorological Institute - MET</option>
@@ -454,11 +469,23 @@
                         </div>
                         <div class="tile" style="grid-column: span 6;"><h3>Attribute Table</h3>
                             <div class="table-container">
-                                <table class="attributes-table" id="weather-attributes-table">
+                                <table class="attributes-table" id="weather-table">
                                     <thead><tr>
                                         <th>Time</th><th>Precipitation (mm/h)</th><th>Temperature (°C)</th><th>Shortwave Radiation (W/m²)</th>
                                         <th>Longwave Radiation (W/m²)</th><th>Wind Speed (m/s)</th><th>Relative Humidity (%)</th><th>Pressure (hPa)</th>
-                                    </tr></thead><tbody></tbody>
+                                    </tr></thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><input type="text" placeholder="Time"></td>
+                                            <td><input type="text" placeholder="Precipitation"></td>
+                                            <td><input type="text" placeholder="Temperature"></td>
+                                            <td><input type="text" placeholder="Shortwave Radiation"></td>
+                                            <td><input type="text" placeholder="Longwave Radiation"></td>
+                                            <td><input type="text" placeholder="Wind Speed"></td>
+                                            <td><input type="text" placeholder="Relative Humidity"></td>
+                                            <td><input type="text" placeholder="Pressure"></td>
+                                        </tr>
+                                    </tbody>
                                 </table>
                             </div>
                             <div class="row">
