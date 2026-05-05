@@ -210,4 +210,4 @@ __marimo__/
 /backend/projects
 backend/src/lakes_database
 backend/src/allowed_users.json
-process.ipynb
+# process.ipynb
