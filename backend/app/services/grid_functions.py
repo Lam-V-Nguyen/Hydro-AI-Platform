@@ -246,5 +246,3 @@ def mk_from_params(params, polygon):
         land_boundaries=polygon
     )
     return mk
-
-

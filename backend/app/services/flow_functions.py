@@ -120,6 +120,155 @@ def remove_holes(geom):
     else: return geom
 
 
+# def weather_init(id:str) -> gpd.GeoDataFrame:
+#     if id == 'ntnu':
+#         data = {
+#             'name': 'Norwegian University of Science and Technology',
+#             'county': 'MØRE OG ROMSDAL', 'municipality': 'ÅLESUND', 
+#             'stationHolders': 'NTNU I ÅLESUND',
+#             'geometry': Point((6.4797, 62.4848))
+#         }
+#         gdf = gpd.GeoDataFrame(data=[data], geometry='geometry', crs="EPSG:4326")
+#     elif id == 'eklima':
+#         url = f'{MET_url}/sources/v0.jsonld'
+#         headers = {'Accept': 'application/json'}
+#         response = requests.request("GET", url, 
+#             headers=headers, auth=HTTPBasicAuth(MET_client_id, ''))
+#         columns = ['id', 'name', 'county', 'municipality', 'stationHolders', 'geometry']
+#         if response.status_code != 200 or 'data' not in response.json():
+#             return gpd.GeoDataFrame()
+#         df = pd.DataFrame(response.json()['data'])[columns]
+#         df['geometry'] = df['geometry'].apply(lambda x: Point(*x['coordinates']) if isinstance(x, dict) else None)
+#         df.dropna(subset=['geometry'], inplace=True)
+#         gdf = gpd.GeoDataFrame(df, crs="EPSG:4326")
+#     elif id == 'nve':
+#         url = f'{NVE_url}/Stations'
+#         headers = {'Accept': 'application/json', "X-API-Key": NVE_client_id}
+#         response = requests.request("GET", url, headers=headers, params={"Active": 1})
+#         if response.status_code != 200 or 'data' not in response.json():
+#             return gpd.GeoDataFrame()
+#         columns = [
+#             'stationId', 'stationName', 'latitude', 
+#             'longitude', 'councilName', 'countyName', 'owner'
+#             ]
+#         allowed_params, filtered_data = {0, 2, 4, 8, 9, 11}, []
+#         for station in response.json()['data']:
+#             filtered_series = [
+#                 s for s in station.get("seriesList", [])
+#                 if s.get("parameter") in allowed_params
+#             ]
+#             if filtered_series:
+#                 new_station = station.copy()
+#                 new_station["seriesList"] = filtered_series
+#                 filtered_data.append(new_station)
+#         df = pd.DataFrame(filtered_data)[columns]
+#         if df.empty: return gpd.GeoDataFrame()
+#         columns_renamed = {
+#             'stationId': 'id', 'stationName': 'name', 'councilName': 'municipality', 
+#             'countyName': 'county', 'owner': 'stationHolders'
+#         }
+#         df.rename(columns=columns_renamed, inplace=True)
+#         gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.longitude, df.latitude), crs='EPSG:4326')
+#         gdf.drop(columns=['latitude', 'longitude'], inplace=True)
+#     return gdf
 
+# def weather_downloader(source:str, stationId:str, start:datetime, end:datetime) -> tuple:
+#     start_time = start.strftime('%Y-%m-%dT%H:%M:%SZ')
+#     end_time = end.strftime('%Y-%m-%dT%H:%M:%SZ')
+#     if source == 'ntnu':
+#         content = []
+
+
+
+
+#     elif source == 'eklima':
+#         # Reference: https://frost.met.no/elementtable
+#         url = f'{MET_url}/observations/v0.jsonld'
+#         headers = {'Accept': 'application/json'}
+#         columns = [
+#             "mean(air_temperature PT1H)", "mean(wind_speed PT1H)", 
+#             "mean(surface_air_pressure PT1H)", "mean(relative_humidity PT1H)",
+#             "sum(precipitation_amount PT1H)", 
+#             "mean(surface_downwelling_shortwave_flux_in_air PT1H)",
+#             'mean(surface_downwelling_longwave_flux_in_air PT1H)'
+#         ]
+#         params = {
+#             "sources": stationId, "elements": ",".join(columns),
+#             "referencetime": f"{start_time}/{end_time}"
+#         }
+#         response = requests.request("GET", url, params=params,
+#             headers=headers, auth=HTTPBasicAuth(MET_client_id, ''))
+#         data, rows = response.json()["data"], []
+#         for item in data:
+#             time = item['referenceTime']
+#             for obs in item['observations']:
+#                 rows.append({
+#                     "timestamp": time, 'element': obs['elementId'],
+#                     "value": obs['value'], 'timeResolution': obs['timeResolution'],
+#                     "height": obs.get('level', {}).get('value'), "qualityCode": obs.get('qualityCode')
+#                 })
+#         df = pd.DataFrame(rows)
+#         df['timestamp'] = pd.to_datetime(df['timestamp']).dt.strftime('%Y-%m-%d %H:%M:%S')
+#         df = df[df['timeResolution'] == 'PT1H'].reset_index(drop=True)
+#         weather_df = pd.DataFrame(data={'timestamp': df['timestamp'].unique()})
+#         pre_mask = (df['element'] == 'sum(precipitation_amount PT1H)')
+#         df.loc[pre_mask, 'precipitation'] = df.loc[pre_mask, 'value']
+#         pre_df = df[~df['precipitation'].isna()]
+#         weather_df = weather_df.merge(pre_df[['timestamp', 'precipitation']], how='left', on='timestamp')
+#         temp_mask = (df['element'] == 'mean(air_temperature PT1H)') & (df['height'] == 2)
+#         df.loc[temp_mask, 'temperature'] = df.loc[temp_mask, 'value']
+#         temp_df = df[~df['temperature'].isna()]
+#         weather_df = weather_df.merge(temp_df[['timestamp', 'temperature']], how='left', on='timestamp')
+#         short_mask = (df['element'] == 'mean(surface_downwelling_shortwave_flux_in_air PT1H)')
+#         df.loc[short_mask, 'short_wave_radiation'] = df.loc[short_mask, 'value']
+#         short_df = df[~df['short_wave_radiation'].isna()]
+#         weather_df = weather_df.merge(short_df[['timestamp', 'short_wave_radiation']], how='left', on='timestamp')
+#         long_mask = (df['element'] == 'mean(surface_downwelling_longwave_flux_in_air PT1H)')
+#         df.loc[long_mask, 'long_wave_radiation'] = df.loc[long_mask, 'value']
+#         long_df = df[~df['long_wave_radiation'].isna()]
+#         weather_df = weather_df.merge(long_df[['timestamp', 'long_wave_radiation']], how='left', on='timestamp')
+#         wind_mask = (df['element'] == 'mean(wind_speed PT1H)') & (df['height'] == 10)
+#         df.loc[wind_mask, 'wind_speed'] = df.loc[wind_mask, 'value']
+#         wind_df = df[~df['wind_speed'].isna()]
+#         weather_df = weather_df.merge(wind_df[['timestamp', 'wind_speed']], how='left', on='timestamp')
+#         humidity_mask = (df['element'] == 'mean(relative_humidity PT1H)')
+#         df.loc[humidity_mask, 'humidity'] = df.loc[humidity_mask, 'value']
+#         humidity_df = df[~df['humidity'].isna()]
+#         weather_df = weather_df.merge(humidity_df[['timestamp', 'humidity']], how='left', on='timestamp')
+#         pressure_mask = (df['element'] == 'mean(surface_air_pressure PT1H)')
+#         df.loc[pressure_mask, 'pressure'] = df.loc[pressure_mask, 'value']
+#         pressure_df = df[~df['pressure'].isna()]
+#         weather_df = weather_df.merge(pressure_df[['timestamp', 'pressure']], how='left', on='timestamp')
+#     elif source == 'nve':
+#         # Reference: https://hydapi.nve.no/swagger/index.html?urls.primaryName=V1
+#         url, weather_df = f'{NVE_url}/Observations', pd.DataFrame()
+#         weather_df['time'] = pd.date_range(start=start_time, end=end_time, freq='H').strftime('%Y-%m-%d %H:%M:%S')
+#         headers = {'Accept': 'application/json', "X-API-Key": NVE_client_id}
+#         # Get observations
+#         observations = ['precipitation', 'temperature', 'short_wave_radiation',
+#             'long_wave_radiation', 'wind_speed', 'humidity', 'pressure']
+#         for obs in observations:
+#             params = {
+#                 "StationId": str(stationId), "Parameter": NVE_codes[obs], 
+#                 "ResolutionTime": 60, "ReferenceTime": f"{start_time}/{end_time}"
+#             }
+#             response = requests.request("GET", url, params=params, headers=headers)
+#             obs_data = response.json().get('data', [])
+#             if response.status_code == 200 and obs_data:
+#                 observations = obs_data[0].get('observations', [])
+#                 if observations:
+#                     temp_df = pd.DataFrame(observations)[['time', 'value']]
+#                     temp_df.rename(columns={'value': obs}, inplace=True)
+#                     weather_df = weather_df.merge(temp_df, how='left', on='time')
+#                     continue
+#             weather_df[obs] = None
+#     # Check for missing values
+#     missing = 1 if weather_df.isna().sum().sum() > 0 else 0
+#     # Fill missing values with None
+#     weather_df = weather_df.replace([np.inf, -np.inf], None)
+#     weather_df = weather_df.astype(object)
+#     weather_df = weather_df.where(weather_df.notna(), None)
+#     content = weather_df.values.tolist()
+#     return content, missing
 
     

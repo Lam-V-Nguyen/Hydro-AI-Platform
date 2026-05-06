@@ -401,16 +401,32 @@ async def river_upload(file: UploadFile = File(...), projectName: str = Form(...
         return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
 
 
+# @router.post("/weather_location")
+# async def weather_location(request: Request):
+#     try:
+#         body = await request.json()
+#         content = flowFunctions.weather_init(body.get('key'))
+#         if len(content) == 0: return JSONResponse({'status': 'error', 'message': 'No data found.'})
+#         return JSONResponse({'status': 'ok', 'content': json.loads(content.to_json())})
+#     except Exception as e:
+#         print('/weather_location:\n==============')
+#         traceback.print_exc()
+#         return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
 
-
-
-
-
-
-
-
-
-
-
-
-
+# @router.post("/weather_provider")
+# async def weather_provider(request: Request):
+#     try:
+#         body = await request.json()
+#         source, station = body.get('source'), body.get('station')
+#         start, end = body.get('start'), body.get('end')
+#         start_time = datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
+#         end_time = datetime.strptime(end, '%Y-%m-%d %H:%M:%S')
+#         if start_time >= end_time: 
+#             return JSONResponse({'status': 'error', 'message': "Error: Start time is later than end time."})
+#         content, missing = flowFunctions.weather_downloader(source, station, start_time, end_time)
+#         if len(content) == 0: return JSONResponse({'status': 'error', 'message': 'No data found.'})
+#         return JSONResponse({'status': 'ok', 'content': content, 'missing': missing})
+#     except Exception as e:
+#         print('/weather_provider:\n==============')
+#         traceback.print_exc()
+#         return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
