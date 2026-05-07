@@ -13,12 +13,12 @@ htmls = Jinja2Templates(directory=os.path.normpath(os.path.join(SOURCE_FRONTEND,
 @router.get("/", response_class=HTMLResponse)
 def home(request: Request):
     folder = Jinja2Templates(directory=os.path.dirname(SOURCE_FRONTEND))
-    return folder.TemplateResponse("index.html", {"request": request})
+    return folder.TemplateResponse(request=request, name="index.html")
 
 # Load widget menu
 @router.get("/getWidgetMenu")
 def load_widgetMenu(request: Request):
-    try: return htmls.TemplateResponse("mainMenu.html", {"request": request})
+    try: return htmls.TemplateResponse(request=request, name="mainMenu.html")
     except Exception as e:
         print('/getWidgetMenu:\n==============')
         traceback.print_exc()
@@ -83,7 +83,7 @@ async def load_popupMenu(request: Request, data: str, project_name: str = None, 
     # If config already exists → no race → render
     if config_raw:
         config = msgpack.unpackb(config_raw, raw=False)
-        return htmls.TemplateResponse(htmlFile, {"request": request, 'configuration': config})
+        return htmls.TemplateResponse(request=request, name=htmlFile, context={'configuration': config})
     lock = redis.lock(f"{project_name}:init_config", timeout=10)  # 10s lock
     async with lock:
         # Create config the first time
@@ -99,4 +99,4 @@ async def load_popupMenu(request: Request, data: str, project_name: str = None, 
             if k not in ("hyd", "waq", "meta"): config[k] = v
         # Save updated project data back to Redis
             await redis.hset(project_name, "config", msgpack.packb(config, use_bin_type=True))
-    return htmls.TemplateResponse(htmlFile, {"request": request, 'configuration': config})
+    return htmls.TemplateResponse(request=request, name=htmlFile, context={'configuration': config})
