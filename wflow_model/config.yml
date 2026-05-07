@@ -1,0 +1,23 @@
+meta:
+  root: C:\Users\vanln\Downloads\Hydro-AI-Platform\wflow_model\inputs
+
+dtm:
+  data_type: RasterDataset
+  driver: rasterio
+  uri: dtm10.tif
+  metadata:
+    category: topography
+
+soil_data_vector:
+  data_type: GeoDataFrame
+  driver: vector
+  uri: soil.geojson
+  metadata:
+    category: soil
+
+landuse_data_vector:
+  data_type: GeoDataFrame
+  driver: vector
+  uri: land.geojson
+  metadata:
+    category: landuse

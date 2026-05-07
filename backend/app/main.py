@@ -30,19 +30,13 @@ app.mount("/src_backend", StaticFiles(directory=SOURCE_BACKEND), name="src_backe
 # app.mount("/projects_static", StaticFiles(directory=PROJECT_STATIC_ROOT), name="projects_static")
 
 # Mount routes
-app.include_router(route_page.router)
-app.include_router(project_manager.router)
-app.include_router(grid_preparation.router)
-app.include_router(process_manager.router)
-app.include_router(hyd_functions.router)
-app.include_router(waq_funtions.router)
-app.include_router(sim_manager.router)
-app.include_router(data_preparation.router)
-app.include_router(flow_preparation.router)
-# app.include_router(wq_process.router)
-# app.include_router(run_simulation.router)
-
-
+all_routers = [
+    route_page.router, project_manager.router, grid_preparation.router, 
+    process_manager.router, sim_manager.router, data_preparation.router,
+    hyd_functions.router, waq_funtions.router, flow_preparation.router
+]
+for router in all_routers:
+    app.include_router(router)
 
 
 if __name__ == "__main__":

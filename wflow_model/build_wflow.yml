@@ -1,0 +1,25 @@
+modeltype: wflow_sbm
+global:
+  config_filename: wflow_sbm.toml
+
+steps:
+  - setup_basemaps:
+    dem: ./wflow_model/inputs/dtm10.tif
+    hydrography_fn: merit_hydro
+    res: 0.00833
+    region:
+      subbasin: [62.45905, 6.3534811]
+
+  - setup_rivers:
+    min_rivlen: 1000
+    river_upa: 30.0
+
+  - setup_soilmaps:
+    soil_fn: ./wflow_model/inputs/soil.geojson
+
+  - setup_lulcmaps:
+    lulc_fn: ./wflow_model/inputs/land.geojson
+
+  - staticmaps.write:
+  - geoms.write:
+  - config.write:
