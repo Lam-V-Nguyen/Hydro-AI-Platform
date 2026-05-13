@@ -1,0 +1,120 @@
+# DEM data
+dem:
+  data_type: RasterDataset
+  driver: rasterio
+  uri: data/dem/dtm_clipped.tif
+
+
+# Soil data
+soil_depth:
+  data_type: RasterDataset
+  driver: rasterio
+  uri: data/soil/soil_depth.tif
+
+ksat_ver:
+  data_type: RasterDataset
+  driver: rasterio
+  uri: data/soil/k_sat_ver.tif
+
+theta_s:
+  data_type: RasterDataset
+  driver: rasterio
+  uri: data/soil/theta_s.tif
+
+theta_r:
+  data_type: RasterDataset
+  driver: rasterio
+  uri: data/soil/theta_r.tif
+
+brooks_corey:
+  data_type: RasterDataset
+  driver: rasterio
+  uri: data/soil/brooks_corey.tif
+
+conductivity_decay:
+  data_type: RasterDataset
+  driver: rasterio
+  uri: data/soil/conductivity_decay.tif
+
+# Land cover data
+landuse_kc:
+  data_type: RasterDataset
+  driver: rasterio
+  uri: data/landuse/kc.tif
+
+lai:
+  data_type: RasterDataset
+  driver: rasterio
+  uri: data/landuse/LAI.tif
+
+albedo:
+  data_type: RasterDataset
+  driver: rasterio
+  uri: data/landuse/albedo.tif
+
+manning_n:
+  data_type: RasterDataset
+  driver: rasterio
+  uri: data/landuse/manning_n.tif
+
+root_depth:
+  data_type: RasterDataset
+  driver: rasterio
+  uri: data/landuse/root_depth.tif
+
+interception:
+  data_type: RasterDataset
+  driver: rasterio
+  uri: data/landuse/interception.tif
+
+# River data
+river_width:
+  data_type: RasterDataset
+  driver: rasterio
+  uri: data/river/river_width.tif
+
+river_depth:
+  data_type: RasterDataset
+  driver: rasterio
+  uri: data/river/river_depth.tif
+
+river_manning:
+  data_type: RasterDataset
+  driver: rasterio
+  uri: data/river/river_n.tif
+
+river_mask:
+  data_type: RasterDataset
+  driver: rasterio
+  uri: data/river/river.tif
+
+# Lookup table
+lulc_map:
+  data_type: RasterDataset
+  driver: rasterio
+  uri: data/lookup/land_classes.tif
+
+lulc_mapping:
+  data_type: DataFrame
+  uri: data/lookup/lookup_land.csv
+
+# Forcing data
+precip:
+  data_type: RasterDataset
+  driver: xarray
+  uri: data/forcing/precip.nc
+  kwargs:
+    dims:
+      time: time
+    data_vars:
+      precip: precipitation
+
+temp:
+  data_type: RasterDataset
+  driver: xarray
+  uri: data/forcing/temp.nc
+  kwargs:
+    dims:
+      time: time
+    data_vars:
+      temp: temperature

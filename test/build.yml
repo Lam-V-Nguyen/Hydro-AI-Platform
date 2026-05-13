@@ -1,0 +1,66 @@
+steps:
+
+  - setup_config:
+      data:
+        time.starttime: 2025-01-01T00:00:00
+        time.endtime: 2025-01-10T00:00:00
+        time.timestepsecs: 86400
+        input.path_forcing: inmaps_forcing.nc
+        output.netcdf_grid.path: output.nc
+        output.netcdf_grid.compressionlevel: 1
+        output.netcdf_grid.variables.river_water__volume_flow_rate: river_q
+        output.netcdf_grid.variables.water__level: "water_level"
+        model.river_routing: "kinematic_wave"
+        model.km_river_decay: 5000.0
+
+  - setup_basemaps:
+      hydrography_fn: merit_hydro
+      # basin_index_fn: merit_hydro_index
+      res: 0.00833           # build the model at a 30 arc sec (~1km) resolution
+      region:
+        bbox: [11.0, 45.5, 12.5, 46.5]
+
+  - setup_rivers:
+      hydrography_fn: merit_hydro
+    #   river_geom_fn: rivers_lin  # Dữ liệu vector sông (tùy chọn)
+      # river_width: river_width    # Dùng dữ liệu width của bạn
+      # river_depth: river_depth    # Dùng dữ liệu depth của bạn
+      # river_manning: river_manning # Dùng dữ liệu Manning của bạn
+      # river_mask: river_mask       # Mặt nạ sông
+      river_upa: 30.0
+      min_rivwth: 30.0
+      min_rivdph: 1.0
+      smooth_len: 5000.0
+      slope_len: 2000.0
+
+  # - setup_soilmaps:
+  #     soil_fn: soilgrids
+  #     ptf_ksatver: brakensiek           # Phương pháp tính hệ số thấm (mặc định: 'brakensiek')
+  #     # soil_depth: soil_depth
+  #     # Ksat: ksat_ver
+  #     # theta_s: theta_s
+  #     # theta_r: theta_r
+  #     # brooks_corey: brooks_corey
+  #     # conductivity_decay: conductivity_decay
+  #     wflow_thicknesslayers: [100, 300, 800]
+
+  # - setup_lulcmaps:
+  #     lulc_fn: globcover_2009
+  #     # lulc_mapping_fn: lulc_mapping
+  #     # kc: landuse_kc
+  #     # lai: lai
+  #     # albedo: albedo
+  #     # manning_n: manning_n
+  #     # root_depth: root_depth
+  #     # interception: interception
+
+  - setup_precip_forcing:
+      precip_fn: era5     #precip
+  
+  # - setup_temp_pet_forcing:
+  #     temp_pet_fn: temp
+  #     pet_method: "debruin"  # Phương pháp tính PET (debruin, makkink, etc.)
+  #     # press_correction: True   # Tùy chọn: hiệu chỉnh áp suất theo độ cao
+  #     # temp_correction: True    # Tùy chọn: hiệu chỉnh nhiệt độ theo độ cao
+
+  - write:
