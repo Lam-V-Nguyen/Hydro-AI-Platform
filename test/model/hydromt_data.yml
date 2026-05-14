@@ -1,18 +1,38 @@
 meta:
   root: None
 
-merit_hydro:
-  uri: merit_hydro/{variable}.tif
+my_hydro:
+  uri: data/merit_hydro/{variable}.tif
   driver:
     options: {}
     name: rasterio
-  version: '1.0'
   metadata:
-    crs: 4326
-    category: topography
-    paper_doi: 10.1029/2019WR024873
-    paper_ref: Yamazaki et al. (2019)
-    url: http://hydro.iis.u-tokyo.ac.jp/~yamadai/MERIT_Hydro
-    license: CC-BY-NC 4.0 or ODbL 1.0
+    category: hydrology
+  data_type: RasterDataset
+  root: None
+
+precip:
+  uri: data/forcing/precipitation.nc
+  data_adapter:
+    rename:
+      precip: precip
+  driver:
+    options: {}
+    name: raster_xarray
+  metadata:
+    category: meteo
+  data_type: RasterDataset
+  root: None
+
+temp:
+  uri: data/forcing/temperature.nc
+  data_adapter:
+    rename:
+      temp: temp
+  driver:
+    options: {}
+    name: raster_xarray
+  metadata:
+    category: meteo
   data_type: RasterDataset
   root: None

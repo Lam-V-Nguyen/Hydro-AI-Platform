@@ -2,8 +2,8 @@ dir_output = "run_default"
 
 [time]
 calendar = "proleptic_gregorian"
-starttime = 2025-01-01 00:00:00
-endtime = 2025-01-10 00:00:00
+starttime = "2025-01-01T00:00:00"
+endtime = "2025-01-10T00:00:00"
 time_units = "days since 1900-01-01 00:00:00"
 timestepsecs = 86400
 
@@ -22,6 +22,7 @@ river_kinematic_wave__time_step = 900
 land_kinematic_wave__time_step = 3600
 river_routing = "kinematic_wave"
 km_river_decay = 5000.0
+cell_length_in_meter__flag = true
 
 [state]
 path_input = "instate/instates.nc"
@@ -51,6 +52,10 @@ river_location__mask = "river_mask"
 land_surface__slope = "land_slope"
 river__length = "river_length"
 river__slope = "river_slope"
+
+[input.forcing]
+atmosphere_water__precipitation_volume_flux = "precip"
+atmosphere_air__temperature = "temp"
 
 [output.netcdf_grid]
 path = "output.nc"

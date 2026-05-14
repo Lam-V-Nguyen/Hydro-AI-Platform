@@ -1,120 +1,196 @@
-# DEM data
-dem:
+
+my_hydro:
   data_type: RasterDataset
   driver: rasterio
-  uri: data/dem/dtm_clipped.tif
+  uri: data/merit_hydro/{variable}.tif
+  metadata:
+    category: hydrology
 
+my_ear5_forcing:
+  data_type: RasterDataset
+  driver:
+    name: raster_xarray
+  uri: data/forcing/ear5.nc
+  metadata:
+    category: meteo
+
+
+
+
+# DTM data
+dtm:
+  data_type: RasterDataset
+  driver: rasterio
+  uri: data/dtm/dtm_clipped.tif
+  metadata:
+    category: topography
+    
 
 # Soil data
 soil_depth:
   data_type: RasterDataset
   driver: rasterio
   uri: data/soil/soil_depth.tif
+  metadata:
+    category: soil
+    
 
 ksat_ver:
   data_type: RasterDataset
   driver: rasterio
   uri: data/soil/k_sat_ver.tif
+  metadata:
+    category: soil
+    
 
 theta_s:
   data_type: RasterDataset
   driver: rasterio
   uri: data/soil/theta_s.tif
+  metadata:
+    category: soil
+    
 
 theta_r:
   data_type: RasterDataset
   driver: rasterio
   uri: data/soil/theta_r.tif
+  metadata:
+    category: soil
+    
 
 brooks_corey:
   data_type: RasterDataset
   driver: rasterio
   uri: data/soil/brooks_corey.tif
+  metadata:
+    category: soil
+    
 
 conductivity_decay:
   data_type: RasterDataset
   driver: rasterio
   uri: data/soil/conductivity_decay.tif
+  metadata:
+    category: soil
+    
 
 # Land cover data
 landuse_kc:
   data_type: RasterDataset
   driver: rasterio
   uri: data/landuse/kc.tif
+  metadata:
+    category: landuse & landcover
+    
 
 lai:
   data_type: RasterDataset
   driver: rasterio
   uri: data/landuse/LAI.tif
+  metadata:
+    category: landuse & landcover
+    
 
 albedo:
   data_type: RasterDataset
   driver: rasterio
   uri: data/landuse/albedo.tif
+  metadata:
+    category: landuse & landcover
+    
 
 manning_n:
   data_type: RasterDataset
   driver: rasterio
   uri: data/landuse/manning_n.tif
+  metadata:
+    category: landuse & landcover
+    
 
 root_depth:
   data_type: RasterDataset
   driver: rasterio
   uri: data/landuse/root_depth.tif
+  metadata:
+    category: landuse & landcover
+    
 
 interception:
   data_type: RasterDataset
   driver: rasterio
   uri: data/landuse/interception.tif
+  metadata:
+    category: landuse & landcover
+    
 
 # River data
 river_width:
   data_type: RasterDataset
   driver: rasterio
   uri: data/river/river_width.tif
+  metadata:
+    category: river
+    
 
 river_depth:
   data_type: RasterDataset
   driver: rasterio
   uri: data/river/river_depth.tif
+  metadata:
+    category: river
+    
 
 river_manning:
   data_type: RasterDataset
   driver: rasterio
   uri: data/river/river_n.tif
+  metadata:
+    category: river
+    
 
 river_mask:
   data_type: RasterDataset
   driver: rasterio
   uri: data/river/river.tif
+  metadata:
+    category: river
+    
 
 # Lookup table
 lulc_map:
   data_type: RasterDataset
   driver: rasterio
   uri: data/lookup/land_classes.tif
+  metadata:
+    category: landuse & landcover
 
 lulc_mapping:
   data_type: DataFrame
+  driver: pandas
   uri: data/lookup/lookup_land.csv
+  metadata:
+    category: observed data
 
 # Forcing data
 precip:
   data_type: RasterDataset
-  driver: xarray
-  uri: data/forcing/precip.nc
-  kwargs:
-    dims:
-      time: time
-    data_vars:
-      precip: precipitation
+  driver: 
+    name: raster_xarray
+  uri: data/forcing/precipitation.nc
+  data_adapter:
+    rename:
+      precip: precip
+  metadata:
+    category: meteo
 
 temp:
   data_type: RasterDataset
-  driver: xarray
-  uri: data/forcing/temp.nc
-  kwargs:
-    dims:
-      time: time
-    data_vars:
-      temp: temperature
+  driver:
+    name: raster_xarray
+  uri: data/forcing/temperature.nc
+  data_adapter:
+    rename:
+      temp: temp
+  metadata:
+    category: meteo
