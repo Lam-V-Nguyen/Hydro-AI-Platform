@@ -172,25 +172,25 @@ lulc_mapping:
   metadata:
     category: observed data
 
-# Forcing data
-precip:
-  data_type: RasterDataset
-  driver: 
-    name: raster_xarray
-  uri: data/forcing/precipitation.nc
-  data_adapter:
-    rename:
-      precip: precip
-  metadata:
-    category: meteo
+# # Forcing data
+# precip:
+#   data_type: RasterDataset
+#   driver: 
+#     name: raster_xarray
+#   uri: data/forcing/precipitation.nc
+#   data_adapter:
+#     rename:
+#       precip: precip
+#   metadata:
+#     category: meteo
 
-temp:
-  data_type: RasterDataset
-  driver:
-    name: raster_xarray
-  uri: data/forcing/temperature.nc
-  data_adapter:
-    rename:
-      temp: temp
-  metadata:
-    category: meteo
+# temp:
+#   data_type: RasterDataset
+#   driver:
+#     name: raster_xarray
+#   uri: data/forcing/temperature.nc
+#   data_adapter:
+#     rename:
+#       temp: temp
+#   metadata:
+#     category: meteo
