@@ -1,0 +1,41 @@
+meta:
+  root: None
+
+my_forcing:
+  uri: data/forcing/my_forcing.nc
+  driver:
+    options: {}
+    name: raster_xarray
+  metadata:
+    category: meteo
+  data_type: RasterDataset
+  root: None
+
+my_hydro:
+  uri: data/merit_hydro/{variable}.tif
+  driver:
+    options: {}
+    name: rasterio
+  metadata:
+    category: hydrology
+  data_type: RasterDataset
+  root: None
+
+river_network:
+  uri: data/river/river.gpkg
+  driver:
+    name: pyogrio
+  metadata:
+    category: river
+  data_type: GeoDataFrame
+  root: None
+
+soilgrids_2020:
+  uri: data/soil/{variable}.tif
+  driver:
+    options: {}
+    name: rasterio
+  metadata:
+    category: soil
+  data_type: RasterDataset
+  root: None

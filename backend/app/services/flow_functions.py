@@ -423,3 +423,20 @@ def remove_holes(geom):
 #     for var in ds_rename.data_vars
 # }
 # ds_rename.to_netcdf(final_output_rename, format="NETCDF4", encoding=encoding)
+
+
+# # Fix invalid soil polygon
+# soil_UTM = soil.to_crs(terrain.rio.crs)
+# soil_cols = ['soil', 'theta_s', 'theta_r', 'k_sat_ver', 'soil_depth', 'conductivity_decay', 'brooks_corey']
+# soil_UTM = fix_invalid_polygon(soil_UTM, soil_cols)
+# soil_layers = ['theta_s', 'theta_r', 'k_sat_ver', 'soil_depth', 'conductivity_decay', 'brooks_corey']
+# soil_UTM = soil_UTM[soil_layers + ['geometry']]
+# soil_UTM = soil_UTM.rename(columns={
+#     'theta_s': 'thetaS', 'theta_r': 'thetaR', 'k_sat_ver': 'KsatVer', 'soil_depth': 'SoilThickness', 
+#     'conductivity_decay': 'f', 'brooks_corey': 'brooks_corey'
+# })
+# # for value in soil_layers:
+# #     soil_path = os.path.normpath(os.path.join('test/data/soil', f'{value}.tif'))
+# #     write_tif(soil_path, terrain, soil_UTM, value)
+
+

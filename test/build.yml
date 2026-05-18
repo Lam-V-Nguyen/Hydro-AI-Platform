@@ -29,7 +29,7 @@ steps:
       - setup_soilmaps:
             soil_fn: soilgrids_2020
             ptf_ksatver: brakensiek
-            wflow_thicknesslayers: [100, 300, 800]
+            wflow_thicknesslayers: [50, 150, 250, 400, 600, 550]
 
   # - setup_lulcmaps:
   #     lulc_fn: globcover_2009

@@ -31,13 +31,11 @@ river_network:
 
 # Soil data
 soilgrids_2020:
-  # data_type: RasterDataset
-  # driver: rasterio
-  # uri: data/soil/{variable}.tif
-  # metadata:
-  #   category: soil
   data_type: RasterDataset
-  uri: https://files.isric.org/soilgrids/latest/data/
+  driver: rasterio
+  uri: data/soil/{variable}.tif
+  metadata:
+    category: soil
 
 
 # # Land cover data
