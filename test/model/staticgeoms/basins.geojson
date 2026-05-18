@@ -1,8 +1,0 @@
-{
-"type": "FeatureCollection",
-"name": "basins",
-"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::25833" } },
-"features": [
-{ "type": "Feature", "properties": { "value": 1.0 }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 69625.0, 6960165.0 ], [ 69625.0, 6952895.0 ], [ 53665.0, 6952895.0 ], [ 53665.0, 6960165.0 ], [ 69625.0, 6960165.0 ] ] ] } }
-]
-}

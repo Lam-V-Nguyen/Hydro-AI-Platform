@@ -272,3 +272,154 @@ def remove_holes(geom):
 #     return content, missing
 
     
+
+
+# ## Prepare forcing data from the global model ARE5
+
+# dotenv.load_dotenv()
+# CDS_url, CDS_key = os.getenv('CDS_URL'), os.getenv('CDS_API_KEY')
+# config_path = Path.home() / '.cdsapirc'
+# if not config_path.exists():
+#     print("Creating .cdsapirc ...")
+#     config_path.write_text(f"url: {CDS_url}\nkey: {CDS_key}\n", encoding='utf-8')
+#     print("Created at:", config_path)
+
+# # Setup variables
+# variables = [
+#     'total_precipitation', # Precipitation
+#     '2m_temperature', # Temperature
+#     '10m_u_component_of_wind', '10m_v_component_of_wind', # Wind
+#     '2m_dewpoint_temperature',  
+#     'surface_solar_radiation_downwards', # Radiation
+# ]
+# dataset = 'reanalysis-era5-single-levels'
+# forcing_dir = os.path.join(test_folder, 'data/forcing')
+# if not os.path.exists(forcing_dir): os.makedirs(forcing_dir)
+# download_dir = os.path.join(test_folder, 'data/forcing/download')
+# if not os.path.exists(download_dir): os.makedirs(download_dir)
+# start, end = '2025-03-01 00:00:00', '2025-12-31 00:00:00'
+# start_time = datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
+# end_time = datetime.strptime(end, '%Y-%m-%d %H:%M:%S')
+# minx, miny, maxx, maxy = catchment.total_bounds
+# area = [round(float(maxy), 2), round(float(minx), 2), round(float(miny), 2), round(float(maxx), 2)]
+
+# # Download ERA5 data monthly
+# client = cdsapi.Client()
+# for var in variables:
+#     current = start_time.replace(day=1)
+#     while current <= end_time:
+#         year, month = current.year, current.month
+#         last_day = calendar.monthrange(year, month)[1]
+#         month_start = datetime(year, month, 1)
+#         month_end = datetime(year, month, last_day, 23)
+#         # Clip by requested range
+#         actual_start = max(start_time, month_start)
+#         actual_end = min(end_time, month_end)
+#         # Days to download
+#         days = [f"{d:02d}" for d in range(actual_start.day, actual_end.day + 1)]
+#         # Output file
+#         out_file = f"{var}_ERA5_{year}_{month:02d}.nc"
+#         output = os.path.join(download_dir, out_file)
+#         # Skip existing file
+#         if os.path.exists(output): os.remove(output)
+#         print(f"Downloading: {out_file}")
+#         request = {
+#             'product_type': 'reanalysis', 'variable': [var],
+#             'year': [str(year)], 'month': [f"{month:02d}"], 'day': days,
+#             'time': [f"{h:02d}:00" for h in range(24)], 'area': area,
+#             'data_format': 'netcdf', 'download_format': 'unarchived'
+#         }
+#         client.retrieve(dataset, request, output)
+#         # Next month
+#         current += relativedelta(months=1)
+
+# # Check valid files
+# for var in variables:
+#     pattern = os.path.join(download_dir, f"{var}_ERA5_*.nc")
+#     raw_files = sorted(glob.glob(pattern))
+#     # Filter valid files
+#     files, bad_files = [], []
+#     for f in raw_files:
+#         if is_valid_netcdf(f): files.append(f)
+#         else: bad_files.append(f)
+#     print(f"Valid files '{var}': {len(files)}/{len(raw_files)}")
+#     if bad_files:
+#         print("Bad files:")
+#         for f in bad_files: print(" -", f)
+
+# # Concatenate sub-files
+# for var in variables:
+#     pattern = os.path.join(download_dir, f"{var}_ERA5_*.nc")
+#     raw_files, files = sorted(glob.glob(pattern)), []
+#     files = [f for f in raw_files if is_valid_netcdf(f)]
+#     if len(files) > 0:
+#         ds = xr.open_mfdataset(
+#             files, combine='by_coords', parallel=True, chunks={'valid_time':24}
+#         )
+#         # Remove ERA5 artifact dimension
+#         if 'expver' in ds: ds = ds.drop_vars('expver')
+#         encoding = {
+#             var: {"zlib": True, "complevel": 4, "dtype": "float32"}
+#             for var in ds.data_vars
+#         }
+#         output = pattern.replace('_*', "")
+#         print(f"Writing forcing file: {output}")
+#         ds.to_netcdf(output, format="NETCDF4", encoding=encoding)
+#         ds.close()
+#         del ds
+#         gc.collect()
+# print("DONE:")
+
+# # Merge files
+# final_output, datasets = os.path.join(forcing_dir, "my_ear5_forcing.nc"), []
+# for var in variables:
+#     pattern = os.path.join(download_dir, f"{var}_ERA5.nc")
+#     datasets.append(pattern)
+# if len(datasets) > 0:
+#     datasets_ds = [xr.open_dataset(f) for f in datasets]
+#     ds_final = xr.merge(datasets_ds, compat="override", join="outer")
+#     encoding = {
+#         var: {"zlib": True, "complevel": 4, "dtype": "float32"}
+#         for var in ds_final.data_vars
+#     }
+#     ds_final.to_netcdf(final_output, format="NETCDF4", encoding=encoding)
+#     ds_final.close()
+#     del ds_final
+#     gc.collect()
+#     print("DONE:")
+# else: print("No files to merge")
+
+# # Change variable name
+# rename_dict = {
+#     "tp": "precip", "t2m": "temp",
+#     "u10": "wind_u", "v10": "wind_v",
+#     "ssrd": "radiation",
+# }
+# final_output = os.path.join(forcing_dir, "my_ear5_forcing.nc")
+# final_output_rename = os.path.join(forcing_dir, "my_forcing.nc")
+# ds_final = xr.open_dataset(final_output)
+# ds_final = ds_final.rename({"longitude": "x", "latitude": "y"})
+# ds_final = ds_final.rio.set_spatial_dims(x_dim="x", y_dim="y")
+# ds_final = ds_final.rio.write_crs("EPSG:4326")
+# ds_rename = ds_final.rename({
+#     k: v for k, v in rename_dict.items() if k in ds_final.data_vars
+# })
+# # Unit conversion
+# if "radiation" in ds_rename:
+#     ds_rename["radiation"] = ds_rename["radiation"] / 3600.0
+#     ds_rename["radiation"].attrs["units"] = "mm"
+# if "precip" in ds_rename:
+#     ds_rename["precip"] = ds_rename["precip"] * 1000.0
+#     ds_rename["precip"].attrs["units"] = "mm"
+# if "temp" in ds_rename:
+#     ds_rename["temp"] = ds_rename["temp"] - 273.15
+#     ds_rename["temp"].attrs["units"] = "degC"
+# if "d2m" in ds_rename:
+#     ds_rename["d2m"] = ds_rename["d2m"] - 273.15
+#     ds_rename["d2m"].attrs["units"] = "degC"
+# ds_rename = ds_rename.sortby("valid_time")
+# encoding = {
+#     var: {"zlib": True, "complevel": 4, "dtype": "float32"}
+#     for var in ds_rename.data_vars
+# }
+# ds_rename.to_netcdf(final_output_rename, format="NETCDF4", encoding=encoding)

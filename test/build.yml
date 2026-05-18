@@ -1,52 +1,35 @@
 steps:
-  - setup_config:
-      data:
-          time.starttime: 2025-01-01T00:00:00
-          time.endtime: 2025-01-10T00:00:00
-          time.timestepsecs: 86400
-          input.path_forcing: inmaps_forcing.nc
-          output.netcdf_grid.path: output.nc
-          output.netcdf_grid.compressionlevel: 1
-          output.netcdf_grid.variables.river_water__volume_flow_rate: river_q
-          output.netcdf_grid.variables.water__level: "water_level"
-          model.river_routing: "kinematic_wave"
-          model.km_river_decay: 5000.0
+      - setup_config:
+            data:
+                  time.starttime: 2025-01-01T00:00:00
+                  time.endtime: 2025-01-10T00:00:00
+                  time.timestepsecs: 86400
+                  input.path_forcing: inmaps_forcing.nc
+                  output.netcdf_grid.path: output.nc
+                  output.netcdf_grid.compressionlevel: 1
+                  output.netcdf_grid.variables.river_water__volume_flow_rate: river_q
+                  output.netcdf_grid.variables.water__level: "water_level"
+                  model.river_routing: "kinematic_wave"
+                  model.km_river_decay: 5000.0
 
-  - setup_basemaps:
-      hydrography_fn: my_hydro
-      # basin_index_fn: merit_hydro_index # source of basin index corresponding to hydrography_fn
-      # upscale_method: ihu           # upscaling method for flow direction data, by default 'ihu'
-      res: 10          # build the model at a 30 arc sec (~1km) resolution
-      region:
-          basin: [6.3601301, 62.4610251]
-          # subbasin: [12.2051, 45.8331] # derive a subbasin with its outlet at the given x,y coordinates
-          # strord: 4 # snapped to a river with minimum stream order (strord) of 4
+      - setup_basemaps:
+            hydrography_fn: my_hydro
+            upscale_method: ihu
+            res: 10
+            region:
+                  geom: "data/catchment/catchment.gpkg"
 
-  - setup_rivers:
-      hydrography_fn: my_hydro
-    #   river_geom_fn: rivers_lin  # Dữ liệu vector sông (tùy chọn)
-      # river_width: river_width    # Dùng dữ liệu width của bạn
-      # river_depth: river_depth    # Dùng dữ liệu depth của bạn
-      # river_manning: river_manning # Dùng dữ liệu Manning của bạn
-      # river_mask: river_mask       # Mặt nạ sông
-      river_upa: 30               # minimum upstream area threshold for the river map [km2]
-      rivdph_method: powlaw           # method to estimate depth {'powlaw', 'manning', 'gvf'}
-      min_rivdph: 1                # minimum river depth [m]
-      min_rivwth: 30               # minimum river width [m]
-      slope_len: 2000             # length over which tp calculate river slope [m]
-      smooth_len: 5000             # length over which to smooth river depth and river width [m]
-      river_routing: kinematic_wave   # {'kinematic_wave', 'local_inertial'}
+      - setup_rivers:
+            hydrography_fn: my_hydro
+            river_geom_fn: river_network
+            river_upa: 30
+            river_routing: kinematic_wave
+            connectivity: 8
 
-  # - setup_soilmaps:
-  #     soil_fn: soilgrids
-  #     ptf_ksatver: brakensiek           # Phương pháp tính hệ số thấm (mặc định: 'brakensiek')
-  #     # soil_depth: soil_depth
-  #     # Ksat: ksat_ver
-  #     # theta_s: theta_s
-  #     # theta_r: theta_r
-  #     # brooks_corey: brooks_corey
-  #     # conductivity_decay: conductivity_decay
-  #     wflow_thicknesslayers: [100, 300, 800]
+      - setup_soilmaps:
+            soil_fn: soilgrids_2020
+            ptf_ksatver: brakensiek
+            wflow_thicknesslayers: [100, 300, 800]
 
   # - setup_lulcmaps:
   #     lulc_fn: globcover_2009
@@ -58,15 +41,14 @@ steps:
   #     # root_depth: root_depth
   #     # interception: interception
 
-  - setup_precip_forcing:
-      precip_fn: my_ear5_forcing      # Source for precipitation data
-      precip_clim_fn:                 # Source for high resolution climatology to correct precipitation if any.
+      - setup_precip_forcing:
+            precip_fn: my_forcing             # Source for precipitation data
+            precip_clim_fn:                   # Source for high resolution climatology to correct precipitation if any.
   
-  - setup_temp_pet_forcing:
-      temp_pet_fn: my_ear5_forcing
-      pet_method: "debruin"           # Method to compute PET (debruin, makkink, etc.)
-      skip_pet: False                 # If True, only temperature is prepared
-      press_correction: True          # Option: adjust temperature with elevation lapse rate
-      temp_correction: True           # Option: adjust pressure with elevation lapse rate
-
-  - write:
+      - setup_temp_pet_forcing:
+            temp_pet_fn: my_forcing
+            pet_method: "debruin"
+            skip_pet: False
+            press_correction: True
+            temp_correction: True
+      - write:
