@@ -2,7 +2,8 @@ import os, json, traceback, mercantile, rasterio, shutil, io, sknw, copy
 from fastapi import APIRouter, Request, Depends, UploadFile, File, Form, Response
 from fastapi.responses import JSONResponse
 import geopandas as gpd, numpy as np, matplotlib.cm as cm, pandas as pd
-from config import PROJECT_ROOT
+from config import PROJECT_ROOT, WHITEBOX_DIR
+from dotenv import load_dotenv
 from rasterio.enums import Resampling
 from rasterio.warp import calculate_default_transform, reproject
 from rasterio.features import shapes
@@ -12,7 +13,10 @@ from PIL import Image
 from skimage.morphology import skeletonize
 from services import functions, flow_functions
 from whitebox.whitebox_tools import WhiteboxTools
-
+load_dotenv()
+wtb = WhiteboxTools()
+wtb.set_verbose_mode(False)
+wtb.set_whitebox_dir(WHITEBOX_DIR)
 
 router = APIRouter()
 
@@ -124,41 +128,6 @@ async def geojson_upload(file: UploadFile = File(...)):
         traceback.print_exc()
         return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
 
-@router.post("/fill_terrain")
-async def fill_terrain(request: Request, user=Depends(functions.basic_auth)):
-    try:
-        body = await request.json()
-        file_name = body.get('filename')
-        folder = file_name.rstrip(".tif")
-        fill_name, json_file = folder + "_filled.tif", f"{folder}.json"
-        project_name, _ = functions.project_definer(body.get('projectName'), user)
-        flow_dir = os.path.normpath(os.path.join(PROJECT_ROOT, project_name, "flows"))
-        os.makedirs(flow_dir, exist_ok=True)
-        dir = os.path.normpath(os.path.join(flow_dir, "terrains", folder))
-        os.makedirs(dir, exist_ok=True)
-        wtb = WhiteboxTools()
-        wtb.set_verbose_mode(False)
-        dtm_path = os.path.normpath(os.path.join(dir, file_name))
-        fill_path = os.path.normpath(os.path.join(dir, fill_name))
-        if os.path.exists(fill_path): functions.safe_remove(fill_path)
-        wtb.fill_depressions(dem=dtm_path, output=fill_path)
-        with rasterio.open(fill_path) as src:
-            data = src.read(1, masked=True)
-            global_min, global_max = float(data.min()), float(data.max())
-        del data
-        meta_path, meta = os.path.normpath(os.path.join(dir, json_file)), {}
-        if os.path.exists(meta_path):
-            with open(meta_path, "r") as f: meta = json.load(f)
-        meta['filled'] = {"min": global_min, "max": global_max}
-        with open(meta_path, "w") as f: json.dump(meta, f)
-        tile_url = f"/{project_name}/terrain/filled/{folder}/{fill_name}/{{z}}/{{x}}/{{y}}.png"
-        contents = {"tile_url": tile_url, "min": global_min, "max": global_max}
-        return JSONResponse({'status': 'ok', 'content': contents})
-    except Exception as e:
-        print('/fill_terrain:\n==============')
-        traceback.print_exc()
-        return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
-
 @router.post("/raster_check")
 async def raster_check(request: Request, user=Depends(functions.basic_auth)):
     body = await request.json()
@@ -180,96 +149,165 @@ async def raster_check(request: Request, user=Depends(functions.basic_auth)):
     if os.path.exists(path): status, message = "ok", ''
     return JSONResponse({'status': status, 'message': message})
 
-@router.post("/flow_direction")
-async def flow_direction(request: Request, user=Depends(functions.basic_auth)):
+@router.post("/detect_streams")
+async def detect_streams(request: Request, user=Depends(functions.basic_auth)):
     try:
         body = await request.json()
-        file_name = body.get('filename')
-        folder = file_name.rstrip(".tif")
-        flowdir_name, json_file = folder + "_flowdir.tif", f"{folder}.json"
+        file_name, threshold = body.get('filename'), body.get('threshold')
+        folder, key = file_name.rstrip(".tif"), "streams"
         project_name, _ = functions.project_definer(body.get('projectName'), user)
         flow_dir = os.path.normpath(os.path.join(PROJECT_ROOT, project_name, "flows"))
         os.makedirs(flow_dir, exist_ok=True)
-        wtb = WhiteboxTools()
-        wtb.set_verbose_mode(False)
         dir = os.path.normpath(os.path.join(flow_dir, "terrains", folder))
-        fill_path = os.path.normpath(os.path.join(dir, folder + "_filled.tif"))
-        flow_path = os.path.normpath(os.path.join(dir, flowdir_name))
-        if os.path.exists(flow_path): functions.safe_remove(flow_path)
-        wtb.d8_pointer(dem=fill_path, output=flow_path)
-        with rasterio.open(flow_path) as src:
-            data = src.read(1, masked=True)
-            global_min, global_max = float(data.min()), float(data.max())
-        del data
-        meta_path, meta = os.path.normpath(os.path.join(dir, json_file)), {}
-        if os.path.exists(meta_path):
-            with open(meta_path, "r") as f: meta = json.load(f)
-        meta['flowdir'] = {"min": global_min, "max": global_max}
-        with open(meta_path, "w") as f: json.dump(meta, f)
-        tile_url = f"/{project_name}/terrain/flowdir/{folder}/{flowdir_name}/{{z}}/{{x}}/{{y}}.png"
-        contents = {"tile_url": tile_url, "min": global_min, "max": global_max}
-        return JSONResponse({'status': 'ok', 'content': contents})
-    except Exception as e:
-        print('/flow_direction:\n==============')
-        traceback.print_exc()
-        return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
-
-@router.post("/flow_accumulation")
-async def flow_accumulation(request: Request, user=Depends(functions.basic_auth)):
-    try:
-        body = await request.json()
-        file_name = body.get('filename')
-        folder = file_name.rstrip(".tif")
-        fill_name, flowacc_name = f"{folder}_filled.tif", f"{folder}_flowacc.tif"
-        project_name, _ = functions.project_definer(body.get('projectName'), user)
-        flow_dir = os.path.normpath(os.path.join(PROJECT_ROOT, project_name, "flows"))
-        os.makedirs(flow_dir, exist_ok=True)
-        wtb = WhiteboxTools()
-        wtb.set_verbose_mode(False)
-        dir = os.path.normpath(os.path.join(flow_dir, "terrains", folder))
+        dtm_path = os.path.normpath(os.path.join(dir, file_name))
+        fill_name, stream_name = folder + "_filled.tif", folder + "_streams.tif"
+        flwdir_name, flwacc_name = folder + "_flowdir.tif", folder + "_flowacc.tif"
         fill_path = os.path.normpath(os.path.join(dir, fill_name))
-        flowacc_path = os.path.normpath(os.path.join(dir, flowacc_name))
-        if os.path.exists(flowacc_path): functions.safe_remove(flowacc_path)
-        wtb.d8_flow_accumulation(input=fill_path, output=flowacc_path)
-        with rasterio.open(flowacc_path) as src:
-            data = src.read(1, masked=True)
-            global_min, global_max = float(data.min()), float(data.max())
-        del data
+        if os.path.exists(fill_path): functions.safe_remove(fill_path)
+        wtb.fill_depressions(dem=dtm_path, output=fill_path)
+        flw_path = os.path.normpath(os.path.join(dir, flwdir_name))
+        if os.path.exists(flw_path): functions.safe_remove(flw_path)
+        wtb.d8_pointer(dem=fill_path, output=flw_path)
+        flwacc_path = os.path.normpath(os.path.join(dir, flwacc_name))
+        if os.path.exists(flwacc_path): functions.safe_remove(flwacc_path)
+        wtb.d8_flow_accumulation(i=fill_path, output=flwacc_path, out_type="cells")
+        stream_path = os.path.normpath(os.path.join(dir, stream_name))
+        if os.path.exists(stream_path): functions.safe_remove(stream_path)
+        print(flwacc_path, stream_path, threshold)
+        wtb.extract_streams(flow_accum=flwacc_path, output=stream_path, threshold=threshold)
         meta_path, meta = os.path.normpath(os.path.join(dir, f"{folder}.json")), {}
         if os.path.exists(meta_path):
             with open(meta_path, "r") as f: meta = json.load(f)
-        meta['flowacc'] = {"min": global_min, "max": global_max}
+        meta[key] = {"min": 0, "max": 1}
         with open(meta_path, "w") as f: json.dump(meta, f)
-        tile_url = f"/{project_name}/terrain/flowacc/{folder}/{flowacc_name}/{{z}}/{{x}}/{{y}}.png"
-        contents = {"tile_url": tile_url, "min": global_min, "max": global_max}
+        tile_url = f"/{project_name}/terrain/{key}/{folder}/{stream_name}/{{z}}/{{x}}/{{y}}.png"
+        contents = {"tile_url": tile_url, "min": 0, "max": 1}
         return JSONResponse({'status': 'ok', 'content': contents})
     except Exception as e:
-        print('/flow_accumulation:\n==============')
+        print('/detect_streams:\n==============')
         traceback.print_exc()
         return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
 
-@router.post("/catchment")
-async def catchment(request: Request, user=Depends(functions.basic_auth)):
-    try:
-        body = await request.json()
-        file_name, lat, lon = body.get('filename'), body.get('lat'), body.get('lon')
-        threshold, snap_distance = float(body.get('threshold')), float(body.get('snapDistance'))
-        folder = file_name.rstrip(".tif")
-        fill_name, catchment_name = f"{folder}_filled.tif", f"{folder}_catchment.tif"
-        project_name, _ = functions.project_definer(body.get('projectName'), user)
-        flow_dir = os.path.normpath(os.path.join(PROJECT_ROOT, project_name, "flows"))
-        os.makedirs(flow_dir, exist_ok=True)
-        dir = os.path.normpath(os.path.join(flow_dir, "terrains", folder))
-        fill_path = os.path.normpath(os.path.join(dir, fill_name))
-        catchment_path = os.path.normpath(os.path.join(dir, catchment_name))
-        if os.path.exists(catchment_path): functions.safe_remove(catchment_path)
-        catchment = flow_functions.watershed(fill_path, lat, lon, threshold, snap_distance)
-        if catchment.empty: return JSONResponse({'status': 'error', 'message': 'No catchment found.'})
-        return JSONResponse({'status': 'ok', 'content': json.loads(catchment.to_json())})
-    except Exception as e:
-        print('/catchment:\n==============')
-        traceback.print_exc()
-        return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
+
+# @router.post("/fill_terrain")
+# async def fill_terrain(request: Request, user=Depends(functions.basic_auth)):
+#     try:
+#         body = await request.json()
+#         file_name = body.get('filename')
+#         folder = file_name.rstrip(".tif")
+#         fill_name, json_file = folder + "_filled.tif", f"{folder}.json"
+#         project_name, _ = functions.project_definer(body.get('projectName'), user)
+#         flow_dir = os.path.normpath(os.path.join(PROJECT_ROOT, project_name, "flows"))
+#         os.makedirs(flow_dir, exist_ok=True)
+#         dir = os.path.normpath(os.path.join(flow_dir, "terrains", folder))
+#         os.makedirs(dir, exist_ok=True)
+#         dtm_path = os.path.normpath(os.path.join(dir, file_name))
+#         fill_path = os.path.normpath(os.path.join(dir, fill_name))
+#         if os.path.exists(fill_path): functions.safe_remove(fill_path)
+#         wtb.fill_depressions(dem=dtm_path, output=fill_path)
+#         with rasterio.open(fill_path) as src:
+#             data = src.read(1, masked=True)
+#             global_min, global_max = float(data.min()), float(data.max())
+#         del data
+#         meta_path, meta = os.path.normpath(os.path.join(dir, json_file)), {}
+#         if os.path.exists(meta_path):
+#             with open(meta_path, "r") as f: meta = json.load(f)
+#         meta['filled'] = {"min": global_min, "max": global_max}
+#         with open(meta_path, "w") as f: json.dump(meta, f)
+#         tile_url = f"/{project_name}/terrain/filled/{folder}/{fill_name}/{{z}}/{{x}}/{{y}}.png"
+#         contents = {"tile_url": tile_url, "min": global_min, "max": global_max}
+#         return JSONResponse({'status': 'ok', 'content': contents})
+#     except Exception as e:
+#         print('/fill_terrain:\n==============')
+#         traceback.print_exc()
+#         return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
+
+# @router.post("/flow_direction")
+# async def flow_direction(request: Request, user=Depends(functions.basic_auth)):
+#     try:
+#         body = await request.json()
+#         file_name = body.get('filename')
+#         folder = file_name.rstrip(".tif")
+#         flowdir_name, json_file = folder + "_flowdir.tif", f"{folder}.json"
+#         project_name, _ = functions.project_definer(body.get('projectName'), user)
+#         flow_dir = os.path.normpath(os.path.join(PROJECT_ROOT, project_name, "flows"))
+#         os.makedirs(flow_dir, exist_ok=True)
+#         dir = os.path.normpath(os.path.join(flow_dir, "terrains", folder))
+#         fill_path = os.path.normpath(os.path.join(dir, folder + "_filled.tif"))
+#         flow_path = os.path.normpath(os.path.join(dir, flowdir_name))
+#         if os.path.exists(flow_path): functions.safe_remove(flow_path)
+#         wtb.d8_pointer(dem=fill_path, output=flow_path)
+#         with rasterio.open(flow_path) as src:
+#             data = src.read(1, masked=True)
+#             global_min, global_max = float(data.min()), float(data.max())
+#         del data
+#         meta_path, meta = os.path.normpath(os.path.join(dir, json_file)), {}
+#         if os.path.exists(meta_path):
+#             with open(meta_path, "r") as f: meta = json.load(f)
+#         meta['flowdir'] = {"min": global_min, "max": global_max}
+#         with open(meta_path, "w") as f: json.dump(meta, f)
+#         tile_url = f"/{project_name}/terrain/flowdir/{folder}/{flowdir_name}/{{z}}/{{x}}/{{y}}.png"
+#         contents = {"tile_url": tile_url, "min": global_min, "max": global_max}
+#         return JSONResponse({'status': 'ok', 'content': contents})
+#     except Exception as e:
+#         print('/flow_direction:\n==============')
+#         traceback.print_exc()
+#         return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
+
+# @router.post("/flow_accumulation")
+# async def flow_accumulation(request: Request, user=Depends(functions.basic_auth)):
+#     try:
+#         body = await request.json()
+#         file_name = body.get('filename')
+#         folder = file_name.rstrip(".tif")
+#         fill_name, flowacc_name = f"{folder}_filled.tif", f"{folder}_flowacc.tif"
+#         project_name, _ = functions.project_definer(body.get('projectName'), user)
+#         flow_dir = os.path.normpath(os.path.join(PROJECT_ROOT, project_name, "flows"))
+#         os.makedirs(flow_dir, exist_ok=True)
+#         dir = os.path.normpath(os.path.join(flow_dir, "terrains", folder))
+#         fill_path = os.path.normpath(os.path.join(dir, fill_name))
+#         flowacc_path = os.path.normpath(os.path.join(dir, flowacc_name))
+#         if os.path.exists(flowacc_path): functions.safe_remove(flowacc_path)
+#         wtb.d8_flow_accumulation(i=fill_path, output=flowacc_path)
+#         with rasterio.open(flowacc_path) as src:
+#             data = src.read(1, masked=True)
+#             global_min, global_max = float(data.min()), float(data.max())
+#         del data
+#         meta_path, meta = os.path.normpath(os.path.join(dir, f"{folder}.json")), {}
+#         if os.path.exists(meta_path):
+#             with open(meta_path, "r") as f: meta = json.load(f)
+#         meta['flowacc'] = {"min": global_min, "max": global_max}
+#         with open(meta_path, "w") as f: json.dump(meta, f)
+#         tile_url = f"/{project_name}/terrain/flowacc/{folder}/{flowacc_name}/{{z}}/{{x}}/{{y}}.png"
+#         contents = {"tile_url": tile_url, "min": global_min, "max": global_max}
+#         return JSONResponse({'status': 'ok', 'content': contents})
+#     except Exception as e:
+#         print('/flow_accumulation:\n==============')
+#         traceback.print_exc()
+#         return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
+
+# @router.post("/catchment")
+# async def catchment(request: Request, user=Depends(functions.basic_auth)):
+#     try:
+#         body = await request.json()
+#         file_name, lat, lon = body.get('filename'), body.get('lat'), body.get('lon')
+#         threshold, snap_distance = float(body.get('threshold')), float(body.get('snapDistance'))
+#         folder = file_name.rstrip(".tif")
+#         fill_name, catchment_name = f"{folder}_filled.tif", f"{folder}_catchment.tif"
+#         project_name, _ = functions.project_definer(body.get('projectName'), user)
+#         flow_dir = os.path.normpath(os.path.join(PROJECT_ROOT, project_name, "flows"))
+#         os.makedirs(flow_dir, exist_ok=True)
+#         dir = os.path.normpath(os.path.join(flow_dir, "terrains", folder))
+#         fill_path = os.path.normpath(os.path.join(dir, fill_name))
+#         catchment_path = os.path.normpath(os.path.join(dir, catchment_name))
+#         if os.path.exists(catchment_path): functions.safe_remove(catchment_path)
+#         # catchment = flow_functions.watershed(fill_path, lat, lon, threshold, snap_distance)
+#         if catchment.empty: return JSONResponse({'status': 'error', 'message': 'No catchment found.'})
+#         return JSONResponse({'status': 'ok', 'content': json.loads(catchment.to_json())})
+#     except Exception as e:
+#         print('/catchment:\n==============')
+#         traceback.print_exc()
+#         return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
 
 @router.post("/data_upload")
 async def data_upload(file: UploadFile = File(...), projectName: str = Form(...),

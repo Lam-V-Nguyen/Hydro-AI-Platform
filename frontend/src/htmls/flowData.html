@@ -61,24 +61,15 @@
                         </div>
                         <div class="tile"><h3>Terrain Processing</h3>
                             <div class="row">
-                                <button type="button" id="terrain-fill-btn">1. Fill sinks/depressions</button>
-                                <div class="row-radio" data-tab="terrain">
-                                    <input type="radio" id="terrain-fill" name="terrain" value="terrain-fill">
-                                    <label for="terrain-fill">Show Layer</label>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <button type="button" id="terrain-direction-btn">2. Flow direction</button>
-                                <div class="row-radio" data-tab="terrain">
-                                    <input type="radio" id="terrain-direction" name="terrain" value="terrain-direction">
-                                    <label for="terrain-direction">Show Layer</label>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <button type="button" id="terrain-accumulation-btn">3. Flow accumulation</button>
-                                <div class="row-radio" data-tab="terrain">
-                                    <input type="radio" id="terrain-accumulation" name="terrain" value="terrain-accumulation">
-                                    <label for="terrain-accumulation">Show Layer</label>
+                                <div class="field-inline">
+                                    <label for="threshold">Threshold:</label>
+                                    <input type="text" id="threshold" value="50.0" style="max-width: 100px;">
+                                    <label>(m)</label>
+                                    <button style="margin: 0 10px 0 10px;" type="button" id="stream-btn">1. Extract Streams</button>
+                                    <div class="row-radio" data-tab="terrain">
+                                        <input type="radio" id="terrain-stream" name="terrain" value="terrain-stream">
+                                        <label for="terrain-stream">Show Layer</label>
+                                    </div>
                                 </div>
                             </div>
                         </div>

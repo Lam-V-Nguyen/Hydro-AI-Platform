@@ -14,6 +14,7 @@ if env_mode == "development":
     SOURCE_BACKEND = os.path.normpath(os.path.join(PROJECT_DES, "backend/src"))
     SOURCE_FRONTEND = os.path.normpath(os.path.join(PROJECT_DES, "frontend/src"))
     DELFT_PATH = os.path.normpath(os.path.join(PROJECT_DES, "backend/softs/x64"))
+    WHITEBOX_DIR = os.path.normpath(os.path.join(PROJECT_DES, "backend/softs/whitebox"))
     REDIS_URL = "redis://localhost:6379/0"
 # else:
 #     PROJECT_DES = os.getenv("/app")

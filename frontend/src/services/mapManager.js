@@ -9,21 +9,17 @@ const layerConfig = {
         title: 'Raw Terrain (m)', colorKey: 'terrain', min: 0, max: 0,
         alert: 'Please upload terrain data first.'
     },
-    fillLayer: {
-        getLayer: () => fillLayer, setLayer: (l) => fillLayer = l,
-        title: 'Filled Terrain (m)', colorKey: 'terrain', min: 0, max: 0,
-        alert: 'Please upload terrain data and run "Fill sinks/depressions" first.'
+    streamLayer: {
+        getLayer: () => streamLayer, setLayer: (l) => streamLayer = l,
+        title: 'Streams', colorKey: 'terrain', min: 0, max: 1, 
+        alert: 'Please upload terrain data first.'
     },
-    flowDirectionLayer: {
-        getLayer: () => flowDirectionLayer, setLayer: (l) => flowDirectionLayer = l,
-        title: 'Flow direction (D8 code)', colorKey: 'flow_direction', min: 0, max: 0,
-        alert: 'Please upload terrain data, run "Fill sinks/depressions" and "Flow direction".'
-    },
-    flowAccumulationLayer: {
-        getLayer: () => flowAccumulationLayer, setLayer: (l) => flowAccumulationLayer = l,
-        title: 'Flow accumulation', colorKey: 'flow_accumulation', min: 0, max: 0,
-        alert: 'Please upload terrain data, run "Fill sinks/depressions", "Flow direction" and "Flow accumulation".'
-    },
+
+
+
+
+
+
     catchmentLayer_Vector: {
         layer: null, data: null,
         getLayer() { return this.layer; }, setLayer(l) { this.layer = l; },
@@ -80,8 +76,10 @@ let currentTileLayer = null, timeCounter = null, html='', markersObs = [],
     markerCrossSection = [], currentPoints = [], markerBoundary = [], 
     pathCrossSection = null, pathBoundary = null, currentPointsCross = [], 
     currentPointsBoundary = [], waqObs = [], waqLoads = [], mapContainer = null,
-    markerLayer = null, terrainLayer = null, isPourpointActive = false,
-    fillLayer = null, flowDirectionLayer = null, flowAccumulationLayer = null, 
+    markerLayer = null, terrainLayer = null, streamLayer = null,
+    
+    
+    isPourpointActive = false,
     lastLayer = null, layer = null;
 const configCrossSectionPoint = { color: 'blue', fillColor: 'yellow', radius: 4, fill: true, fillOpacity: 1 }, 
     configBoundaryPoint = { color: 'red', fillColor: 'green', radius: 4, fill: true, fillOpacity: 1 }, 
@@ -219,8 +217,7 @@ export async function renderPreview(request=null) {
                 } else {
                     lastLayer = L.tileLayer(request.content.data, {tileSize: 256, opacity: 1 })
                     colorbarReset(
-                        colorBar, request.content.min, 
-                        request.content.max, config.title, config.colorKey
+                        colorBar, request.content.min, request.content.max, config.title, config.colorKey
                     );
                     colorBar.style.display = 'flex';
                 }

@@ -13,12 +13,18 @@ const obj = {
     catchmentUploadContainer: $('catchment-upload-container'),
     catchmentUploadBtn: $('catchment-upload-btn'), catchmentInputFile: $('catchment-input-file'),
     terrainBtn: $('terrain-btn'), terrainInputFile: $('terrain-input-file'), 
-    terrainInputText: $('terrain-input-text'), fillBtn: $('terrain-fill-btn'),
-    flowDirectionBtn: $('terrain-direction-btn'), flowAccumulationBtn: $('terrain-accumulation-btn'),
+    terrainInputText: $('terrain-input-text'), streamBtn: $('stream-btn'), threshold: $('threshold'), 
+    
+    
+    
+    
+    
+    
+    
     pourpointContainer: $('pourpoint-container'), pourpointCheckbox: $('pourpoint-checkbox'),
     exportContainer: $('export-container'), exportBtn: $('export-catchment-btn'),
     pourpointLat: $('pourpoint-lat'), pourpointLon: $('pourpoint-lon'),
-    threshold: $('pourpoint-threshold'), dist: $('pourpoint-dist'), catchmentRadio: $('catchment-layer'),
+    dist: $('pourpoint-dist'), catchmentRadio: $('catchment-layer'),
     soilInputText: $('soil-input-text'), soilBtn: $('soil-btn'), soilInputFile: $('soil-input-file'),
     soilCheckbox: $('soil-checker-checkbox'), soilInvalidCheckerBtn: $('soil-invalid-checker-btn'),
     soilTable: $('soil-attributes-table'), soilIds: $('soil-id'), soilClipBtn: $('soil-clip-btn'),
@@ -44,8 +50,12 @@ const obj = {
 
 
 let currentProject, minTerrain = null, maxTerrain = null, minFill = null, maxFill = null, lastRadio = null,
-    minFlowDirection = null, maxFlowDirection = null, minFlowAccumulation = null, isFlowAccumulation = false,
-    maxFlowAccumulation = null, isTerrain = false, isFill = false, isFlowDirection = false;
+    minFlowDirection = null, maxFlowDirection = null, minFlowAccumulation = null, isTerrain = false, 
+    isStream = false,
+    
+    
+    isFlowAccumulation = false,
+    maxFlowAccumulation = null, isFill = false, isFlowDirection = false;
 
 initRequestListener(); setupTabs(document); await getProject(); windowListener();
 topographyManager(); soilManager(); landManager(); riverManager(); 
@@ -111,8 +121,8 @@ function topographyManager() {
             if (data.status === 'error') { alert(data.message); return; }
             minTerrain = data.content.min, maxTerrain = data.content.max;
             const content = { 
-                key: 'drawLayer', data: data.content.tile_url, layerKey: 'terrainLayer', reset: true,
-                min: data.content.min, max: data.content.max
+                key: 'drawLayer', data: data.content.tile_url, layerKey: 'terrainLayer',
+                reset: true, min: minTerrain, max: maxTerrain
             };
             await sendRequest('flowOptions', content);
             obj.terrainInputText.value = file.name; e.target.value = ''; isTerrain = true;
@@ -120,75 +130,99 @@ function topographyManager() {
         lastRadio = document.querySelector('input[name="terrain"][value="terrain-raw"]');
         if (lastRadio) lastRadio.checked = true;
     });
-    // Work on fill
-    obj.fillBtn.addEventListener('click', async () => {
+    // Detect streams
+    obj.streamBtn.addEventListener('click', async () => {
         const layerCheck = obj.terrainInputText.value;
         if (layerCheck === '') { alert('Please upload terrain data first.'); return; } 
         try {
-            signalSender('showOverlay', 'Running fill algorithm. Please wait ...');
-            const contents = { projectName: currentProject, filename: layerCheck };
-            const data = await jsonLoader('fill_terrain', contents);
+            signalSender('showOverlay', 'Detecting streams. Please wait ...');
+            const contents = { projectName: currentProject, filename: layerCheck, threshold: obj.threshold.value };
+            const data = await jsonLoader('detect_streams', contents);
             signalSender('hideOverlay');
             if (data.status === "error") { alert(data.message); return; }
-            minFill = data.content.min, maxFill = data.content.max;
             const content = { 
-                key: 'drawLayer', data: data.content.tile_url, layerKey: 'fillLayer',
+                key: 'drawLayer', data: data.content.tile_url, layerKey: 'streamLayer', 
                 min: data.content.min, max: data.content.max, reset: true
             };
             await sendRequest('flowOptions', content);
-        } catch (error) { alert(`Running fill algorithm failed: ${error.message}`); }
-        lastRadio = document.querySelector('input[name="terrain"][value="terrain-fill"]');
+        } catch (error) { alert(`Detecting streams failed: ${error.message}`); }
+        lastRadio = document.querySelector('input[name="terrain"][value="terrain-stream"]');
         if (lastRadio) lastRadio.checked = true;
-    });
-    obj.flowDirectionBtn.addEventListener('click', async () => {
-        const layerCheck = obj.terrainInputText.value;
-        if (layerCheck === '') { alert('Please upload terrain data first.'); return; }
-        // Check if fill terrain has been run
-        const content = { projectName: currentProject, filename: layerCheck, key: 'fill' };
-        signalSender('showOverlay', 'Checking fill layer data. Please wait ...');
-        const fillCheck = await jsonLoader('raster_check', content); signalSender('hideOverlay');
-        if (fillCheck.status === 'error') { alert(fillCheck.message); return; }
-        try {
-            signalSender('showOverlay', 'Running flow direction algorithm. Please wait ...');
-            const contents = { projectName: currentProject, filename: layerCheck };
-            const data = await jsonLoader('flow_direction', contents);
-            signalSender('hideOverlay');
-            if (data.status === "error") { alert(data.message); return; }
-            minFlowDirection = data.content.min, maxFlowDirection = data.content.max;
-            const content = { 
-                key: 'drawLayer', data: data.content.tile_url, layerKey: 'flowDirectionLayer',
-                min: data.content.min, max: data.content.max, reset: true
-            };
-            await sendRequest('flowOptions', content);
-        } catch (error) { alert(`Running flow direction algorithm failed: ${error.message}`); }
-        lastRadio = document.querySelector('input[name="terrain"][value="terrain-direction"]');
-        if (lastRadio) lastRadio.checked = true;
-    });
-    obj.flowAccumulationBtn.addEventListener('click', async () => {
-        const layerCheck = obj.terrainInputText.value;
-        if (layerCheck === '') { alert('Please upload terrain data first.'); return; }
-        // Check if flow direction has been run
-        const content = { projectName: currentProject, filename: layerCheck, key: 'flow_direction' };
-        signalSender('showOverlay', 'Checking flow direction layer data. Please wait ...');
-        const flowDirectionCheck = await jsonLoader('raster_check', content); signalSender('hideOverlay');
-        if (flowDirectionCheck.status === 'error') { alert(flowDirectionCheck.message); return; }
-        try {
-            signalSender('showOverlay', 'Running flow accumulation algorithm. Please wait ...');
-            const contents = { projectName: currentProject, filename: layerCheck };
-            const data = await jsonLoader('flow_accumulation', contents);
-            signalSender('hideOverlay');
-            if (data.status === "error") { alert(data.message); return; }
-            minFlowAccumulation = data.content.min, maxFlowAccumulation = data.content.max;
-            const content = { 
-                key: 'drawLayer', data: data.content.tile_url, layerKey: 'flowAccumulationLayer',
-                min: data.content.min, max: data.content.max, reset: true
-            };
-            await sendRequest('flowOptions', content);
-            obj.pourpointContainer.style.display = 'flex'; obj.exportContainer.style.display = 'flex';
-        } catch (error) { alert(`Running flow accumulation algorithm failed: ${error.message}`); }
-        lastRadio = document.querySelector('input[name="terrain"][value="terrain-accumulation"]');
-        if (lastRadio) lastRadio.checked = true;
-    });
+    })
+
+
+
+
+
+    // // Work on fill
+    // obj.fillBtn.addEventListener('click', async () => {
+    //     const layerCheck = obj.terrainInputText.value;
+    //     if (layerCheck === '') { alert('Please upload terrain data first.'); return; } 
+    //     try {
+    //         signalSender('showOverlay', 'Running fill algorithm. Please wait ...');
+    //         const contents = { projectName: currentProject, filename: layerCheck };
+    //         const data = await jsonLoader('fill_terrain', contents);
+    //         signalSender('hideOverlay');
+    //         if (data.status === "error") { alert(data.message); return; }
+    //         minFill = data.content.min, maxFill = data.content.max;
+    //         const content = { 
+    //             key: 'drawLayer', data: data.content.tile_url, layerKey: 'fillLayer',
+    //             min: data.content.min, max: data.content.max, reset: true
+    //         };
+    //         await sendRequest('flowOptions', content);
+    //     } catch (error) { alert(`Running fill algorithm failed: ${error.message}`); }
+    //     lastRadio = document.querySelector('input[name="terrain"][value="terrain-fill"]');
+    //     if (lastRadio) lastRadio.checked = true;
+    // });
+    // obj.flowDirectionBtn.addEventListener('click', async () => {
+    //     const layerCheck = obj.terrainInputText.value;
+    //     if (layerCheck === '') { alert('Please upload terrain data first.'); return; }
+    //     // Check if fill terrain has been run
+    //     const content = { projectName: currentProject, filename: layerCheck, key: 'fill' };
+    //     signalSender('showOverlay', 'Checking fill layer data. Please wait ...');
+    //     const fillCheck = await jsonLoader('raster_check', content); signalSender('hideOverlay');
+    //     if (fillCheck.status === 'error') { alert(fillCheck.message); return; }
+    //     try {
+    //         signalSender('showOverlay', 'Running flow direction algorithm. Please wait ...');
+    //         const contents = { projectName: currentProject, filename: layerCheck };
+    //         const data = await jsonLoader('flow_direction', contents);
+    //         signalSender('hideOverlay');
+    //         if (data.status === "error") { alert(data.message); return; }
+    //         minFlowDirection = data.content.min, maxFlowDirection = data.content.max;
+    //         const content = { 
+    //             key: 'drawLayer', data: data.content.tile_url, layerKey: 'flowDirectionLayer',
+    //             min: data.content.min, max: data.content.max, reset: true
+    //         };
+    //         await sendRequest('flowOptions', content);
+    //     } catch (error) { alert(`Running flow direction algorithm failed: ${error.message}`); }
+    //     lastRadio = document.querySelector('input[name="terrain"][value="terrain-direction"]');
+    //     if (lastRadio) lastRadio.checked = true;
+    // });
+    // obj.flowAccumulationBtn.addEventListener('click', async () => {
+    //     const layerCheck = obj.terrainInputText.value;
+    //     if (layerCheck === '') { alert('Please upload terrain data first.'); return; }
+    //     // Check if flow direction has been run
+    //     const content = { projectName: currentProject, filename: layerCheck, key: 'flow_direction' };
+    //     signalSender('showOverlay', 'Checking flow direction layer data. Please wait ...');
+    //     const flowDirectionCheck = await jsonLoader('raster_check', content); signalSender('hideOverlay');
+    //     if (flowDirectionCheck.status === 'error') { alert(flowDirectionCheck.message); return; }
+    //     try {
+    //         signalSender('showOverlay', 'Running flow accumulation algorithm. Please wait ...');
+    //         const contents = { projectName: currentProject, filename: layerCheck };
+    //         const data = await jsonLoader('flow_accumulation', contents);
+    //         signalSender('hideOverlay');
+    //         if (data.status === "error") { alert(data.message); return; }
+    //         minFlowAccumulation = data.content.min, maxFlowAccumulation = data.content.max;
+    //         const content = { 
+    //             key: 'drawLayer', data: data.content.tile_url, layerKey: 'flowAccumulationLayer',
+    //             min: data.content.min, max: data.content.max, reset: true
+    //         };
+    //         await sendRequest('flowOptions', content);
+    //         obj.pourpointContainer.style.display = 'flex'; obj.exportContainer.style.display = 'flex';
+    //     } catch (error) { alert(`Running flow accumulation algorithm failed: ${error.message}`); }
+    //     lastRadio = document.querySelector('input[name="terrain"][value="terrain-accumulation"]');
+    //     if (lastRadio) lastRadio.checked = true;
+    // });
     lastRadio = document.querySelector('input[name="terrain"]:checked'); 
     document.querySelectorAll('input[name="terrain"]').forEach(radio => {
         radio.addEventListener('change', async (e) => {
@@ -206,49 +240,62 @@ function topographyManager() {
                 const terrainCheck = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'terrainLayer' });
                 isTerrain = terrainCheck.exist;
                 content = { 
-                    key: 'drawLayer', layerKey: 'terrainLayer', in: minTerrain, max: maxTerrain, reset: true
+                    key: 'drawLayer', layerKey: 'terrainLayer', 
+                    min: minTerrain, max: maxTerrain, reset: true
                 };
-            } else if (value === 'terrain-fill') {
+            } else if (value === 'terrain-stream') {
                 if (!isTerrain) {
                     alert('Please upload terrain data first.'); 
                     lastRadio.checked = true; e.target.checked = false; return; 
                 }
-                const fillCheck = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'fillLayer' });
-                isFill = fillCheck.exist;
-                if (!isFill) { alert('Please run "Fill sinks/depressions" first.'); 
+                const streamCheck = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'streamLayer' });
+                isStream = streamCheck.exist;
+                if (!isStream) { alert('Please run "Extract streams" first.'); 
                     lastRadio.checked = true; e.target.checked = false; return; 
                 }
-                content = { 
-                    key: 'drawLayer', layerKey: 'fillLayer', min: minFill, max: maxFill, reset: true
-                };
-            } else if (value === 'terrain-direction') {
-                if (!isFill) {
-                    alert('Please run "Fill sinks/depressions" first.'); 
-                    lastRadio.checked = true; e.target.checked = false; return;
-                }
-                const flowDirectionCheck = await sendRequest('flowOptions', { 
-                    key: 'layerChecker', layerKey: 'flowDirectionLayer' 
-                });
-                isFlowDirection = flowDirectionCheck.exist;
-                if (!isFlowDirection) { alert('Please run "Fill sinks/depressions" first.'); 
-                    lastRadio.checked = true; e.target.checked = false; return; 
-                }
-                content = { 
-                    key: 'drawLayer', layerKey: 'flowDirectionLayer', 
-                    min: minFlowDirection, max: maxFlowDirection, reset: true
-                };
-            } else if (value === 'terrain-accumulation') {
-                if (!isFlowDirection) {
-                    alert('Please run "Flow direction" first.'); 
-                    lastRadio.checked = true; e.target.checked = false; return;
-                }
-                await sendRequest('flowOptions', { 
-                    key: 'layerChecker', layerKey: 'flowAccumulationLayer' 
-                });
-                content = { 
-                    key: 'drawLayer', layerKey: 'flowAccumulationLayer',
-                    min: minFlowAccumulation, max: maxFlowAccumulation, reset: true
-                };
+                content = { key: 'drawLayer', layerKey: 'streamLayer', min: 0, max: 1, reset: true };
+            
+            // } else if (value === 'terrain-fill') {
+            //     if (!isTerrain) {
+            //         alert('Please upload terrain data first.'); 
+            //         lastRadio.checked = true; e.target.checked = false; return; 
+            //     }
+            //     const fillCheck = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'fillLayer' });
+            //     isFill = fillCheck.exist;
+            //     if (!isFill) { alert('Please run "Fill sinks/depressions" first.'); 
+            //         lastRadio.checked = true; e.target.checked = false; return; 
+            //     }
+            //     content = { 
+            //         key: 'drawLayer', layerKey: 'fillLayer', min: minFill, max: maxFill, reset: true
+            //     };
+            // } else if (value === 'terrain-direction') {
+            //     if (!isFill) {
+            //         alert('Please run "Fill sinks/depressions" first.'); 
+            //         lastRadio.checked = true; e.target.checked = false; return;
+            //     }
+            //     const flowDirectionCheck = await sendRequest('flowOptions', { 
+            //         key: 'layerChecker', layerKey: 'flowDirectionLayer' 
+            //     });
+            //     isFlowDirection = flowDirectionCheck.exist;
+            //     if (!isFlowDirection) { alert('Please run "Fill sinks/depressions" first.'); 
+            //         lastRadio.checked = true; e.target.checked = false; return; 
+            //     }
+            //     content = { 
+            //         key: 'drawLayer', layerKey: 'flowDirectionLayer', 
+            //         min: minFlowDirection, max: maxFlowDirection, reset: true
+            //     };
+            // } else if (value === 'terrain-accumulation') {
+            //     if (!isFlowDirection) {
+            //         alert('Please run "Flow direction" first.'); 
+            //         lastRadio.checked = true; e.target.checked = false; return;
+            //     }
+            //     await sendRequest('flowOptions', { 
+            //         key: 'layerChecker', layerKey: 'flowAccumulationLayer' 
+            //     });
+            //     content = { 
+            //         key: 'drawLayer', layerKey: 'flowAccumulationLayer',
+            //         min: minFlowAccumulation, max: maxFlowAccumulation, reset: true
+            //     };
             } else if (value === 'terrain-catchment') {
                 if (!isFlowAccumulation) {
                     alert('Please run "Flow accumulation" and select a pourpoint first.'); 
