@@ -22,9 +22,11 @@ steps:
       - setup_rivers:
             hydrography_fn: my_hydro
             river_geom_fn: river_network
-            river_upa: 30
+            river_upa: 10
             river_routing: kinematic_wave
             connectivity: 8
+            smooth_len: 10000.0
+            # min_rivlen_ratio: 0.1
 
       - setup_soilmaps:
             soil_fn: soilgrids_2020
@@ -47,6 +49,7 @@ steps:
   
       - setup_temp_pet_forcing:
             temp_pet_fn: my_forcing
+            dem_forcing_fn: dtm
             pet_method: "debruin"
             skip_pet: False
             press_correction: True

@@ -1,12 +1,11 @@
-import os, tempfile, dotenv, shapely, rasterio
-from pysheds.grid import Grid
-from rasterio.shutil import copy as rio_copy
+import os, dotenv, shapely, rasterio, pyflwdir
 from rasterio.features import shapes
+from rasterio.transform import rowcol
 from shapely.geometry import shape
-from services import functions
-import geopandas as gpd
+import geopandas as gpd, numpy as np
 from shapely.ops import unary_union
 from shapely.geometry import Polygon, MultiPolygon
+from pyflwdir import dem
 
 
 
@@ -15,33 +14,34 @@ MET_url = os.getenv('MET_ProstAPI_URL')
 MET_client_id = os.getenv('MET_ProstAPI_CLIENT_ID')
 NVE_url = os.getenv('NVE_URL')
 NVE_client_id = os.getenv('NVE_API_KEY')
+NODATA_DEM, NODATA_INT = -9999.0, 0
 
-soil_codes = {
-    1: "Rocks and boulders", 2: "Gravel", 3: "Coarse sand",
-    4: "Fine sand", 5: "Coarse sand with clay",
-    6: "Fine sand with clay", 7: "Coarse clay with sand",
-    8: "Fine clay with sand", 9: "Clay", 10: "Fine clay",
-    11: "Very fine clay", 12: "Silt", 13: "Gyttja/peat",
-    14: "Bedrock", 15: "Glacier", 16: "Water"
-}
-soil_types = {
-    "Rocks and boulders": [0.10, 0.01, 5000, 200, 0.03, 2],
-    "Gravel": [0.25, 0.02, 3000, 500, 0.03, 3],
-    "Coarse sand": [0.38, 0.03, 2000, 1000, 0.025, 3],
-    "Fine sand": [0.41, 0.04, 1200, 1200, 0.020, 3],
-    "Coarse sand with clay": [0.42, 0.05, 600, 1500, 0.018, 4],
-    "Fine sand with clay": [0.43, 0.05, 400, 1500, 0.017, 4],
-    "Coarse clay with sand": [0.45, 0.06, 200, 1800, 0.015, 5],
-    "Fine clay with sand": [0.46, 0.07, 120, 1800, 0.014, 6],
-    "Clay": [0.48, 0.08, 60, 2000, 0.012, 7],
-    "Fine clay": [0.50, 0.09, 40, 2000, 0.011, 8],
-    "Very fine clay": [0.52, 0.10, 20, 2000, 0.010, 9],
-    "Silt": [0.46, 0.07, 150, 1800, 0.014, 6],
-    "Gyttja/peat": [0.80, 0.20, 50, 2500, 0.008, 4],
-    "Bedrock": [0.05, 0.01, 100, 100, 0.040, 1],
-    "Glacier": [0.30, 0.02, 500, 500, 0.020, 2],
-    "Water": [1.00, 1.00, 10000, 0, 0, 0]
-}
+# soil_codes = {
+#     1: "Rocks and boulders", 2: "Gravel", 3: "Coarse sand",
+#     4: "Fine sand", 5: "Coarse sand with clay",
+#     6: "Fine sand with clay", 7: "Coarse clay with sand",
+#     8: "Fine clay with sand", 9: "Clay", 10: "Fine clay",
+#     11: "Very fine clay", 12: "Silt", 13: "Gyttja/peat",
+#     14: "Bedrock", 15: "Glacier", 16: "Water"
+# }
+# soil_types = {
+#     "Rocks and boulders": [0.10, 0.01, 5000, 200, 0.03, 2],
+#     "Gravel": [0.25, 0.02, 3000, 500, 0.03, 3],
+#     "Coarse sand": [0.38, 0.03, 2000, 1000, 0.025, 3],
+#     "Fine sand": [0.41, 0.04, 1200, 1200, 0.020, 3],
+#     "Coarse sand with clay": [0.42, 0.05, 600, 1500, 0.018, 4],
+#     "Fine sand with clay": [0.43, 0.05, 400, 1500, 0.017, 4],
+#     "Coarse clay with sand": [0.45, 0.06, 200, 1800, 0.015, 5],
+#     "Fine clay with sand": [0.46, 0.07, 120, 1800, 0.014, 6],
+#     "Clay": [0.48, 0.08, 60, 2000, 0.012, 7],
+#     "Fine clay": [0.50, 0.09, 40, 2000, 0.011, 8],
+#     "Very fine clay": [0.52, 0.10, 20, 2000, 0.010, 9],
+#     "Silt": [0.46, 0.07, 150, 1800, 0.014, 6],
+#     "Gyttja/peat": [0.80, 0.20, 50, 2500, 0.008, 4],
+#     "Bedrock": [0.05, 0.01, 100, 100, 0.040, 1],
+#     "Glacier": [0.30, 0.02, 500, 500, 0.020, 2],
+#     "Water": [1.00, 1.00, 10000, 0, 0, 0]
+# }
 land_codes = {
     1: "Bare soil", # 1-Bare land, 15-Bare rock, 17-Unclassified
     3: "Impervious/Urban", # 3-Other paved, 9-Paved road, 10-Unpaved road, 12-Railroad, 16-Building
@@ -57,67 +57,119 @@ land_types = {
     "Snow/Ice": [0, 0, 0, 0.03, 0.80, 0.1]
 }
 
-def fill_sink(dtm_path:str, fill_path:str) -> None:
-    # Load DTM
-    grid = Grid.from_raster(data=dtm_path, nodata=-9999)
-    dtm = grid.read_raster(data=dtm_path)
-    # Fill depressions
-    filled = grid.fill_depressions(dem=dtm).astype('float32')
-    # Resolve flats
-    inflated = grid.resolve_flats(dem=filled).astype('float32')
-    file_writer(grid, inflated, fill_path)
-
-def flow_direction(fill_path:str, flow_path:str) -> None:
-    grid = Grid.from_raster(data=fill_path, nodata=-9999)
-    fill = grid.read_raster(data=fill_path)
-    flow = grid.flowdir(dem=fill, routing='d8').astype('int16')
-    file_writer(grid, flow, flow_path)
-
-def flow_accumulation(flow_path:str, acc_path:str) -> None:
-    grid = Grid.from_raster(data=flow_path, nodata=-9999)
-    flow_dir = grid.read_raster(data=flow_path)
-    acc = grid.accumulation(fdir=flow_dir, routing='d8').astype('float32')
-    file_writer(grid, acc, acc_path)
-
-def file_writer(grid:Grid, data, out_path:str) -> None:
-    with tempfile.NamedTemporaryFile(suffix=".tif", delete=False) as tmp_file:
-        temp_file = tmp_file.name
-    grid.to_raster(data, temp_file)
-    copy_options = dict(
-        driver="COG", compress="LZW", tiled=True,
-        blocksize=256, overview_resampling="average"
-    )
-    rio_copy(temp_file, out_path, **copy_options)
-    functions.safe_remove(temp_file)
-
-def watershed(flowdir_path:str, flowacc_path:str, lat:float, lon:float, 
-    threshold:float=50, snap_distance:float=10) -> gpd.GeoDataFrame:
-    gdf = gpd.GeoDataFrame(geometry=[shapely.geometry.Point(lon, lat)], crs="EPSG:4326")
-    with rasterio.open(flowdir_path) as src:
-        transform, crs = src.transform, src.crs
-    grid = Grid.from_raster(data=flowdir_path, nodata=-9999)
-    gdf_crs = gdf.to_crs(grid.crs)
-    x, y = float(gdf_crs.geometry.x.iloc[0]), float(gdf_crs.geometry.y.iloc[0])
-    flow_dir = grid.read_raster(data=flowdir_path)
-    flow_acc = grid.read_raster(data=flowacc_path)
-    mask = flow_acc > threshold
-    snap_x, snap_y = grid.snap_to_mask(mask=mask, xy=(x, y), search_distance=snap_distance)
-    catchment = grid.catchment(x=snap_x, y=snap_y, fdir=flow_dir, 
-        routing='d8', xytype='coordinate').astype('int16')
-    poly_mask = catchment == 1
-    results = [shape(geom) for geom, val in shapes(catchment, mask=poly_mask, transform=transform) if val == 1]
-    gdf = gpd.GeoDataFrame(geometry=results, crs=crs)
-    if gdf.crs != "EPSG:4326": gdf = gdf.to_crs("EPSG:4326")
-    merged_geom = unary_union(gdf.geometry)
-    merged_geom_no_holes = remove_holes(merged_geom)
-    polygon = gpd.GeoDataFrame(geometry=[merged_geom_no_holes], crs="EPSG:4326")
-    return polygon
-
 def remove_holes(geom):
     if isinstance(geom, Polygon): return Polygon(geom.exterior)
     elif isinstance(geom, MultiPolygon):
         return MultiPolygon([Polygon(p.exterior) for p in geom.geoms])
     else: return geom
+
+def write_geotiff(data, profile, output_path):
+    profile.update(dtype=data.dtype, count=1, compress='lzw')
+    with rasterio.open(output_path, 'w', **profile) as dst:
+        dst.write(data, 1)
+
+def keep_polygon(geom):
+    if geom.geom_type == 'GeometryCollection':
+        polys = [g for g in geom.geoms if isinstance(g, (Polygon, MultiPolygon))]
+        if len(polys) == 0: return None
+        return polys[0]
+    return geom
+
+def fix_invalid_polygon(gdf, cols):
+    gdf_new, name = gdf.copy(), cols[0]
+    gdf_valid, gdf_nan = gdf_new[gdf_new[name] != ''], gdf_new[gdf_new[name] == '']
+    if gdf_nan.shape[0] > 0:
+        gdf_valid['geometry'] = gdf_valid['geometry'].apply(keep_polygon)
+        gdf_nan['geometry'] = gdf_nan['geometry'].apply(keep_polygon)
+        # Spatial join nearest
+        gdf_filled = gpd.sjoin_nearest(
+            gdf_nan, gdf_valid[['geometry', name]], how='left', distance_col='dist'
+        )
+        gdf_filled = gdf_filled.drop_duplicates(subset='_id')
+        gdf_new.loc[gdf_filled.index, cols] = gdf_valid.loc[gdf_filled['index_right'], cols].values
+    gdf_new['geometry'] = gdf_new['geometry'].apply(keep_polygon)
+    return gdf_new
+
+def is_valid_netcdf(path):
+    try:
+        with Dataset(path, "r") as ds:
+           if len(ds.variables) == 0: return False
+        return True
+    except Exception:
+        return False
+    
+def clip_catchment(catchment, terrain):
+    clipped = terrain.rio.clip(catchment.geometry, catchment.crs, drop=False)
+    clipped = clipped.fillna(-9999)
+    clipped.rio.write_nodata(-9999, inplace=True)
+    return clipped
+
+def flow_direction(dem_path:str, flow_path:str, fill=False) -> None:
+    with rasterio.open(dem_path) as src:
+        dem_array = src.read(1).astype("float32")
+        profile = src.profile
+    filled_array, flwdir_array = dem.fill_depressions(
+        elevtn=dem_array, nodata=NODATA_DEM, max_depth=-1
+    )
+    profile.update(dtype=np.float32, nodata=NODATA_DEM)
+    if fill:
+        elevtn_array = np.where(np.isfinite(filled_array), filled_array, NODATA_DEM)
+        write_geotiff(elevtn_array, profile, flow_path)
+    else:
+        profile_flwdir = {**profile, 'dtype': np.uint8, 'nodata': NODATA_INT}
+        write_geotiff(flwdir_array, profile_flwdir, flow_path)
+
+def flow_accumulation(dem_path:str, acc_path:str) -> None:
+    with rasterio.open(dem_path) as src:
+        dem_array = src.read(1).astype("float32")
+        profile = src.profile
+        transform = src.transform
+    flw = pyflwdir.from_dem(dem_array, transform=transform)
+    profile_flwacc = {**profile, 'dtype': np.float32, 'nodata': NODATA_DEM}
+    write_geotiff(flw.accuflux(np.ones_like(dem_array)), profile_flwacc, acc_path)
+
+def watershed(dem_path:str, lat:float, lon:float, threshold:float=50, snap_distance:float=10) -> gpd.GeoDataFrame:
+    gdf = gpd.GeoDataFrame(geometry=[shapely.geometry.Point(lon, lat)], crs="EPSG:4326")
+    with rasterio.open(dem_path) as src:
+        dem_array = src.read(1).astype("float32")
+        transform, crs = src.transform, src.crs
+    x, y = gdf.to_crs(crs).geometry.iloc[0].coords[0]
+    flw = pyflwdir.from_dem(dem_array, transform=transform)    
+    print(lat, lon)
+
+    # flow_acc = flw.accuflux(np.ones_like(dem_array))
+    # mask = flow_acc > threshold
+    # row, col = rowcol(transform, x, y)
+    # stream_idx = np.argwhere(mask)
+    # if len(stream_idx) == 0:
+    #     raise ValueError("No stream cells found (threshold too high?)")
+    # dist = (stream_idx[:,0] - row)**2 + (stream_idx[:,1] - col)**2
+    # nearest = stream_idx[np.argmin(dist)]
+    # row, col = int(nearest[0]), int(nearest[1])
+    # basins = flw.basins()
+    # target_basin = basins[row, col]
+    # catchment = (basins == target_basin).astype("uint8")
+    # catchment[basins == 0] = 0
+
+
+
+    flow_acc = flw.accuflux(np.ones_like(dem_array))
+    mask = flow_acc > threshold
+    snap_x, snap_y = flw.snap(xy=(x, y), mask=mask, max_length=snap_distance)
+    basin = flw.basins(xy=(x, y))
+
+
+    catch = flw.catchment(x=snap_x, y=snap_y)
+
+    results = [
+        shape(geom) for geom, val in shapes(catch.astype("uint8"), mask=catch.astype(bool), transform=transform) if val == 1
+    ]
+    geom = remove_holes(unary_union(results))
+    polygon = gpd.GeoDataFrame(geometry=[geom], crs=crs)
+    if polygon.crs != "EPSG:4326": polygon = polygon.to_crs("EPSG:4326")
+    return polygon
+
+
 
 
 # def weather_init(id:str) -> gpd.GeoDataFrame:

@@ -137,7 +137,7 @@ async def fill_terrain(request: Request, user=Depends(functions.basic_auth)):
         dtm_path = os.path.normpath(os.path.join(dir, file_name))
         fill_path = os.path.normpath(os.path.join(dir, fill_name))
         if os.path.exists(fill_path): functions.safe_remove(fill_path)
-        flow_functions.fill_sink(dtm_path, fill_path)
+        flow_functions.flow_direction(dtm_path, fill_path, fill=True)
         with rasterio.open(fill_path) as src:
             data = src.read(1, masked=True)
             global_min, global_max = float(data.min()), float(data.max())
@@ -214,15 +214,15 @@ async def flow_accumulation(request: Request, user=Depends(functions.basic_auth)
         body = await request.json()
         file_name = body.get('filename')
         folder = file_name.rstrip(".tif")
-        flowdir_name, flowacc_name = f"{folder}_flowdir.tif", f"{folder}_flowacc.tif"
+        fill_name, flowacc_name = f"{folder}_filled.tif", f"{folder}_flowacc.tif"
         project_name, _ = functions.project_definer(body.get('projectName'), user)
         flow_dir = os.path.normpath(os.path.join(PROJECT_ROOT, project_name, "flows"))
         os.makedirs(flow_dir, exist_ok=True)
         dir = os.path.normpath(os.path.join(flow_dir, "terrains", folder))
-        flowdir_path = os.path.normpath(os.path.join(dir, flowdir_name))
+        fill_path = os.path.normpath(os.path.join(dir, fill_name))
         flowacc_path = os.path.normpath(os.path.join(dir, flowacc_name))
         if os.path.exists(flowacc_path): functions.safe_remove(flowacc_path)
-        flow_functions.flow_accumulation(flowdir_path, flowacc_path)
+        flow_functions.flow_accumulation(fill_path, flowacc_path)
         with rasterio.open(flowacc_path) as src:
             data = src.read(1, masked=True)
             global_min, global_max = float(data.min()), float(data.max())
@@ -247,17 +247,15 @@ async def catchment(request: Request, user=Depends(functions.basic_auth)):
         file_name, lat, lon = body.get('filename'), body.get('lat'), body.get('lon')
         threshold, snap_distance = float(body.get('threshold')), float(body.get('snapDistance'))
         folder = file_name.rstrip(".tif")
-        flowdir_name, flowacc_name = f"{folder}_flowdir.tif", f"{folder}_flowacc.tif"
-        catchment_name = f"{folder}_catchment.tif"
+        fill_name, catchment_name = f"{folder}_filled.tif", f"{folder}_catchment.tif"
         project_name, _ = functions.project_definer(body.get('projectName'), user)
         flow_dir = os.path.normpath(os.path.join(PROJECT_ROOT, project_name, "flows"))
         os.makedirs(flow_dir, exist_ok=True)
         dir = os.path.normpath(os.path.join(flow_dir, "terrains", folder))
-        flowdir_path = os.path.normpath(os.path.join(dir, flowdir_name))
-        flowacc_path = os.path.normpath(os.path.join(dir, flowacc_name))
+        fill_path = os.path.normpath(os.path.join(dir, fill_name))
         catchment_path = os.path.normpath(os.path.join(dir, catchment_name))
         if os.path.exists(catchment_path): functions.safe_remove(catchment_path)
-        catchment = flow_functions.watershed(flowdir_path, flowacc_path, lat, lon, threshold, snap_distance)
+        catchment = flow_functions.watershed(fill_path, lat, lon, threshold, snap_distance)
         if catchment.empty: return JSONResponse({'status': 'error', 'message': 'No catchment found.'})
         return JSONResponse({'status': 'ok', 'content': json.loads(catchment.to_json())})
     except Exception as e:

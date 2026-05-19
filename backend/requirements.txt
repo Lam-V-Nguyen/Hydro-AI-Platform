@@ -10,7 +10,6 @@ redis==7.4.0
 chardet==7.4.3
 meshkernel==8.2.2
 optuna==4.8.0
-pysheds==0.5
 python-multipart==0.0.27
 sknw==0.15
 hydromt-wflow==1.0.1

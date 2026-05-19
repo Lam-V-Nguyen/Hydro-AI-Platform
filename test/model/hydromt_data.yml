@@ -1,6 +1,16 @@
 meta:
   root: None
 
+dtm:
+  uri: data/dtm/dtm_clipped.tif
+  driver:
+    options: {}
+    name: rasterio
+  metadata:
+    category: topography
+  data_type: RasterDataset
+  root: None
+
 my_forcing:
   uri: data/forcing/my_forcing.nc
   driver:
