@@ -104,70 +104,70 @@ def clip_catchment(catchment, terrain):
     clipped.rio.write_nodata(-9999, inplace=True)
     return clipped
 
-def flow_direction(dem_path:str, flow_path:str, fill=False) -> None:
-    with rasterio.open(dem_path) as src:
-        dem_array = src.read(1).astype("float32")
-        profile = src.profile
-    filled_array, flwdir_array = dem.fill_depressions(
-        elevtn=dem_array, nodata=NODATA_DEM, max_depth=-1
-    )
-    profile.update(dtype=np.float32, nodata=NODATA_DEM)
-    if fill:
-        elevtn_array = np.where(np.isfinite(filled_array), filled_array, NODATA_DEM)
-        write_geotiff(elevtn_array, profile, flow_path)
-    else:
-        profile_flwdir = {**profile, 'dtype': np.uint8, 'nodata': NODATA_INT}
-        write_geotiff(flwdir_array, profile_flwdir, flow_path)
+# def flow_direction(dem_path:str, flow_path:str, fill=False) -> None:
+#     with rasterio.open(dem_path) as src:
+#         dem_array = src.read(1).astype("float32")
+#         profile = src.profile
+#     filled_array, flwdir_array = dem.fill_depressions(
+#         elevtn=dem_array, nodata=NODATA_DEM, max_depth=-1
+#     )
+#     profile.update(dtype=np.float32, nodata=NODATA_DEM)
+#     if fill:
+#         elevtn_array = np.where(np.isfinite(filled_array), filled_array, NODATA_DEM)
+#         write_geotiff(elevtn_array, profile, flow_path)
+#     else:
+#         profile_flwdir = {**profile, 'dtype': np.uint8, 'nodata': NODATA_INT}
+#         write_geotiff(flwdir_array, profile_flwdir, flow_path)
 
-def flow_accumulation(dem_path:str, acc_path:str) -> None:
-    with rasterio.open(dem_path) as src:
-        dem_array = src.read(1).astype("float32")
-        profile = src.profile
-        transform = src.transform
-    flw = pyflwdir.from_dem(dem_array, transform=transform)
-    profile_flwacc = {**profile, 'dtype': np.float32, 'nodata': NODATA_DEM}
-    write_geotiff(flw.accuflux(np.ones_like(dem_array)), profile_flwacc, acc_path)
+# def flow_accumulation(dem_path:str, acc_path:str) -> None:
+#     with rasterio.open(dem_path) as src:
+#         dem_array = src.read(1).astype("float32")
+#         profile = src.profile
+#         transform = src.transform
+#     flw = pyflwdir.from_dem(dem_array, transform=transform)
+#     profile_flwacc = {**profile, 'dtype': np.float32, 'nodata': NODATA_DEM}
+#     write_geotiff(flw.accuflux(np.ones_like(dem_array)), profile_flwacc, acc_path)
 
-def watershed(dem_path:str, lat:float, lon:float, threshold:float=50, snap_distance:float=10) -> gpd.GeoDataFrame:
-    gdf = gpd.GeoDataFrame(geometry=[shapely.geometry.Point(lon, lat)], crs="EPSG:4326")
-    with rasterio.open(dem_path) as src:
-        dem_array = src.read(1).astype("float32")
-        transform, crs = src.transform, src.crs
-    x, y = gdf.to_crs(crs).geometry.iloc[0].coords[0]
-    flw = pyflwdir.from_dem(dem_array, transform=transform)    
-    print(lat, lon)
+# def watershed(dem_path:str, lat:float, lon:float, threshold:float=50, snap_distance:float=10) -> gpd.GeoDataFrame:
+#     gdf = gpd.GeoDataFrame(geometry=[shapely.geometry.Point(lon, lat)], crs="EPSG:4326")
+#     with rasterio.open(dem_path) as src:
+#         dem_array = src.read(1).astype("float32")
+#         transform, crs = src.transform, src.crs
+#     x, y = gdf.to_crs(crs).geometry.iloc[0].coords[0]
+#     flw = pyflwdir.from_dem(dem_array, transform=transform)    
+#     print(lat, lon)
 
-    # flow_acc = flw.accuflux(np.ones_like(dem_array))
-    # mask = flow_acc > threshold
-    # row, col = rowcol(transform, x, y)
-    # stream_idx = np.argwhere(mask)
-    # if len(stream_idx) == 0:
-    #     raise ValueError("No stream cells found (threshold too high?)")
-    # dist = (stream_idx[:,0] - row)**2 + (stream_idx[:,1] - col)**2
-    # nearest = stream_idx[np.argmin(dist)]
-    # row, col = int(nearest[0]), int(nearest[1])
-    # basins = flw.basins()
-    # target_basin = basins[row, col]
-    # catchment = (basins == target_basin).astype("uint8")
-    # catchment[basins == 0] = 0
-
-
-
-    flow_acc = flw.accuflux(np.ones_like(dem_array))
-    mask = flow_acc > threshold
-    snap_x, snap_y = flw.snap(xy=(x, y), mask=mask, max_length=snap_distance)
-    basin = flw.basins(xy=(x, y))
+#     # flow_acc = flw.accuflux(np.ones_like(dem_array))
+#     # mask = flow_acc > threshold
+#     # row, col = rowcol(transform, x, y)
+#     # stream_idx = np.argwhere(mask)
+#     # if len(stream_idx) == 0:
+#     #     raise ValueError("No stream cells found (threshold too high?)")
+#     # dist = (stream_idx[:,0] - row)**2 + (stream_idx[:,1] - col)**2
+#     # nearest = stream_idx[np.argmin(dist)]
+#     # row, col = int(nearest[0]), int(nearest[1])
+#     # basins = flw.basins()
+#     # target_basin = basins[row, col]
+#     # catchment = (basins == target_basin).astype("uint8")
+#     # catchment[basins == 0] = 0
 
 
-    catch = flw.catchment(x=snap_x, y=snap_y)
 
-    results = [
-        shape(geom) for geom, val in shapes(catch.astype("uint8"), mask=catch.astype(bool), transform=transform) if val == 1
-    ]
-    geom = remove_holes(unary_union(results))
-    polygon = gpd.GeoDataFrame(geometry=[geom], crs=crs)
-    if polygon.crs != "EPSG:4326": polygon = polygon.to_crs("EPSG:4326")
-    return polygon
+#     flow_acc = flw.accuflux(np.ones_like(dem_array))
+#     mask = flow_acc > threshold
+#     snap_x, snap_y = flw.snap(xy=(x, y), mask=mask, max_length=snap_distance)
+#     basin = flw.basins(xy=(x, y))
+
+
+#     catch = flw.catchment(x=snap_x, y=snap_y)
+
+#     results = [
+#         shape(geom) for geom, val in shapes(catch.astype("uint8"), mask=catch.astype(bool), transform=transform) if val == 1
+#     ]
+#     geom = remove_holes(unary_union(results))
+#     polygon = gpd.GeoDataFrame(geometry=[geom], crs=crs)
+#     if polygon.crs != "EPSG:4326": polygon = polygon.to_crs("EPSG:4326")
+#     return polygon
 
 
 
