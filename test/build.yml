@@ -17,16 +17,15 @@ steps:
             upscale_method: ihu
             res: 10
             region:
-                  geom: "data/catchment/catchment.gpkg"
+                  basin: [55010.153, 6955129.102]
 
       - setup_rivers:
             hydrography_fn: my_hydro
             river_geom_fn: river_network
-            river_upa: 10
+            river_upa: 0.001                     # upstream area in km2
             river_routing: kinematic_wave
             connectivity: 8
-            smooth_len: 10000.0
-            # min_rivlen_ratio: 0.1
+            smooth_len: 20000.0
 
       - setup_soilmaps:
             soil_fn: soilgrids_2020

@@ -22,7 +22,7 @@ my_forcing:
   root: None
 
 my_hydro:
-  uri: data/merit_hydro/{variable}.tif
+  uri: data/hydro/{variable}.tif
   driver:
     options: {}
     name: rasterio

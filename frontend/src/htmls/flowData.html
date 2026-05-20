@@ -6,7 +6,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="/src_frontend/styles/tabControler.css?v=0">
-    <link rel="stylesheet" href="/src_frontend/styles/flowPreparation.css?v=0">
+    <link rel="stylesheet" href="/src_frontend/styles/flowPreparation.css?v=1">
 </head>
 <body>
     <div class="wrapper">
@@ -14,8 +14,8 @@
             <div class="tab-header" id="main-tabs">
                 <div class="tabs-list">
                     <button class="tab-btn" data-tab="terrain-tab">Topography</button>
-                    <button class="tab-btn" data-tab="soil-tab">Soil</button>
-                    <button class="tab-btn" data-tab="land-tab">Land Cover</button>
+                    <!-- <button class="tab-btn" data-tab="soil-tab">Soil</button>
+                    <button class="tab-btn" data-tab="land-tab">Land Cover</button> -->
                     <button class="tab-btn" data-tab="river-network-tab">River Network</button>
                     <button class="tab-btn" data-tab="initial-conditions-tab">Initial Conditions</button>
                     <!-- <button class="tab-btn" data-tab="weather-data-tab">Weather Data</button>
@@ -74,44 +74,35 @@
                             </div>
                         </div>
                         <div class="tile"><h3>Catchment Delineation</h3>
-                            <div class="row pourpoint-container" style="justify-content: center;">
+                            <div class="row pourpoint-container" style="margin-top: -10px;">
                                 <div class="row-radio" data-tab="terrain">
+                                    <div class="field-inline" style="width: 220px;">
+                                        <label>Snap distance:</label>
+                                        <input type="text" id="pourpoint-dist" value="10.0">
+                                        <label>(m)</label>
+                                    </div>
                                     <input type="checkbox" id="pourpoint-checkbox">
-                                    <label for="pourpoint-checkbox">4. Select Pour point and Create Catchment</label>
+                                    <label for="pourpoint-checkbox" style="flex-wrap: wrap;">
+                                        4. Select Pour point
+                                    </label>
                                 </div>
                                 <div class="pourpoint-group" id="pourpoint-container" style="display: none;">
-                                    <div class="pourpoint-latlon">
+                                    <div class="field-inline" style="margin-top: -10px;">
                                         <input type="text" id="pourpoint-lat" placeholder="Latitude" readonly>
                                         <input type="text" id="pourpoint-lon" placeholder="Longitude" readonly>
-                                    </div>
-                                    <div class="pourpoint-settings">
-                                        <div class="field-inline">
-                                            <label for="pourpoint-threshold">Threshold:</label>
-                                            <input type="text" id="pourpoint-threshold" value="50.0">
-                                            <label>(m)</label>
+                                        <div class="row-radio" data-tab="terrain">
+                                            <input type="radio" id="catchment-layer" name="terrain" value="terrain-catchment">
+                                            <label for="catchment-layer">Show Catchment</label>
                                         </div>
-                                        <div class="field-inline">
-                                            <label>Distance:</label>
-                                            <input type="text" id="pourpoint-dist" value="10.0">
-                                            <label>(m)</label>
-                                        </div>
+                                        <button type="button" id="export-catchment-btn" style="max-width: 100px;"> Export </button>
                                     </div>
-                                </div>
-                                <div class="row" id="export-container" style="display: none; margin-top:-10px;">
-                                    <div class="row-radio" data-tab="terrain">
-                                        <input type="radio" id="catchment-layer" name="terrain" value="terrain-catchment">
-                                        <label for="catchment-layer">Show Catchment</label>
-                                    </div>
-                                    <button type="button" id="export-catchment-btn">
-                                        Export Catchment (GeoJSON)
-                                    </button>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
                 <!-- Tab 2: Soil Properties -->
-                <div class="tabpanel main-panel" data-panel="soil-tab">
+                <!-- <div class="tabpanel main-panel" data-panel="soil-tab">
                     <div class="grid">
                         <div class="tile"><h3>Soil Import</h3>
                             <div class="row" style="white-space: nowrap;">
@@ -214,9 +205,9 @@
                             </div>
                         </div>
                     </div>
-                </div>
+                </div> -->
                 <!-- Tab 3: Land Cover -->
-                <div class="tabpanel main-panel" data-panel="land-tab">
+                <!-- <div class="tabpanel main-panel" data-panel="land-tab">
                     <div class="grid">
                         <div class="tile"><h3>Land Cover (LC) Import</h3>
                             <div class="row">
@@ -303,7 +294,7 @@
                         </div>
 
                     </div>
-                </div>
+                </div> -->
                 <!-- Tab 4: River Network -->
                 <div class="tabpanel main-panel" data-panel="river-network-tab">
                     <div class="grid">
@@ -507,6 +498,6 @@
             defaultHour: 0, defaultMinute: 0, defaultSecond: 0
         });
     </script>
-    <script type="module" src="/src_frontend/services/flowPreparation.js"></script>
+    <script type="module" src="/src_frontend/services/flowPreparation.js?v=0"></script>
 </body>
 </html>

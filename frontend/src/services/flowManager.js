@@ -1,7 +1,7 @@
 import { jsonLoader, signalSender } from "./commonFunctions.js";
 import { highlightColor } from "./constant.js";
 
-export async function catchmentDelineation(projectName, inputTextObj, lat, lon, threshold, snapDistance) {
+export async function catchmentDelineation(projectName, inputTextObj, lat, lon, snapDistance) {
     const layerCheck = inputTextObj.value;
     if (layerCheck === '') { 
         alert('Please upload terrain data first.'); return false; 
@@ -17,9 +17,9 @@ export async function catchmentDelineation(projectName, inputTextObj, lat, lon, 
     if (threshold === '') { alert('Please set the threshold first.'); return; }
     if (snapDistance === '') { alert('Please set the snap distance first.'); return; }
     try {
-        signalSender('showOverlay', 'Running catchment algorithm. Please wait ...');
+        signalSender('showOverlay', 'Delineating catchment. Please wait ...');
         const contents = { projectName: projectName, filename: layerCheck,
-            lat: lat, lon: lon, threshold: threshold, snapDistance: snapDistance
+            lat: lat, lon: lon, snapDistance: snapDistance
         };
         const response = await jsonLoader('catchment', contents);
         signalSender('hideOverlay');

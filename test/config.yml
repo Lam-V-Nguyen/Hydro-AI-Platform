@@ -2,7 +2,7 @@
 my_hydro:
   data_type: RasterDataset
   driver: rasterio
-  uri: data/merit_hydro/{variable}.tif
+  uri: data/hydro/{variable}.tif
   metadata:
     category: hydrology
 
@@ -13,14 +13,6 @@ my_forcing:
   uri: data/forcing/my_forcing.nc
   metadata:
     category: meteo
-
-# DTM data
-dtm:
-  data_type: RasterDataset
-  driver: rasterio
-  uri: data/dtm/dtm_clipped.tif
-  metadata:
-    category: topography
 
 # River data
 river_network:

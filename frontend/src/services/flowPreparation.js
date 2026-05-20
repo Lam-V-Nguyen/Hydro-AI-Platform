@@ -14,14 +14,12 @@ const obj = {
     catchmentUploadBtn: $('catchment-upload-btn'), catchmentInputFile: $('catchment-input-file'),
     terrainBtn: $('terrain-btn'), terrainInputFile: $('terrain-input-file'), 
     terrainInputText: $('terrain-input-text'), streamBtn: $('stream-btn'), threshold: $('threshold'), 
-    
-    
-    
-    
-    
-    
-    
     pourpointContainer: $('pourpoint-container'), pourpointCheckbox: $('pourpoint-checkbox'),
+    
+    
+    
+    
+       
     exportContainer: $('export-container'), exportBtn: $('export-catchment-btn'),
     pourpointLat: $('pourpoint-lat'), pourpointLon: $('pourpoint-lon'),
     dist: $('pourpoint-dist'), catchmentRadio: $('catchment-layer'),
@@ -50,20 +48,18 @@ const obj = {
 
 
 let currentProject, minTerrain = null, maxTerrain = null, minFill = null, maxFill = null, lastRadio = null,
-    minFlowDirection = null, maxFlowDirection = null, minFlowAccumulation = null, isTerrain = false, 
-    isStream = false,
+    isTerrain = false, isStream = false;
     
     
-    isFlowAccumulation = false,
-    maxFlowAccumulation = null, isFill = false, isFlowDirection = false;
+    // minFlowDirection = null, maxFlowDirection = null, minFlowAccumulation = null, isFlowAccumulation = false,
+    // maxFlowAccumulation = null, isFill = false, isFlowDirection = false;
 
 initRequestListener(); setupTabs(document); await getProject(); windowListener();
-topographyManager(); soilManager(); landManager(); riverManager(); 
-// weatherManager();
+topographyManager(); riverManager(); 
+// soilManager(); landManager(); weatherManager();
 
 async function getProject() { 
-    const userName = await getUser();
-    currentProject = userName.split('/').pop();
+    const userName = await getUser(); currentProject = userName.split('/').pop();
 }
 
 function topographyManager() {
@@ -145,84 +141,11 @@ function topographyManager() {
                 min: data.content.min, max: data.content.max, reset: true
             };
             await sendRequest('flowOptions', content);
+            obj.pourpointContainer.style.display = 'flex';
         } catch (error) { alert(`Detecting streams failed: ${error.message}`); }
         lastRadio = document.querySelector('input[name="terrain"][value="terrain-stream"]');
         if (lastRadio) lastRadio.checked = true;
-    })
-
-
-
-
-
-    // // Work on fill
-    // obj.fillBtn.addEventListener('click', async () => {
-    //     const layerCheck = obj.terrainInputText.value;
-    //     if (layerCheck === '') { alert('Please upload terrain data first.'); return; } 
-    //     try {
-    //         signalSender('showOverlay', 'Running fill algorithm. Please wait ...');
-    //         const contents = { projectName: currentProject, filename: layerCheck };
-    //         const data = await jsonLoader('fill_terrain', contents);
-    //         signalSender('hideOverlay');
-    //         if (data.status === "error") { alert(data.message); return; }
-    //         minFill = data.content.min, maxFill = data.content.max;
-    //         const content = { 
-    //             key: 'drawLayer', data: data.content.tile_url, layerKey: 'fillLayer',
-    //             min: data.content.min, max: data.content.max, reset: true
-    //         };
-    //         await sendRequest('flowOptions', content);
-    //     } catch (error) { alert(`Running fill algorithm failed: ${error.message}`); }
-    //     lastRadio = document.querySelector('input[name="terrain"][value="terrain-fill"]');
-    //     if (lastRadio) lastRadio.checked = true;
-    // });
-    // obj.flowDirectionBtn.addEventListener('click', async () => {
-    //     const layerCheck = obj.terrainInputText.value;
-    //     if (layerCheck === '') { alert('Please upload terrain data first.'); return; }
-    //     // Check if fill terrain has been run
-    //     const content = { projectName: currentProject, filename: layerCheck, key: 'fill' };
-    //     signalSender('showOverlay', 'Checking fill layer data. Please wait ...');
-    //     const fillCheck = await jsonLoader('raster_check', content); signalSender('hideOverlay');
-    //     if (fillCheck.status === 'error') { alert(fillCheck.message); return; }
-    //     try {
-    //         signalSender('showOverlay', 'Running flow direction algorithm. Please wait ...');
-    //         const contents = { projectName: currentProject, filename: layerCheck };
-    //         const data = await jsonLoader('flow_direction', contents);
-    //         signalSender('hideOverlay');
-    //         if (data.status === "error") { alert(data.message); return; }
-    //         minFlowDirection = data.content.min, maxFlowDirection = data.content.max;
-    //         const content = { 
-    //             key: 'drawLayer', data: data.content.tile_url, layerKey: 'flowDirectionLayer',
-    //             min: data.content.min, max: data.content.max, reset: true
-    //         };
-    //         await sendRequest('flowOptions', content);
-    //     } catch (error) { alert(`Running flow direction algorithm failed: ${error.message}`); }
-    //     lastRadio = document.querySelector('input[name="terrain"][value="terrain-direction"]');
-    //     if (lastRadio) lastRadio.checked = true;
-    // });
-    // obj.flowAccumulationBtn.addEventListener('click', async () => {
-    //     const layerCheck = obj.terrainInputText.value;
-    //     if (layerCheck === '') { alert('Please upload terrain data first.'); return; }
-    //     // Check if flow direction has been run
-    //     const content = { projectName: currentProject, filename: layerCheck, key: 'flow_direction' };
-    //     signalSender('showOverlay', 'Checking flow direction layer data. Please wait ...');
-    //     const flowDirectionCheck = await jsonLoader('raster_check', content); signalSender('hideOverlay');
-    //     if (flowDirectionCheck.status === 'error') { alert(flowDirectionCheck.message); return; }
-    //     try {
-    //         signalSender('showOverlay', 'Running flow accumulation algorithm. Please wait ...');
-    //         const contents = { projectName: currentProject, filename: layerCheck };
-    //         const data = await jsonLoader('flow_accumulation', contents);
-    //         signalSender('hideOverlay');
-    //         if (data.status === "error") { alert(data.message); return; }
-    //         minFlowAccumulation = data.content.min, maxFlowAccumulation = data.content.max;
-    //         const content = { 
-    //             key: 'drawLayer', data: data.content.tile_url, layerKey: 'flowAccumulationLayer',
-    //             min: data.content.min, max: data.content.max, reset: true
-    //         };
-    //         await sendRequest('flowOptions', content);
-    //         obj.pourpointContainer.style.display = 'flex'; obj.exportContainer.style.display = 'flex';
-    //     } catch (error) { alert(`Running flow accumulation algorithm failed: ${error.message}`); }
-    //     lastRadio = document.querySelector('input[name="terrain"][value="terrain-accumulation"]');
-    //     if (lastRadio) lastRadio.checked = true;
-    // });
+    });
     lastRadio = document.querySelector('input[name="terrain"]:checked'); 
     document.querySelectorAll('input[name="terrain"]').forEach(radio => {
         radio.addEventListener('change', async (e) => {
@@ -254,51 +177,9 @@ function topographyManager() {
                     lastRadio.checked = true; e.target.checked = false; return; 
                 }
                 content = { key: 'drawLayer', layerKey: 'streamLayer', min: 0, max: 1, reset: true };
-            
-            // } else if (value === 'terrain-fill') {
-            //     if (!isTerrain) {
-            //         alert('Please upload terrain data first.'); 
-            //         lastRadio.checked = true; e.target.checked = false; return; 
-            //     }
-            //     const fillCheck = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'fillLayer' });
-            //     isFill = fillCheck.exist;
-            //     if (!isFill) { alert('Please run "Fill sinks/depressions" first.'); 
-            //         lastRadio.checked = true; e.target.checked = false; return; 
-            //     }
-            //     content = { 
-            //         key: 'drawLayer', layerKey: 'fillLayer', min: minFill, max: maxFill, reset: true
-            //     };
-            // } else if (value === 'terrain-direction') {
-            //     if (!isFill) {
-            //         alert('Please run "Fill sinks/depressions" first.'); 
-            //         lastRadio.checked = true; e.target.checked = false; return;
-            //     }
-            //     const flowDirectionCheck = await sendRequest('flowOptions', { 
-            //         key: 'layerChecker', layerKey: 'flowDirectionLayer' 
-            //     });
-            //     isFlowDirection = flowDirectionCheck.exist;
-            //     if (!isFlowDirection) { alert('Please run "Fill sinks/depressions" first.'); 
-            //         lastRadio.checked = true; e.target.checked = false; return; 
-            //     }
-            //     content = { 
-            //         key: 'drawLayer', layerKey: 'flowDirectionLayer', 
-            //         min: minFlowDirection, max: maxFlowDirection, reset: true
-            //     };
-            // } else if (value === 'terrain-accumulation') {
-            //     if (!isFlowDirection) {
-            //         alert('Please run "Flow direction" first.'); 
-            //         lastRadio.checked = true; e.target.checked = false; return;
-            //     }
-            //     await sendRequest('flowOptions', { 
-            //         key: 'layerChecker', layerKey: 'flowAccumulationLayer' 
-            //     });
-            //     content = { 
-            //         key: 'drawLayer', layerKey: 'flowAccumulationLayer',
-            //         min: minFlowAccumulation, max: maxFlowAccumulation, reset: true
-            //     };
             } else if (value === 'terrain-catchment') {
-                if (!isFlowAccumulation) {
-                    alert('Please run "Flow accumulation" and select a pourpoint first.'); 
+                if (!isStream || obj.pourpointLat.value === '' || obj.pourpointLon.value === '') {
+                    alert('Please run "Extract streams" and/or select a pourpoint first.'); 
                     lastRadio.checked = true; e.target.checked = false; return;
                 }
                 content = { key: 'drawLayer', layerKey: 'catchmentLayer_Vector', reset: true };
@@ -316,8 +197,7 @@ function topographyManager() {
                 alert('No terrain data uploaded. Please:\n1. Upload terrain data.\n2. Run algorithms in the panel "Terrain Processing".');
                 e.target.checked = false; return;
             }
-            obj.pourpointContainer.style.display = 'flex'; 
-            obj.exportContainer.style.display = 'flex';
+            obj.pourpointContainer.style.display = 'flex';
             try { 
                 const content = { key: 'pourpoint', checked: e.target.checked };
                 const response = await sendRequest('flowOptions', content);
@@ -325,8 +205,7 @@ function topographyManager() {
                 const lon = Number(response.result.lng).toFixed(12);
                 obj.pourpointLat.value = lat; obj.pourpointLon.value = lon;
                 const data =  await catchmentDelineation(
-                    currentProject, obj.terrainInputText, obj.pourpointLat.value,
-                    obj.pourpointLon.value, obj.threshold.value, obj.dist.value
+                    currentProject, obj.terrainInputText, obj.pourpointLat.value, obj.pourpointLon.value, obj.dist.value
                 );
                 if (data !== null) {
                     const content = { 
@@ -355,215 +234,215 @@ function topographyManager() {
     });
 }
 
-function soilManager() {
-    obj.soilBtn.addEventListener('click', () => obj.soilInputFile.click());
-    obj.soilInputFile.addEventListener('change', async (event) => { 
-        const file = event.target.files[0]; if (!file) return;
-        const formData = new FormData(); formData.append('file', file); 
-        formData.append('projectName', currentProject); formData.append('key', 'soil');
-        try {
-            signalSender('showOverlay', 'Uploading and processing soil data.\nPlease wait...');
-            const response = await fetch('/data_upload', { method: 'POST', body: formData });
-            const data = await response.json(); signalSender('hideOverlay');
-            if (data.status === 'error') { e.target.value = ''; alert(data.message); return; }
-            const content = { 
-                key: 'mapPlotter', layerKey: 'soilLayer_Vector', 
-                data: data.content, type: 'soil', reset: true
-            };
-            await sendRequest('flowOptions', content);
-            obj.soilInputText.value = file.name; 
-            obj.soilCheckbox.checked = true;
-            obj.soilInvalidCheckerBtn.style.display = 'block'; 
-        } catch (error) { 
-            alert(`Uploading soil data failed: ${error.message}`); 
-            obj.soilInvalidCheckerBtn.style.display = 'none';
-            obj.soilCheckbox.checked = false; obj.soilInputText.value = '';
-        } finally {
-            event.target.value = '';
-            await sendRequest('flowOptions', { key: 'hideColorbar' });
-        }
-    });
-    obj.soilCheckbox.addEventListener('change', async (e) => {
-        const layerChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'soilLayer_Vector' });
-        if (e.target.checked) { 
-            if (!layerChecker.exist) { 
-                alert('Please upload/create a soil layer first.');
-                e.target.checked = false; obj.soilInvalidCheckerBtn.style.display = 'none'; return; 
-            } else { 
-                await sendRequest('flowOptions', { key: 'drawLayer', layerKey: 'soilLayer_Vector' });
-                obj.soilInvalidCheckerBtn.style.display = 'block';
-            }
-        } else { 
-            await sendRequest('flowOptions', { key: 'hideLayer', layerKey: 'soilLayer_Vector' });
-            obj.soilIds.textContent = ''; deleteTable(obj.soilTable);
-            const content = [
-                'ID','Soil type','Saturated water','Residual water','Ver. conductivity',
-                'Soil depth','Infiltration decay','Brooks–Corey parameter'
-            ];
-            addRowToTable(obj.soilTable, content); obj.soilInvalidCheckerBtn.style.display = 'none';
-        }
-    });
-    obj.soilInvalidCheckerBtn.addEventListener('click', async () => { 
-        const layerChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'soilLayer_Vector' });
-        if (!layerChecker.exist) { alert('Please upload/create a soil layer first.'); return; }
-        await sendRequest('flowOptions', { key: 'invalidCheck', layerKey: 'soilLayer_Vector', type: 'soil' });
-    });
-    obj.soilClipBtn.addEventListener('click', async () => { 
-        const soilChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'soilLayer_Vector' });
-        if (!soilChecker.exist) { alert('Please upload/create a soil layer first.'); return; }
-        const catchmentChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'catchmentLayer_Vector' });
-        if (!catchmentChecker.exist) { alert('Please upload a catchment layer to clip.'); return; }
-        const soilLayer = await sendRequest('flowOptions', { key: 'getLayer', layerKey: 'soilLayer_Vector' });
-        const catchmentLayer = await sendRequest('flowOptions', { key: 'getLayer', layerKey: 'catchmentLayer_Vector' });
-        const content = { 
-            baseLayer: soilLayer.data, clipLayer: catchmentLayer.data, getArea: 'inside' 
-        };
-        signalSender('showOverlay', 'Clipping soil layer with catchment layer.\nPlease wait...');
-        const request = await jsonLoader('polygon_clip', content);
-        signalSender('hideOverlay');
-        if (request.status === 'error') { alert(request.message); return; }
-        const contents = { 
-            key: 'mapPlotter', layerKey: 'soilLayer_Vector', 
-            data: request.content, type: 'soil', reset: true
-        };
-        await sendRequest('flowOptions', contents);
-    });
-    obj.soilTypes.addEventListener('change', async (e) => { 
-        const value = e.target.value.trim(), id = obj.soilIds.value;
-        if (id === '') { alert('Please select a soil polygon first.'); obj.soilTypes.value = ''; return; }
-        if (value === '') {
-            const content = [`${id}`,'','','','','','',''];
-            deleteTable(obj.soilTable); fillTable([content], obj.soilTable); return;
-        }
-        const soilType = obj.soilTypes.options[obj.soilTypes.selectedIndex].textContent;
-        const data = await jsonLoader('assign_type', { key: 'soil', data: soilType });
-        if (data.status === "error") { alert(data.message); return; }
-        data.content.unshift(`${id}`);
-        fillTable([data.content], obj.soilTable, true);
-    });
-    obj.assignSoilBtn.addEventListener('click', async () => { 
-        const soilChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'soilLayer_Vector' });
-        if (!soilChecker.exist) { alert('Please upload/create a soil layer first.'); return; }
-        const soilID = obj.soilIds.value;
-        if (soilID === '') { alert('Please select a soil polygon first.'); return; }
-        const data = getDataFromTable(obj.soilTable, true).rows[0].slice(1);
-        await sendRequest('flowOptions', { 
-            key: 'assignType', layerKey: 'soilLayer_Vector', id: soilID, data: data, type: 'soil' 
-        });
-    });
-    obj.saveSoilBtn.addEventListener('click', async () => { 
-        const soilChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'soilLayer_Vector' });
-        if (!soilChecker.exist) { alert('Please upload/create a soil layer first.'); return; }
-        const layer = await sendRequest('flowOptions', { key: 'getLayer', layerKey: 'soilLayer_Vector' });
-        if (layer.data === null) { alert('Layer is empty. Please upload/create a soil layer first.'); return; }
-        await geoJSONExporter(layer.data, 'soil.geojson');
-    });
-}
+// function soilManager() {
+//     obj.soilBtn.addEventListener('click', () => obj.soilInputFile.click());
+//     obj.soilInputFile.addEventListener('change', async (event) => { 
+//         const file = event.target.files[0]; if (!file) return;
+//         const formData = new FormData(); formData.append('file', file); 
+//         formData.append('projectName', currentProject); formData.append('key', 'soil');
+//         try {
+//             signalSender('showOverlay', 'Uploading and processing soil data.\nPlease wait...');
+//             const response = await fetch('/data_upload', { method: 'POST', body: formData });
+//             const data = await response.json(); signalSender('hideOverlay');
+//             if (data.status === 'error') { e.target.value = ''; alert(data.message); return; }
+//             const content = { 
+//                 key: 'mapPlotter', layerKey: 'soilLayer_Vector', 
+//                 data: data.content, type: 'soil', reset: true
+//             };
+//             await sendRequest('flowOptions', content);
+//             obj.soilInputText.value = file.name; 
+//             obj.soilCheckbox.checked = true;
+//             obj.soilInvalidCheckerBtn.style.display = 'block'; 
+//         } catch (error) { 
+//             alert(`Uploading soil data failed: ${error.message}`); 
+//             obj.soilInvalidCheckerBtn.style.display = 'none';
+//             obj.soilCheckbox.checked = false; obj.soilInputText.value = '';
+//         } finally {
+//             event.target.value = '';
+//             await sendRequest('flowOptions', { key: 'hideColorbar' });
+//         }
+//     });
+//     obj.soilCheckbox.addEventListener('change', async (e) => {
+//         const layerChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'soilLayer_Vector' });
+//         if (e.target.checked) { 
+//             if (!layerChecker.exist) { 
+//                 alert('Please upload/create a soil layer first.');
+//                 e.target.checked = false; obj.soilInvalidCheckerBtn.style.display = 'none'; return; 
+//             } else { 
+//                 await sendRequest('flowOptions', { key: 'drawLayer', layerKey: 'soilLayer_Vector' });
+//                 obj.soilInvalidCheckerBtn.style.display = 'block';
+//             }
+//         } else { 
+//             await sendRequest('flowOptions', { key: 'hideLayer', layerKey: 'soilLayer_Vector' });
+//             obj.soilIds.textContent = ''; deleteTable(obj.soilTable);
+//             const content = [
+//                 'ID','Soil type','Saturated water','Residual water','Ver. conductivity',
+//                 'Soil depth','Infiltration decay','Brooks–Corey parameter'
+//             ];
+//             addRowToTable(obj.soilTable, content); obj.soilInvalidCheckerBtn.style.display = 'none';
+//         }
+//     });
+//     obj.soilInvalidCheckerBtn.addEventListener('click', async () => { 
+//         const layerChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'soilLayer_Vector' });
+//         if (!layerChecker.exist) { alert('Please upload/create a soil layer first.'); return; }
+//         await sendRequest('flowOptions', { key: 'invalidCheck', layerKey: 'soilLayer_Vector', type: 'soil' });
+//     });
+//     obj.soilClipBtn.addEventListener('click', async () => { 
+//         const soilChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'soilLayer_Vector' });
+//         if (!soilChecker.exist) { alert('Please upload/create a soil layer first.'); return; }
+//         const catchmentChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'catchmentLayer_Vector' });
+//         if (!catchmentChecker.exist) { alert('Please upload a catchment layer to clip.'); return; }
+//         const soilLayer = await sendRequest('flowOptions', { key: 'getLayer', layerKey: 'soilLayer_Vector' });
+//         const catchmentLayer = await sendRequest('flowOptions', { key: 'getLayer', layerKey: 'catchmentLayer_Vector' });
+//         const content = { 
+//             baseLayer: soilLayer.data, clipLayer: catchmentLayer.data, getArea: 'inside' 
+//         };
+//         signalSender('showOverlay', 'Clipping soil layer with catchment layer.\nPlease wait...');
+//         const request = await jsonLoader('polygon_clip', content);
+//         signalSender('hideOverlay');
+//         if (request.status === 'error') { alert(request.message); return; }
+//         const contents = { 
+//             key: 'mapPlotter', layerKey: 'soilLayer_Vector', 
+//             data: request.content, type: 'soil', reset: true
+//         };
+//         await sendRequest('flowOptions', contents);
+//     });
+//     obj.soilTypes.addEventListener('change', async (e) => { 
+//         const value = e.target.value.trim(), id = obj.soilIds.value;
+//         if (id === '') { alert('Please select a soil polygon first.'); obj.soilTypes.value = ''; return; }
+//         if (value === '') {
+//             const content = [`${id}`,'','','','','','',''];
+//             deleteTable(obj.soilTable); fillTable([content], obj.soilTable); return;
+//         }
+//         const soilType = obj.soilTypes.options[obj.soilTypes.selectedIndex].textContent;
+//         const data = await jsonLoader('assign_type', { key: 'soil', data: soilType });
+//         if (data.status === "error") { alert(data.message); return; }
+//         data.content.unshift(`${id}`);
+//         fillTable([data.content], obj.soilTable, true);
+//     });
+//     obj.assignSoilBtn.addEventListener('click', async () => { 
+//         const soilChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'soilLayer_Vector' });
+//         if (!soilChecker.exist) { alert('Please upload/create a soil layer first.'); return; }
+//         const soilID = obj.soilIds.value;
+//         if (soilID === '') { alert('Please select a soil polygon first.'); return; }
+//         const data = getDataFromTable(obj.soilTable, true).rows[0].slice(1);
+//         await sendRequest('flowOptions', { 
+//             key: 'assignType', layerKey: 'soilLayer_Vector', id: soilID, data: data, type: 'soil' 
+//         });
+//     });
+//     obj.saveSoilBtn.addEventListener('click', async () => { 
+//         const soilChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'soilLayer_Vector' });
+//         if (!soilChecker.exist) { alert('Please upload/create a soil layer first.'); return; }
+//         const layer = await sendRequest('flowOptions', { key: 'getLayer', layerKey: 'soilLayer_Vector' });
+//         if (layer.data === null) { alert('Layer is empty. Please upload/create a soil layer first.'); return; }
+//         await geoJSONExporter(layer.data, 'soil.geojson');
+//     });
+// }
 
-function landManager() {
-    obj.landBtn.addEventListener('click',  () => { obj.landInputFile.click(); });
-    obj.landInputFile.addEventListener('change', async (event) => {
-        const file = event.target.files[0]; if (!file) return;
-        const formData = new FormData(); formData.append('file', file); 
-        formData.append('projectName', currentProject); formData.append('key', 'land');
-        try { 
-            signalSender('showOverlay', 'Uploading and processing Land Cover data.\nPlease wait...');
-            const response = await fetch('/data_upload', { method: 'POST', body: formData });
-            const data = await response.json(); signalSender('hideOverlay');
-            if (data.status === 'error') { alert(data.message); return; }
-            const content = { 
-                key: 'mapPlotter', layerKey: 'landLayer_Vector', 
-                data: data.content, type: 'land', reset: true
-            };
-            await sendRequest('flowOptions', content);
-            obj.landInputText.value = file.name; 
-            obj.landCheckbox.checked = true;
-            obj.landInvalidCheckerBtn.style.display = 'block';
-        } catch (err) {
-            alert(`Uploading Land Use/Land Cover data failed. Error: ${err}`);
-            obj.landInvalidCheckerBtn.style.display = 'none';
-            obj.landCheckbox.checked = false; obj.landInputText.value = '';
-        } finally { 
-            event.target.value = '';
-            await sendRequest('flowOptions', { key: 'hideColorbar' });
-        }
-    });
-    obj.landCheckbox.addEventListener('change', async (e) => {
-        const layerChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'landLayer_Vector' });
-        if (e.target.checked) { 
-            if (!layerChecker.exist) { 
-                alert('Please upload/create a land layer first.');
-                e.target.checked = false; obj.landInvalidCheckerBtn.style.display = 'none'; return; 
-            } else { 
-                await sendRequest('flowOptions', { key: 'drawLayer', layerKey: 'landLayer_Vector' });
-                obj.landInvalidCheckerBtn.style.display = 'block';
-            }
-        } else { 
-            await sendRequest('flowOptions', { key: 'hideLayer', layerKey: 'landLayer_Vector' });
-            obj.landIds.textContent = ''; deleteTable(obj.landTable);
-            const content = [
-                'ID','Land type','Leaf Area Index','Root Depth','Canopy Interception',
-                'Manning Roughness','Albedo','Crop Coefficient'
-            ];
-            addRowToTable(obj.landTable, content); obj.landInvalidCheckerBtn.style.display = 'none';
-        }
-    });
-    obj.landInvalidCheckerBtn.addEventListener('click', async () => { 
-        const layerChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'landLayer_Vector' });
-        if (!layerChecker.exist) { alert('Please upload/create a land cover layer first.'); return; }
-        deleteTable(obj.landTable);
-        await sendRequest('flowOptions', { key: 'invalidCheck', layerKey: 'landLayer_Vector', type: 'land' });
-    });
-    obj.landClipBtn.addEventListener('click', async () => { 
-        const landChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'landLayer_Vector' });
-        if (!landChecker.exist) { alert('Please upload/create a land cover layer first.'); return; }
-        const catchmentChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'catchmentLayer_Vector' });
-        if (!catchmentChecker.exist) { alert('Please upload a catchment layer to clip.'); return; }
-        const landLayer = await sendRequest('flowOptions', { key: 'getLayer', layerKey: 'landLayer_Vector' });
-        const catchmentLayer = await sendRequest('flowOptions', { key: 'getLayer', layerKey: 'catchmentLayer_Vector' });
-        const content = { 
-            baseLayer: landLayer.data, clipLayer: catchmentLayer.data, getArea: 'inside' 
-        };
-        signalSender('showOverlay', 'Clipping land cover layer with catchment layer.\nPlease wait...');
-        const request = await jsonLoader('polygon_clip', content); signalSender('hideOverlay');
-        if (request.status === 'error') { alert(request.message); return; }
-        const contents = { 
-            key: 'mapPlotter', layerKey: 'landLayer_Vector', 
-            data: request.content, type: 'land', reset: true
-        };
-        await sendRequest('flowOptions', contents);
-    });
-    obj.landTypes.addEventListener('change', async (e) => { 
-        const value = e.target.value.trim(), id = obj.landIds.value;
-        if (id === '') { alert('Please select a land polygon first.'); return; }
-        if (value === '') {
-            const content = [`${id}`,'','','','','','',''];
-            deleteTable(obj.landTable); fillTable([content], obj.landTable); return;
-        }
-        const landType = obj.landTypes.options[obj.landTypes.selectedIndex].textContent;
-        const data = await jsonLoader('assign_type', { key: 'land', data: landType });
-        if (data.status === "error") { alert(data.message); return; }
-        data.content.unshift(`${id}`);
-        fillTable([data.content], obj.landTable, true);
-    });
-    obj.assignLandBtn.addEventListener('click', async () => { 
-        const landChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'landLayer_Vector' });
-        if (!landChecker.exist) { alert('Please upload/create a land cover layer first.'); return; }
-        const landID = obj.landIds.value;
-        if (landID === '') { alert('Please select a land polygon first.'); return; }
-        const data = getDataFromTable(obj.landTable, true).rows[0].slice(1);
-        await sendRequest('flowOptions', { 
-            key: 'assignType', layerKey: 'landLayer_Vector', id: landID, data: data, type: 'land' 
-        });
-    });
-    obj.saveLandBtn.addEventListener('click', async () => { 
-        const landChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'landLayer_Vector' });
-        if (!landChecker.exist) { alert('Please upload/create a land cover layer first.'); return; }
-        const layer = await sendRequest('flowOptions', { key: 'getLayer', layerKey: 'landLayer_Vector' });
-        if (layer.data === null) { alert('Layer is empty. Please upload/create a land cover layer first.'); return; }
-        await geoJSONExporter(layer.data, 'landcover.geojson');
-    });
-}
+// function landManager() {
+//     obj.landBtn.addEventListener('click',  () => { obj.landInputFile.click(); });
+//     obj.landInputFile.addEventListener('change', async (event) => {
+//         const file = event.target.files[0]; if (!file) return;
+//         const formData = new FormData(); formData.append('file', file); 
+//         formData.append('projectName', currentProject); formData.append('key', 'land');
+//         try { 
+//             signalSender('showOverlay', 'Uploading and processing Land Cover data.\nPlease wait...');
+//             const response = await fetch('/data_upload', { method: 'POST', body: formData });
+//             const data = await response.json(); signalSender('hideOverlay');
+//             if (data.status === 'error') { alert(data.message); return; }
+//             const content = { 
+//                 key: 'mapPlotter', layerKey: 'landLayer_Vector', 
+//                 data: data.content, type: 'land', reset: true
+//             };
+//             await sendRequest('flowOptions', content);
+//             obj.landInputText.value = file.name; 
+//             obj.landCheckbox.checked = true;
+//             obj.landInvalidCheckerBtn.style.display = 'block';
+//         } catch (err) {
+//             alert(`Uploading Land Use/Land Cover data failed. Error: ${err}`);
+//             obj.landInvalidCheckerBtn.style.display = 'none';
+//             obj.landCheckbox.checked = false; obj.landInputText.value = '';
+//         } finally { 
+//             event.target.value = '';
+//             await sendRequest('flowOptions', { key: 'hideColorbar' });
+//         }
+//     });
+//     obj.landCheckbox.addEventListener('change', async (e) => {
+//         const layerChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'landLayer_Vector' });
+//         if (e.target.checked) { 
+//             if (!layerChecker.exist) { 
+//                 alert('Please upload/create a land layer first.');
+//                 e.target.checked = false; obj.landInvalidCheckerBtn.style.display = 'none'; return; 
+//             } else { 
+//                 await sendRequest('flowOptions', { key: 'drawLayer', layerKey: 'landLayer_Vector' });
+//                 obj.landInvalidCheckerBtn.style.display = 'block';
+//             }
+//         } else { 
+//             await sendRequest('flowOptions', { key: 'hideLayer', layerKey: 'landLayer_Vector' });
+//             obj.landIds.textContent = ''; deleteTable(obj.landTable);
+//             const content = [
+//                 'ID','Land type','Leaf Area Index','Root Depth','Canopy Interception',
+//                 'Manning Roughness','Albedo','Crop Coefficient'
+//             ];
+//             addRowToTable(obj.landTable, content); obj.landInvalidCheckerBtn.style.display = 'none';
+//         }
+//     });
+//     obj.landInvalidCheckerBtn.addEventListener('click', async () => { 
+//         const layerChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'landLayer_Vector' });
+//         if (!layerChecker.exist) { alert('Please upload/create a land cover layer first.'); return; }
+//         deleteTable(obj.landTable);
+//         await sendRequest('flowOptions', { key: 'invalidCheck', layerKey: 'landLayer_Vector', type: 'land' });
+//     });
+//     obj.landClipBtn.addEventListener('click', async () => { 
+//         const landChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'landLayer_Vector' });
+//         if (!landChecker.exist) { alert('Please upload/create a land cover layer first.'); return; }
+//         const catchmentChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'catchmentLayer_Vector' });
+//         if (!catchmentChecker.exist) { alert('Please upload a catchment layer to clip.'); return; }
+//         const landLayer = await sendRequest('flowOptions', { key: 'getLayer', layerKey: 'landLayer_Vector' });
+//         const catchmentLayer = await sendRequest('flowOptions', { key: 'getLayer', layerKey: 'catchmentLayer_Vector' });
+//         const content = { 
+//             baseLayer: landLayer.data, clipLayer: catchmentLayer.data, getArea: 'inside' 
+//         };
+//         signalSender('showOverlay', 'Clipping land cover layer with catchment layer.\nPlease wait...');
+//         const request = await jsonLoader('polygon_clip', content); signalSender('hideOverlay');
+//         if (request.status === 'error') { alert(request.message); return; }
+//         const contents = { 
+//             key: 'mapPlotter', layerKey: 'landLayer_Vector', 
+//             data: request.content, type: 'land', reset: true
+//         };
+//         await sendRequest('flowOptions', contents);
+//     });
+//     obj.landTypes.addEventListener('change', async (e) => { 
+//         const value = e.target.value.trim(), id = obj.landIds.value;
+//         if (id === '') { alert('Please select a land polygon first.'); return; }
+//         if (value === '') {
+//             const content = [`${id}`,'','','','','','',''];
+//             deleteTable(obj.landTable); fillTable([content], obj.landTable); return;
+//         }
+//         const landType = obj.landTypes.options[obj.landTypes.selectedIndex].textContent;
+//         const data = await jsonLoader('assign_type', { key: 'land', data: landType });
+//         if (data.status === "error") { alert(data.message); return; }
+//         data.content.unshift(`${id}`);
+//         fillTable([data.content], obj.landTable, true);
+//     });
+//     obj.assignLandBtn.addEventListener('click', async () => { 
+//         const landChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'landLayer_Vector' });
+//         if (!landChecker.exist) { alert('Please upload/create a land cover layer first.'); return; }
+//         const landID = obj.landIds.value;
+//         if (landID === '') { alert('Please select a land polygon first.'); return; }
+//         const data = getDataFromTable(obj.landTable, true).rows[0].slice(1);
+//         await sendRequest('flowOptions', { 
+//             key: 'assignType', layerKey: 'landLayer_Vector', id: landID, data: data, type: 'land' 
+//         });
+//     });
+//     obj.saveLandBtn.addEventListener('click', async () => { 
+//         const landChecker = await sendRequest('flowOptions', { key: 'layerChecker', layerKey: 'landLayer_Vector' });
+//         if (!landChecker.exist) { alert('Please upload/create a land cover layer first.'); return; }
+//         const layer = await sendRequest('flowOptions', { key: 'getLayer', layerKey: 'landLayer_Vector' });
+//         if (layer.data === null) { alert('Layer is empty. Please upload/create a land cover layer first.'); return; }
+//         await geoJSONExporter(layer.data, 'landcover.geojson');
+//     });
+// }
 
 function riverManager() {
     document.querySelectorAll('input[name="river"]').forEach(radio => { 
