@@ -22,7 +22,7 @@ steps:
       - setup_rivers:
             hydrography_fn: my_hydro
             river_geom_fn: river_network
-            river_upa: 0.001                     # upstream area in km2
+            river_upa: 1                     # upstream area in km2
             river_routing: kinematic_wave
             connectivity: 8
             smooth_len: 20000.0
@@ -32,15 +32,11 @@ steps:
             ptf_ksatver: brakensiek
             wflow_thicknesslayers: [50, 150, 250, 400, 600, 550]
 
-  # - setup_lulcmaps:
-  #     lulc_fn: globcover_2009
-  #     # lulc_mapping_fn: lulc_mapping
-  #     # kc: landuse_kc
-  #     # lai: lai
-  #     # albedo: albedo
-  #     # manning_n: manning_n
-  #     # root_depth: root_depth
-  #     # interception: interception
+  # - setup_lulc:
+  #     lulc_fn: landcover
+      # lulc_map_fn: lulc_mapping
+      # resampling_method: mode
+
 
       - setup_precip_forcing:
             precip_fn: my_forcing             # Source for precipitation data

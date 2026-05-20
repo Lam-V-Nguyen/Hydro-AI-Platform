@@ -14,12 +14,6 @@ const layerConfig = {
         title: 'Streams', colorKey: 'terrain', min: 0, max: 1, 
         alert: 'Please upload terrain data first.'
     },
-
-
-
-
-
-
     catchmentLayer_Vector: {
         layer: null, data: null,
         getLayer() { return this.layer; }, setLayer(l) { this.layer = l; },

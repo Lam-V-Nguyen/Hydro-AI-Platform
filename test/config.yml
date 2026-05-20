@@ -1,3 +1,9 @@
+dtm:
+  data_type: RasterDataset
+  driver: rasterio
+  uri: data/hydro/elevtn.tif
+  metadata:
+    category: topography
 
 my_hydro:
   data_type: RasterDataset
@@ -29,8 +35,30 @@ soilgrids_2020:
   metadata:
     category: soil
 
-
 # # Land cover data
+# landcover:
+#   data_type: RasterDataset
+#   uri: data/landuse/landuse.tif
+#   metadata:
+#     category: landuse
+# wflow_lulc:
+#   1:
+#     name: forest
+#     manning: 0.15
+#     kext: 0.5
+#     root_depth: 1.5
+#   2:
+#     name: grass
+#     manning: 0.035
+#     kext: 0.7
+#     root_depth: 0.5
+#   3:
+#     name: urban
+#     manning: 0.02
+#     kext: 0.2
+#     impervious: 0.8
+
+
 # landuse_kc:
 #   data_type: RasterDataset
 #   driver: rasterio

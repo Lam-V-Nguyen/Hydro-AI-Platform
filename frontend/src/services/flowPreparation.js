@@ -15,11 +15,6 @@ const obj = {
     terrainBtn: $('terrain-btn'), terrainInputFile: $('terrain-input-file'), 
     terrainInputText: $('terrain-input-text'), streamBtn: $('stream-btn'), threshold: $('threshold'), 
     pourpointContainer: $('pourpoint-container'), pourpointCheckbox: $('pourpoint-checkbox'),
-    
-    
-    
-    
-       
     exportContainer: $('export-container'), exportBtn: $('export-catchment-btn'),
     pourpointLat: $('pourpoint-lat'), pourpointLon: $('pourpoint-lon'),
     dist: $('pourpoint-dist'), catchmentRadio: $('catchment-layer'),
