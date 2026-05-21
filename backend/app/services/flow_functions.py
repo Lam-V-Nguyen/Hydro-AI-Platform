@@ -1,6 +1,5 @@
 import os, dotenv, rasterio
 import geopandas as gpd
-from shapely.ops import unary_union
 from shapely.geometry import Polygon, MultiPolygon
 from netCDF4 import Dataset
 
