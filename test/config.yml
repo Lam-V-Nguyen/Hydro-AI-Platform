@@ -36,24 +36,24 @@ soilgrids_2020:
     category: soil
 
 # Land cover data
-# corine:
-#   data_type: RasterDataset
-#   driver: rasterio
-#   uri: data/landcover/corine.tif
-#   metadata:
-#     category: landuse & landcover
-#     author: Copernicus / European Environment Agency
-#     info: landuse parameters based on corine classification for Europe
-#     resolution: 100m
-#     url: https://land.copernicus.eu/en/products/corine-land-cover
-# corine_mapping:
-#   data_type: DataFrame
-#   driver: pandas
-#   uri: data/landcover/corine.csv
-#   metadata:
-#     category: landuse & landcover
-#     version: 1.0
-#     legend: https://image.discomap.eea.europa.eu/arcgis/rest/services/Corine/CLC2018_WM/MapServer/legend
+corine:
+  data_type: RasterDataset
+  driver: rasterio
+  uri: data/landcover/corine.tif
+  metadata:
+    category: landuse & landcover
+    author: Copernicus / European Environment Agency
+    info: landuse parameters based on corine classification for Europe
+    resolution: 100m
+    url: https://land.copernicus.eu/en/products/corine-land-cover
+corine_mapping:
+  data_type: DataFrame
+  driver: pandas
+  uri: data/landcover/corine.csv
+  metadata:
+    category: landuse & landcover
+    version: 1.0
+    legend: https://image.discomap.eea.europa.eu/arcgis/rest/services/Corine/CLC2018_WM/MapServer/legend
 
 esa_worldcover:
   data_type: RasterDataset
