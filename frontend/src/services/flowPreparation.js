@@ -486,7 +486,7 @@ function riverManager() {
             } else { await sendRequest('flowOptions', { key: 'drawLayer', layerKey: 'riverLayer_Vector' }); }
         } else { 
             await sendRequest('flowOptions', { key: 'hideLayer', layerKey: 'riverLayer_Vector' });
-            const content = ['Segment ID','Width','Depth','Manning Roughness'];
+            const content = ['Segment ID','Width','Depth'];
             deleteTable(obj.riverTable); addRowToTable(obj.riverTable, content);
         }
     });

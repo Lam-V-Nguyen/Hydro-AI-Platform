@@ -35,83 +35,40 @@ soilgrids_2020:
   metadata:
     category: soil
 
-# # Land cover data
-# landcover:
-#   data_type: RasterDataset
-#   uri: data/landuse/landuse.tif
-#   metadata:
-#     category: landuse
-# wflow_lulc:
-#   1:
-#     name: forest
-#     manning: 0.15
-#     kext: 0.5
-#     root_depth: 1.5
-#   2:
-#     name: grass
-#     manning: 0.035
-#     kext: 0.7
-#     root_depth: 0.5
-#   3:
-#     name: urban
-#     manning: 0.02
-#     kext: 0.2
-#     impervious: 0.8
-
-
-# landuse_kc:
+# Land cover data
+# corine:
 #   data_type: RasterDataset
 #   driver: rasterio
-#   uri: data/landuse/kc.tif
+#   uri: data/landcover/corine.tif
 #   metadata:
 #     category: landuse & landcover
-
-# lai:
-#   data_type: RasterDataset
-#   driver: rasterio
-#   uri: data/landuse/LAI.tif
-#   metadata:
-#     category: landuse & landcover
-
-# albedo:
-#   data_type: RasterDataset
-#   driver: rasterio
-#   uri: data/landuse/albedo.tif
-#   metadata:
-#     category: landuse & landcover
-
-# manning_n:
-#   data_type: RasterDataset
-#   driver: rasterio
-#   uri: data/landuse/manning_n.tif
-#   metadata:
-#     category: landuse & landcover
-
-# root_depth:
-#   data_type: RasterDataset
-#   driver: rasterio
-#   uri: data/landuse/root_depth.tif
-#   metadata:
-#     category: landuse & landcover
-
-# interception:
-#   data_type: RasterDataset
-#   driver: rasterio
-#   uri: data/landuse/interception.tif
-#   metadata:
-#     category: landuse & landcover
-
-# # Lookup table
-# lulc_map:
-#   data_type: RasterDataset
-#   driver: rasterio
-#   uri: data/lookup/land_classes.tif
-#   metadata:
-#     category: landuse & landcover
-
-# lulc_mapping:
+#     author: Copernicus / European Environment Agency
+#     info: landuse parameters based on corine classification for Europe
+#     resolution: 100m
+#     url: https://land.copernicus.eu/en/products/corine-land-cover
+# corine_mapping:
 #   data_type: DataFrame
 #   driver: pandas
-#   uri: data/lookup/lookup_land.csv
+#   uri: data/landcover/corine.csv
 #   metadata:
-#     category: observed data
+#     category: landuse & landcover
+#     version: 1.0
+#     legend: https://image.discomap.eea.europa.eu/arcgis/rest/services/Corine/CLC2018_WM/MapServer/legend
+
+esa_worldcover:
+  data_type: RasterDataset
+  driver: rasterio
+  uri: data/landcover/esa_worldcover.tif
+  metadata:
+    category: landuse & landcover
+    info: landuse parameters for the world
+    resolution: 10m
+    url: https://esa-worldcover.org/en
+esa_worldcover_mapping:
+  data_type: DataFrame
+  driver: pandas
+  uri: data/landcover/esa_worldcover.csv
+  metadata:
+    category: landuse & landcover
+    version: 2021
+    legend: https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/docs/WorldCover_PUM_V2.0.pdf

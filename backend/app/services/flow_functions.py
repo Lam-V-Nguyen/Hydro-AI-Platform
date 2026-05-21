@@ -39,20 +39,20 @@ NODATA_DEM, NODATA_INT = -9999.0, 0
 #     "Glacier": [0.30, 0.02, 500, 500, 0.020, 2],
 #     "Water": [1.00, 1.00, 10000, 0, 0, 0]
 # }
-land_codes = {
-    1: "Bare soil", # 1-Bare land, 15-Bare rock, 17-Unclassified
-    3: "Impervious/Urban", # 3-Other paved, 9-Paved road, 10-Unpaved road, 12-Railroad, 16-Building
-    2: "Water", 4: "Snow/Ice", 5: "Field", 6: "Shallow vegetation", 7: "Dense vegetation",
-}
-land_types = {
-    "Bare soil": [0.1, 0.1, 0.2, 0.02, 0.25, 0.2],
-    "Water": [0, 0, 0, 0.03, 0.07, 1.05],
-    "Field": [3.0, 0.8, 1.5, 0.20, 0.20, 1.0],
-    "Shallow vegetation": [2.0, 0.5, 1.0, 0.15, 0.23, 0.9],
-    "Dense vegetation": [5.0, 1.5, 3.0, 0.40, 0.13, 1.1],
-    "Impervious/Urban": [0.5, 0.1, 0.5, 0.05, 0.15, 0.3],
-    "Snow/Ice": [0, 0, 0, 0.03, 0.80, 0.1]
-}
+# land_codes = {
+#     1: "Bare soil", # 1-Bare land, 15-Bare rock, 17-Unclassified
+#     3: "Impervious/Urban", # 3-Other paved, 9-Paved road, 10-Unpaved road, 12-Railroad, 16-Building
+#     2: "Water", 4: "Snow/Ice", 5: "Field", 6: "Shallow vegetation", 7: "Dense vegetation",
+# }
+# land_types = {
+#     "Bare soil": [0.1, 0.1, 0.2, 0.02, 0.25, 0.2],
+#     "Water": [0, 0, 0, 0.03, 0.07, 1.05],
+#     "Field": [3.0, 0.8, 1.5, 0.20, 0.20, 1.0],
+#     "Shallow vegetation": [2.0, 0.5, 1.0, 0.15, 0.23, 0.9],
+#     "Dense vegetation": [5.0, 1.5, 3.0, 0.40, 0.13, 1.1],
+#     "Impervious/Urban": [0.5, 0.1, 0.5, 0.05, 0.15, 0.3],
+#     "Snow/Ice": [0, 0, 0, 0.03, 0.80, 0.1]
+# }
 
 def remove_holes(geom):
     if isinstance(geom, Polygon): return Polygon(geom.exterior)
@@ -65,28 +65,6 @@ def write_geotiff(data, profile, output_path):
     with rasterio.open(output_path, 'w', **profile) as dst:
         dst.write(data, 1)
 
-def keep_polygon(geom):
-    if geom.geom_type == 'GeometryCollection':
-        polys = [g for g in geom.geoms if isinstance(g, (Polygon, MultiPolygon))]
-        if len(polys) == 0: return None
-        return polys[0]
-    return geom
-
-def fix_invalid_polygon(gdf, cols):
-    gdf_new, name = gdf.copy(), cols[0]
-    gdf_valid, gdf_nan = gdf_new[gdf_new[name] != ''], gdf_new[gdf_new[name] == '']
-    if gdf_nan.shape[0] > 0:
-        gdf_valid['geometry'] = gdf_valid['geometry'].apply(keep_polygon)
-        gdf_nan['geometry'] = gdf_nan['geometry'].apply(keep_polygon)
-        # Spatial join nearest
-        gdf_filled = gpd.sjoin_nearest(
-            gdf_nan, gdf_valid[['geometry', name]], how='left', distance_col='dist'
-        )
-        gdf_filled = gdf_filled.drop_duplicates(subset='_id')
-        gdf_new.loc[gdf_filled.index, cols] = gdf_valid.loc[gdf_filled['index_right'], cols].values
-    gdf_new['geometry'] = gdf_new['geometry'].apply(keep_polygon)
-    return gdf_new
-
 def is_valid_netcdf(path):
     try:
         with Dataset(path, "r") as ds:
@@ -95,15 +73,36 @@ def is_valid_netcdf(path):
     except Exception:
         return False
     
-def clip_catchment(catchment, terrain):
-    geo = catchment.geometry.buffer(10)
-    clipped = terrain.rio.clip(geo, terrain.rio.crs, drop=True)
-    clipped = clipped.fillna(-9999)
-    clipped.rio.write_nodata(-9999, inplace=True)
+def clip_catchment(catchment, terrain, nodata=-9999.0):
+    clipped = terrain.rio.clip(catchment.geometry, terrain.rio.crs, drop=True)
+    clipped = clipped.fillna(nodata)
+    clipped.rio.write_nodata(nodata, inplace=True)
     return clipped
 
 
 
+
+# def keep_polygon(geom):
+#     if geom.geom_type == 'GeometryCollection':
+#         polys = [g for g in geom.geoms if isinstance(g, (Polygon, MultiPolygon))]
+#         if len(polys) == 0: return None
+#         return polys[0]
+#     return geom
+
+# def fix_invalid_polygon(gdf, cols):
+#     gdf_new, name = gdf.copy(), cols[0]
+#     gdf_valid, gdf_nan = gdf_new[gdf_new[name] != ''], gdf_new[gdf_new[name] == '']
+#     if gdf_nan.shape[0] > 0:
+#         gdf_valid['geometry'] = gdf_valid['geometry'].apply(keep_polygon)
+#         gdf_nan['geometry'] = gdf_nan['geometry'].apply(keep_polygon)
+#         # Spatial join nearest
+#         gdf_filled = gpd.sjoin_nearest(
+#             gdf_nan, gdf_valid[['geometry', name]], how='left', distance_col='dist'
+#         )
+#         gdf_filled = gdf_filled.drop_duplicates(subset='_id')
+#         gdf_new.loc[gdf_filled.index, cols] = gdf_valid.loc[gdf_filled['index_right'], cols].values
+#     gdf_new['geometry'] = gdf_new['geometry'].apply(keep_polygon)
+#     return gdf_new
 
 
 # def weather_init(id:str) -> gpd.GeoDataFrame:

@@ -361,11 +361,11 @@ async def river_upload(file: UploadFile = File(...), projectName: str = Form(...
         elif file_ext[-1].lower() in ["geojson"]: gdf = gpd.read_file(river_path)
         if gdf.empty: return JSONResponse({'status': 'error', 'message': 'No data found.'})
         if '_id' not in gdf.columns: gdf.insert(0, '_id', range(1, len(gdf) + 1))
-        new_cols = ['width', 'depth', 'manning_n']
+        new_cols = ['width', 'depth']
         for col in new_cols:
             if col not in gdf.columns: gdf[col] = 'None'
             else: gdf[col] = pd.to_numeric(gdf[col], errors='coerce')
-        gdf = gdf[['_id', 'width', 'depth', 'manning_n', 'geometry']]
+        gdf = gdf[['_id', 'width', 'depth', 'geometry']]
         if gdf.crs != "EPSG:4326": gdf = gdf.to_crs("EPSG:4326")
         return JSONResponse({'status': 'ok', 'content': json.loads(gdf.to_json())})
     except Exception as e:

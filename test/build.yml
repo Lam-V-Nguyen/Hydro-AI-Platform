@@ -22,20 +22,20 @@ steps:
       - setup_rivers:
             hydrography_fn: my_hydro
             river_geom_fn: river_network
-            river_upa: 1                     # upstream area in km2
+            river_upa: 5                        # upstream area in km2
             river_routing: kinematic_wave
             connectivity: 8
-            smooth_len: 20000.0
+            smooth_len: 10000.0
+      - setup_river_roughness:
 
       - setup_soilmaps:
             soil_fn: soilgrids_2020
             ptf_ksatver: brakensiek
-            wflow_thicknesslayers: [50, 150, 250, 400, 600, 550]
+            wflow_thicknesslayers: [50, 150, 250, 400, 550, 600]
 
-  # - setup_lulc:
-  #     lulc_fn: landcover
-      # lulc_map_fn: lulc_mapping
-      # resampling_method: mode
+      - setup_lulcmaps:
+            lulc_fn: esa_worldcover                     # Source for landuse data: corine, esa_worldcover
+            lulc_mapping_fn: esa_worldcover_mapping     # Source for landuse mapping: corine_mapping, esa_worldcover_mapping
 
 
       - setup_precip_forcing:
@@ -49,4 +49,21 @@ steps:
             skip_pet: False
             press_correction: True
             temp_correction: True
+      
+      - setup_constant_pars:
+            "subsurface_water__horizontal_to_vertical_saturated_hydraulic_conductivity_ratio": 100
+            "snowpack__degree_day_coefficient": 3.75653
+            "soil_surface_water__infiltration_reduction_parameter": 0.038
+            "vegetation_canopy_water__mean_evaporation_to_mean_precipitation_ratio": 0.11
+            "compacted_soil_surface_water__infiltration_capacity": 10
+            "soil_water_saturated_zone_bottom__max_leakage_volume_flux": 0
+            "soil_wet_root__sigmoid_function_shape_parameter": -500
+            "atmosphere_air__snowfall_temperature_threshold": 0
+            "atmosphere_air__snowfall_temperature_interval": 2
+            "snowpack__melting_temperature_threshold": 0
+            "snowpack__liquid_water_holding_capacity": 0.1
+            "glacier_ice__degree_day_coefficient": 3
+            "glacier_firn_accumulation__snowpack_dry_snow_leq_depth_fraction": 0.001
+            "glacier_ice__melting_temperature_threshold": 0
+      
       - write:

@@ -130,7 +130,6 @@ export function buildTooltip(props, key) {
         html += `
             <strong>• Width (m):</strong> ${props.width ?? 'Unknown'}<br>
             <strong>• Depth (m):</strong> ${props.depth ?? 'Unknown'}<br>
-            <strong>• Manning roughness:</strong> ${props.manning_n ?? 'Unknown'}<br>
             <hr style="margin: 5px 0 5px 0;">
             <strong>Click to change attributes</strong>
         `;
@@ -163,7 +162,7 @@ function tableAdjust(props, key) {
             props.manning_n, props.albedo, props.kc
         ];
     } else if (key === 'river') {
-        values = [props._id, props.width, props.depth, props.manning_n];
+        values = [props._id, props.width, props.depth];
     }
     return values;
 }
