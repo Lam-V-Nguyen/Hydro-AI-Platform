@@ -34,9 +34,8 @@ steps:
             wflow_thicknesslayers: [50, 150, 250, 400, 550, 600]
 
       - setup_lulcmaps:
-            lulc_fn: corine                     # Source for landuse data: corine, esa_worldcover
-            lulc_mapping_fn: corine_mapping     # Source for landuse mapping: corine_mapping, esa_worldcover_mapping
-
+            lulc_fn: esa_worldcover                     # Source for landuse data: corine, esa_worldcover
+            lulc_mapping_fn: esa_worldcover_mapping     # Source for landuse mapping: corine_mapping, esa_worldcover_mapping
 
       - setup_precip_forcing:
             precip_fn: my_forcing             # Source for precipitation data

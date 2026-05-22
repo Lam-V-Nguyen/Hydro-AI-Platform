@@ -13,37 +13,86 @@
         <section class="main-tab" id="control-tab">
             <div class="tab-header" id="main-tabs">
                 <div class="tabs-list">
+                    <button class="tab-btn" data-tab="settings-tab">Settings</button>
                     <button class="tab-btn" data-tab="terrain-tab">Topography</button>
-                    <!-- <button class="tab-btn" data-tab="soil-tab">Soil</button>
-                    <button class="tab-btn" data-tab="land-tab">Land Cover</button> -->
+                    <button class="tab-btn" data-tab="soil-tab">Soil</button>
+                    <button class="tab-btn" data-tab="land-tab">Land Cover</button>
                     <button class="tab-btn" data-tab="river-network-tab">River Network</button>
-                    <button class="tab-btn" data-tab="initial-conditions-tab">Initial Conditions</button>
                     <!-- <button class="tab-btn" data-tab="weather-data-tab">Weather Data</button>
-                    <button class="tab-btn" data-tab="settings-tab">Settings</button> -->
+                     -->
                 </div>
             </div>
             <div class="tabs-content">
-                <!-- Tab 1: Topography -->
-                <div class="tabpanel main-panel" data-panel="terrain-tab">
+                <!-- Tab 1: Settings -->
+                <div class="tabpanel main-panel" data-panel="settings-tab">
                     <div class="grid">
-                        <div class="tile"><h3>Catchment Import</h3>
-                            <div class="row-radio" data-tab="catchment">
-                                <input type="radio" id="catchment-dtm" name="catchment" checked>
-                                <label for="catchment-dtm">Create from DTM</label>
+                        <div class="tile"><h3>Project</h3>
+                            <div class="row">
+                                <div class="field-inline">
+                                    <label for="project-name">Scenario</label>
+                                    <div id="project-name-wrapper">
+                                        <input type="text" id="project-name" placeholder="Enter scenario's name">
+                                        <ul id="project-list"></ul>
+                                    </div>
+                                    <button id="create-btn">Create/Open</button>
+                                </div>
+                                
+                                
+
+                                
                             </div>
-                            <div class="row-radio" data-tab="catchment">
-                                <input type="radio" id="catchment-upload" name="catchment">
-                                <label for="catchment-upload">Upload a Catchment</label>
+                            
+                            
+                             
+                        </div>
+                        <div class="tile initial-conditions-tile" style="grid-column: span 8;"><h3>Initial Conditions</h3>
+                            <div class="single-row">
+                                <label for="initial-top-moisture">Top soil moisture (m³/m³):</label>
+                                <input type="text" id="initial-top-moisture" value='0.25'>
                             </div>
-                            <div class="row" id="catchment-upload-container" style="display: none; width: 100%;">
-                                <input type="file" id="catchment-input-file" accept=".geojson" hidden>
-                                <button  type="button" id="catchment-upload-btn">Upload GeoJSON</button>
+                            <div class="single-row">
+                                <label for="initial-sub-moisture">Sub soil moisture (m³/m³):</label>
+                                <input type="text" id="initial-sub-moisture" value='0.30'>
+                            </div>
+                            <div class="single-row">
+                                <label for="initial-groundwater">Groundwater level (mm):</label>
+                                <input type="text" id="initial-groundwater" value='50'>
+                            </div>
+                            <div class="single-row">
+                                <label for="initial-overland-flow">Overland flow (mm):</label>
+                                <input type="text" id="initial-overland-flow" value='0'>
+                            </div>
+                            <div class="single-row">
+                                <label for="initial-river-storage">River/Channel storage (mm):</label>
+                                <input type="text" id="initial-river-storage" value='0'>
+                            </div>
+                            <div class="single-row">
+                                <label for="initial-lake-storage">Lake storage (mm):</label>
+                                <input type="text" id="initial-lake-storage" value='500'>
+                            </div>
+                            <div class="single-row">
+                                <label for="initial-snow-depth">Initial snow depth (mm):</label>
+                                <input type="text" id="initial-snow-depth" value='0'>
+                            </div>
+                            <div class="single-row">
+                                <label for="initial-water-depth">Initial water depth (mm) or discharge (m³/s):</label>
+                                <input type="text" id="initial-water-depth" value='0'>
+                            </div>
+                            <div class="single-row">
+                                <label for="initial-saturation-deficit">Saturation deficit (mm):</label>
+                                <input type="text" id="initial-saturation-deficit" value='100'>
                             </div>
                         </div>
+                    </div>
+                </div>
+                <!-- Tab 2: Topography -->
+                <div class="tabpanel main-panel" data-panel="terrain-tab">
+                    <div class="grid">
                         <div class="tile"><h3>Terrain Import</h3>
                             <div class="row" style="white-space: nowrap;">
                                 <label for="terrain-input">Raw Terrain:</label>
                                 <input type="file" id="terrain-input-file" accept=".tif" hidden>
+                                <input type="file" id="catchment-input-file" accept=".geojson" hidden>
                                 <input type="text" id="terrain-input-text" placeholder="No file selected" readonly>
                                 <button type="button" id="terrain-btn" style="min-width: 100px;">Select File (*.tif)</button>
                             </div>
@@ -102,110 +151,44 @@
                     </div>
                 </div>
                 <!-- Tab 2: Soil Properties -->
-                <!-- <div class="tabpanel main-panel" data-panel="soil-tab">
+                <div class="tabpanel main-panel" data-panel="soil-tab">
                     <div class="grid">
-                        <div class="tile"><h3>Soil Import</h3>
-                            <div class="row" style="white-space: nowrap;">
-                                <label for="soil-input">Soil Data:</label>
-                                <input type="file" id="soil-input-file" accept=".tif,.geojson" hidden>
-                                <input type="text" id="soil-input-text" placeholder="No file selected" readonly>
-                                <button type="button" id="soil-btn" style="min-width: 150px;">Select file (*.tif, *.geojson)</button>
-                            </div>
-                            <div class="radio-button">
-                                <label class="row-radio">
-                                    <input type="checkbox" id="soil-checker-checkbox">Show/Hide Soil Layer
-                                </label>
-                                <div class="row">
-                                    <button type="button" id="soil-invalid-checker-btn" style="display: none; width: 200px;">
-                                        Check invalid soils
-                                    </button>
-                                </div>
+                        <div class="tile"><h3>Data Import and Download</h3>
+                            <div class="row">
+                                <label>Upload a Catchment to define the area:</label>
+                                <button type="button" id="soil-btn" style="min-width: 100px;">Upload a Catchment (*.geojson)</button>
                             </div>
                             <div class="row">
-                                <a style="margin-top: 10px;">Data Reference:</a>
-                                <a class="data-link" href="https://scalgo.com/en-US/scalgo-live-documentation/soil-vegetation-atmosphere-properties/soil"
-                                    target="_blank">Scalgo Soil Types
-                                </a>
-                            </div>
-                        </div>
-                        <div class="tile"><h3>Soil Modification</h3>
-                            <div class="row">
-                                <button type="button" id="soil-clip-btn">Clip Soil to Catchment</button>
-                            </div>
-                            <div class="row">
-                                <label for="soil-id">ID(s):</label>
-                                <select class="ids" id="soil-id"></select>
-                            </div>
-                            <div class="row">
-                                <label for="soil-type">Soil Type:</label>
-                                <select id="soil-type">
-                                    <option value="">None</option>
-                                    <option value="1">Rocks and boulders</option>
-                                    <option value="2">Gravel</option>
-                                    <option value="3">Coarse sand</option>
-                                    <option value="4">Fine sand</option>
-                                    <option value="5">Coarse sand with clay</option>
-                                    <option value="6">Fine sand with clay</option>
-                                    <option value="7">Coarse clay with sand</option>
-                                    <option value="8">Fine clay with sand</option>
-                                    <option value="9">Clay</option>
-                                    <option value="10">Fine clay</option>
-                                    <option value="11">Very fine clay</option>
-                                    <option value="12">Silt</option>
-                                    <option value="13">Gyttja/peat</option>
-                                    <option value="14">Bedrock</option>
-                                    <option value="15">Glacier</option>
-                                    <option value="16">Water</option>
+                                <label for="soil-source">Soil Data Source:</label>
+                                <select id="soil-source">
+                                    <option value="" selected>--- Select a source ---</option>
+                                    <option value="isric">World Soil Information - ISRIC - 250m</option>
                                 </select>
                             </div>
-                            
-                        </div>
-                        <div class="tile" style="grid-column: span 8;">
-                            <div class="row" style="justify-items: center;">
-                                <h3 style="margin-top: 20px;">Attribute Table</h3>
-                                <button type="button" id="assign-soil-btn" style="max-width: 300px;">
-                                    Assign soil type for selected ID
-                                </button>
-                                <button type="button" id="save-soil-btn" style="max-width: 150px;">Export Soil Map</button>
+                            <div class="row" id="soil-container" style="display: none;">
+                                <button type="button" id="download-soil-btn" 
+                                style="min-width: 100px; margin: 20px;">Download Soil Data</button>
+                                <button type="button" id="save-soil-btn" 
+                                style="min-width: 100px; margin: 20px;">Save Soil Data</button>
                             </div>
+                        </div>
+                        <div class="tile"><h3>Attribute Table</h3>
                             <div class="table-container">
                                 <table class="attributes-table" id="soil-attributes-table">
                                     <thead><tr>
-                                        <th>ID</th><th>Soil Type</th><th>θS (m³/m³)</th>
-                                        <th>θR (m³/m³)</th><th>KsatVer (mm/day)</th>
-                                        <th>SoilDepth (mm)</th><th>f</th><th>c (Brooks-Corey)</th>
+                                        <th>Soil Type</th><th>Depth (cm)</th><th>Value</th>
                                     <tbody>
                                         <tr>
-                                            <td><input type="text" placeholder="ID"></td>
                                             <td><input type="text" placeholder="Soil type"></td>
-                                            <td><input type="text" placeholder="Saturated water"></td>
-                                            <td><input type="text" placeholder="Residual water"></td>
-                                            <td><input type="text" placeholder="Ver. conductivity"></td>
                                             <td><input type="text" placeholder="Soil depth"></td>
-                                            <td><input type="text" placeholder="Infiltration decay"></td>
-                                            <td><input type="text" placeholder="Brooks–Corey parameter"></td>
+                                            <td><input type="text" placeholder="Value"></td>
                                         </tr>
                                     </tbody>
                                 </table>
                             </div>
-                            <div class="row">
-                                <a style="margin-top: 10px;">References:</a>
-                                <a class="data-link" href="#"
-                                    onclick="window.open('/src_frontend/pdfs/Rawlsetal1982TransASAE.pdf', '_blank'); return false;"
-                                    target="_blank">W. J. Rawls et al., (1982),
-                                </a>
-                                <a class="data-link" href="#"
-                                    onclick="window.open('/src_frontend/pdfs/Cosbyetal1984WRR.pdf', '_blank'); return false;"
-                                    target="_blank">B. J. Cosby et al., (1984),
-                                </a>
-                                <a class="data-link" href="#"
-                                    onclick="window.open('/src_frontend/pdfs/GordonBonan.pdf', '_blank'); return false;"
-                                    target="_blank">Gordon Bonan (2019)
-                                </a>
-                            </div>
                         </div>
                     </div>
-                </div> -->
+                </div>
                 <!-- Tab 3: Land Cover -->
                 <!-- <div class="tabpanel main-panel" data-panel="land-tab">
                     <div class="grid">
@@ -371,49 +354,7 @@
                         </div>
                     </div>
                 </div>
-                <!-- Tab 5: Initial Conditions -->
-                <div class="tabpanel main-panel" data-panel="initial-conditions-tab">
-                    <div class="grid">
-                        <div class="tile initial-conditions-tile" style="grid-column: span 8;"><h3>Parameters</h3>
-                            <div class="single-row">
-                                <label for="initial-top-moisture">Top soil moisture (m³/m³):</label>
-                                <input type="text" id="initial-top-moisture" value='0.25'>
-                            </div>
-                            <div class="single-row">
-                                <label for="initial-sub-moisture">Sub soil moisture (m³/m³):</label>
-                                <input type="text" id="initial-sub-moisture" value='0.30'>
-                            </div>
-                            <div class="single-row">
-                                <label for="initial-groundwater">Groundwater level (mm):</label>
-                                <input type="text" id="initial-groundwater" value='50'>
-                            </div>
-                            <div class="single-row">
-                                <label for="initial-overland-flow">Overland flow (mm):</label>
-                                <input type="text" id="initial-overland-flow" value='0'>
-                            </div>
-                            <div class="single-row">
-                                <label for="initial-river-storage">River/Channel storage (mm):</label>
-                                <input type="text" id="initial-river-storage" value='0'>
-                            </div>
-                            <div class="single-row">
-                                <label for="initial-lake-storage">Lake storage (mm):</label>
-                                <input type="text" id="initial-lake-storage" value='500'>
-                            </div>
-                            <div class="single-row">
-                                <label for="initial-snow-depth">Initial snow depth (mm):</label>
-                                <input type="text" id="initial-snow-depth" value='0'>
-                            </div>
-                            <div class="single-row">
-                                <label for="initial-water-depth">Initial water depth (mm) or discharge (m³/s):</label>
-                                <input type="text" id="initial-water-depth" value='0'>
-                            </div>
-                            <div class="single-row">
-                                <label for="initial-saturation-deficit">Saturation deficit (mm):</label>
-                                <input type="text" id="initial-saturation-deficit" value='100'>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                
                 <!-- Tab 6: Weather Data -->
                 <!-- <div class="tabpanel main-panel" data-panel="weather-data-tab">
                     <div class="grid">

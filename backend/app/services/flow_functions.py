@@ -10,6 +10,20 @@ NVE_url = os.getenv('NVE_URL')
 NVE_client_id = os.getenv('NVE_API_KEY')
 NODATA_DEM, NODATA_INT = -9999.0, 0
 
+soils = [
+    ['Clay', 'Sand', 'Silt', 'Bulk density', 'Soil organic carbon', 'Soil pH'],
+    ['0-5', '5-15', '15-30', '30-60', '60-100', '100-200']
+]
+soil_types = {
+    'clay': 'clyppt', 'sand': 'sndppt', 'silt': 'sltppt', 
+    'bdod': 'bd', 'soc': 'oc', 'phh2o': 'ph'
+}
+soil_depths = {
+    '0-5cm_mean': 'sl1', '5-15cm_mean': 'sl2', '15-30cm_mean': 'sl3',
+    '30-60cm_mean': 'sl4', '60-100cm_mean': 'sl5', '100-200cm_mean': 'sl6'
+}
+
+
 corine_codes = {
     1: [111, "Continuous urban fabric"], 2: [112, "Discontinuous urban fabric"],
     3: [121, "Industrial or commercial units and public facilities"],
@@ -32,7 +46,9 @@ corine_codes = {
     42: [521, "Coastal lagoons"], 43: [522, "Estuaries"], 44: [532, "Sea and ocean"], 
     48: [999, "No data"], -128: [999, "No data"]
 }
+esa_codes = {
 
+}
 
 def remove_holes(geom):
     if isinstance(geom, Polygon): return Polygon(geom.exterior)
@@ -405,3 +421,32 @@ def clip_catchment(catchment, terrain, nodata=-9999.0):
 # #     write_tif(soil_path, terrain, soil_UTM, value)
 
 
+        # save_dir = os.path.normpath(os.path.join(flow_dir, folder))
+        # os.makedirs(save_dir, exist_ok=True)
+        # file_ext = file.filename.split(".")
+        # soil_path = os.path.normpath(os.path.join(save_dir, file.filename))
+        # with open(soil_path, "wb") as buffer:
+        #     shutil.copyfileobj(file.file, buffer)
+        # if file_ext[-1].lower() in ["tif"]:
+        #     with rasterio.open(soil_path) as src:
+        #         data = src.read(1)
+        #         mask = data != src.nodata
+        #         data = data.astype(np.int32)
+        #         results = ({ "geometry": shape(geom), key: func_codes.get(value, "")
+        #         } for geom, value in shapes(data, mask=mask, transform=src.transform))
+        #         geoms = list(results)
+        #     del data
+        #     gdf = gpd.GeoDataFrame(geoms, crs=src.crs)
+        # elif file_ext[-1].lower() in ["geojson"]: 
+        #     gdf = gpd.read_file(soil_path)
+        # if gdf.empty: return JSONResponse({'status': 'error', 'message': 'No data found.'})
+        # if key not in gdf.columns: gdf.insert(1, key, 'None')
+        # mapped = gdf[key].map(lambda x: func_types.get(x, ["None"] * len(new_cols)))
+        # gdf[new_cols] = pd.DataFrame(mapped.tolist(), columns=new_cols)
+        # gdf[key] = np.where(gdf[key]=='', 'None', gdf[key])
+        # gdf[key] = gdf[key].astype(str)
+        # if '_id' not in gdf.columns: gdf.insert(0, '_id', range(1, len(gdf) + 1))
+        # gdf = gdf[['_id', key, 'geometry'] + new_cols]
+        # for col in new_cols:
+        #     gdf[col] = pd.to_numeric(gdf[col], errors='coerce')
+        # if gdf.crs != "EPSG:4326": gdf = gdf.to_crs("EPSG:4326")

@@ -34,6 +34,7 @@ soilgrids_2020:
   uri: data/soil/{variable}.tif
   metadata:
     category: soil
+    url: https://files.isric.org/soilgrids/latest/data/
 
 # Land cover data
 corine:
