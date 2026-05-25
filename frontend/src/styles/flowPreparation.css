@@ -17,6 +17,7 @@ body {
 }
 #project-name-wrapper {
   display: flex; align-items: center; position: relative;
+  flex: 1 1 auto; min-width: 0;
 }
 #project-list {
   position: absolute; bottom: 100%; left: 0; width: 100%;
@@ -30,6 +31,7 @@ body {
   background: rgb(9, 48, 155); border-radius: 8px;
   padding: 8px 6px; cursor: pointer;
 }
+#project-name { width: 100%; }
 ul { line-height: 1.4; font-size: 16px; text-align: center; }
 
 .pourpoint-container {
@@ -41,10 +43,15 @@ ul { line-height: 1.4; font-size: 16px; text-align: center; }
 #pourpoint-lat, #pourpoint-lon { flex: 1; min-width: 0; }
 
 .field-inline {
-  display: flex; align-items: center; gap: 10px; width: 100%;
+  display: flex; align-items: center; gap: 10px; width: 100%; flex-wrap: wrap;
 }
-.field-inline input { flex: 1 1 auto; min-width: 0; }
-.field-inline label { white-space: nowrap; flex-shrink: 0;}
+.field-inline label, .field-inline button {
+  flex-shrink: 0;
+}
+.checkbox-group {
+  display: flex; align-items: center;
+  gap: 6px; flex-shrink: 0; white-space: nowrap;
+}
 
 .data-link {
   margin-top: 10px; font-size: 15px; color: aqua; 
@@ -79,3 +86,19 @@ ul { line-height: 1.4; font-size: 16px; text-align: center; }
   gap: 6px; line-height: 1; vertical-align: middle;
 }
 
+.section-title, .data-list {
+  flex: 0 0 100%; margin: 5px 0 0 0;
+}
+
+.section-title {
+  font-weight: bold; font-size: 16px; 
+  color:rgb(209, 223, 16); margin-bottom: 0;
+}
+
+.data-list {
+  padding-left: 20px; margin-top: 0; text-align: left;
+}
+
+.data-list li {
+  margin-bottom: 10px; list-style-type: disc; margin-left: 30px;
+}

@@ -234,7 +234,7 @@ async def update_boundary(request: Request, user=Depends(functions.basic_auth)):
             'sub_boundary': subBoundaryName, 'boundary_type': quantity, 
             'unit': unit, 'ref_date': '1970-01-01 00:00:00'
             }
-        temp_file = os.path.normpath(os.path.join(SOURCE_BACKEND, 'templates', 'hyd', 'BC.bc'))        
+        temp_file = os.path.normpath(os.path.join(SOURCE_BACKEND, 'templates', 'hyd', 'BC.bc'))
         temp, bc = [], [boundary_name]
         for row in data_sub:
             row[0] = int(row[0]/1000.0); temp.append(row)

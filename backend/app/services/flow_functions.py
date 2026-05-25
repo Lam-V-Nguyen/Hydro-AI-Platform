@@ -1,5 +1,5 @@
 import os, dotenv, rasterio
-import geopandas as gpd
+import numpy as np
 from shapely.geometry import Polygon, MultiPolygon
 from netCDF4 import Dataset
 
@@ -22,6 +22,11 @@ soil_depths = {
     '0-5cm_mean': 'sl1', '5-15cm_mean': 'sl2', '15-30cm_mean': 'sl3',
     '30-60cm_mean': 'sl4', '60-100cm_mean': 'sl5', '100-200cm_mean': 'sl6'
 }
+soil_type_reverse = {
+    'clyppt': 'Clay', 'sndppt': 'Sand', 'sltppt': 'Silt', 
+    'bd': 'Bulk density', 'oc': 'Soil organic carbon', 'ph': 'Soil pH'
+}
+soil_depth_reverse = {v: k for k, v in soil_depths.items()}
 
 
 corine_codes = {
@@ -47,7 +52,10 @@ corine_codes = {
     48: [999, "No data"], -128: [999, "No data"]
 }
 esa_codes = {
-
+    0: [0, "No data"], 10: [10, "Tree cover"], 20: [20, "Shrubland"], 30: [30, "Grassland"], 
+    40: [40, "Cropland"], 50: [50, "Built-up"], 60: [60, "Bare / sparse vegetation"], 
+    70: [70, "Snow and Ice"], 80: [80, "Permanent water bodies"], 
+    90: [90, "Herbaceous wetland"], 95: [95, "Mangroves"], 100: [100, "Moss and Lichen"],
 }
 
 def remove_holes(geom):
@@ -71,11 +79,16 @@ def is_valid_netcdf(path):
     
 def clip_catchment(catchment, terrain, nodata=-9999.0):
     clipped = terrain.rio.clip(catchment.geometry, terrain.rio.crs, drop=True)
-    clipped = clipped.fillna(nodata)
-    clipped.rio.write_nodata(nodata, inplace=True)
+    clipped = clipped.where(clipped.notnull(), nodata)
     return clipped
 
+def create_forcing(time, ny, nx, values, single_value=True):
+    if single_value:
+        data = np.empty((len(time), ny, nx), dtype=np.float32)
+        data[:] = values[:, None, None]
+    
 
+    return data
 
 
 # def keep_polygon(geom):

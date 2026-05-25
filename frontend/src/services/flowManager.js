@@ -57,37 +57,52 @@ export async function geoJSONExporter(data, fileName) {
             URL.revokeObjectURL(url);
         }
         alert(`Exporting succeeded.`);
+        console.log('ok', data);
     } catch (error) { alert(`Exporting failed: ${error.message}`); }
 }
 
 export async function mapPlotter(data, map, key) {
     const isRiver = key === 'river'; let type = null;
     const resetStyle = (layer) => {
-        const id = layer.feature.properties._id;
+        const id = layer.feature?.properties?.description;
+        if (isRiver) {
+            layer.setStyle({ 
+                color: 'black', weight: 3, opacity: 1, fill: false
+            });
+            return;
+        }
         layer.setStyle({  // Reset to default style
-            color: 'black', weight: isRiver ? 3 : 1, opacity: 1,
-            ...(isRiver ? {} : { fillOpacity: 0.8, fillColor: highlightColor(id) })
+            color: 'black', weight: 1, opacity: 1,
+            fillOpacity: 0.8, fillColor: highlightColor(id ?? 0) 
         });
     };
     const layer = L.geoJSON(data, { 
-        pointToLayer: () => null,
-        style: feature => ({ 
-            color: 'black', weight: isRiver ? 3 : 1, opacity: 1,
-            ...(isRiver ? {} : { fillOpacity: 0.8, fillColor: highlightColor(feature.properties._id) }) 
-        }),
+        style: feature => { 
+            const id = feature.properties.id;
+            if (isRiver) { 
+                return { 
+                    color: 'black', weight: 3, opacity: 1, fill: false
+                };
+            }
+            return { 
+                color: 'black', weight: 1, opacity: 1,
+                fillOpacity: 0.8, fillColor: highlightColor(id ?? 0) 
+            };
+        },
         onEachFeature: (feature, featureLayer) => { 
+            const id = feature.properties.description;
             featureLayer.on('click', (e) => { 
                 L.DomEvent.stopPropagation(e);
                 // Reset the color of all features
                 layer.eachLayer(resetStyle);
                 // Highlight the clicked feature
                 featureLayer.setStyle({ color: 'yellow', weight: isRiver ? 7 : 5 });
+                if (isRiver) { 
+                    featureLayer.setStyle({ fillOpacity: 0.8 }); 
+                }
                 const result = tableAdjust(feature.properties, key);
-                const id = feature.properties._id;
-                if (key === 'soil') { type = feature.properties.soil; }
-                else if (key === 'land') { type = feature.properties.land; }
                 signalSender('updateUIState', { 
-                    key: key, ids: [id], data: [result], objType: type
+                    key: key, ids: [id], data: [result]
                 });
             });
             featureLayer.bindTooltip(`${buildTooltip(feature.properties, key)}`, {sticky: true});
@@ -99,71 +114,31 @@ export async function mapPlotter(data, map, key) {
 
 export function buildTooltip(props, key) {
     let html = `<div style="font-size: 15px;">
-        <div style="font-weight: bold; text-align: center;">ID: ${props._id || 'Unknown'}</div>
+        <div style="font-weight: bold; text-align: center;">Type: ${props.description || 'Unknown'}</div>
         <hr style="margin: 5px 0 5px 0;">
     `;
-    if (key === 'soil') {
-        html += `
-            <strong>• Type:</strong> ${props.soil ?? 'Unknown'}<br>
-            <strong>• θS (m³/m³):</strong> ${props.theta_s ?? 'Unknown'}<br>
-            <strong>• θR (m³/m³):</strong> ${props.theta_r ?? 'Unknown'}<br>
-            <strong>• KsatVer (mm/day):</strong> ${props.k_sat_ver ?? 'Unknown'}<br>
-            <strong>• SoilDepth (mm):</strong> ${props.soil_depth ?? 'Unknown'}<br>
-            <strong>• Conductivity decay:</strong> ${props.conductivity_decay ?? 'Unknown'}<br>
-            <strong>• Brooks-Corey:</strong> ${props.brooks_corey ?? 'Unknown'}<br>
-            <hr style="margin: 5px 0 5px 0;">
-            <strong>Click to change attributes</strong>
-        `;
-    } else if (key === 'land') {
-        html += `
-            <strong>• Type:</strong> ${props.land ?? 'Unknown'}<br>
-            <strong>• Leaf Area Index (ha):</strong> ${props.LAI ?? 'Unknown'}<br>
-            <strong>• Root Depth (m):</strong> ${props.root_depth ?? 'Unknown'}<br>
-            <strong>• Interception (mm):</strong> ${props.interception ?? 'Unknown'}<br>
-            <strong>• Manning roughness:</strong> ${props.manning_n ?? 'Unknown'}<br>
-            <strong>• Albedo:</strong> ${props.albedo ?? 'Unknown'}<br>
-            <strong>• Crop coefficient:</strong> ${props.kc ?? 'Unknown'}<br>
-            <hr style="margin: 5px 0 5px 0;">
-            <strong>Click to change attributes</strong>
-        `;
-    } else if (key === 'river') {
-        html += `
-            <strong>• Width (m):</strong> ${props.width ?? 'Unknown'}<br>
-            <strong>• Depth (m):</strong> ${props.depth ?? 'Unknown'}<br>
-            <hr style="margin: 5px 0 5px 0;">
-            <strong>Click to change attributes</strong>
-        `;
-    } else if (key === 'eklima' || key === 'ntnu' || key === 'nve') {
-        html += `
-            <div style="font-weight: bold; text-align: center;">Name: ${props.name || 'Unknown'}</div>
-            <hr style="margin: 5px 0 5px 0;">
-            <strong>• ID:</strong> ${props.id ?? 'Unknown'}<br>
-            <strong>• County:</strong> ${props.county ?? 'Unknown'}<br>
-            <strong>• Municipality:</strong> ${props.municipality ?? 'Unknown'}<br>
-            <strong>• Station Holders:</strong> ${props.stationHolders ?? 'Unknown'}<br>
-            <hr style="margin: 5px 0 5px 0;">
-            <strong>Click to get weather data</strong>
-        `;
-    }
+    Object.entries(props).forEach(([k, v]) => {
+        if (k === "description" || k === "geometry" || k === "id") return;
+        html += `<strong>• ${k}:</strong> ${v}<br>`;
+    });
+    // if (key === 'eklima' || key === 'ntnu' || key === 'nve') {
+    //     html += `
+    //         <div style="font-weight: bold; text-align: center;">Name: ${props.name || 'Unknown'}</div>
+    //         <hr style="margin: 5px 0 5px 0;">
+    //         <strong>• ID:</strong> ${props.id ?? 'Unknown'}<br>
+    //         <strong>• County:</strong> ${props.county ?? 'Unknown'}<br>
+    //         <strong>• Municipality:</strong> ${props.municipality ?? 'Unknown'}<br>
+    //         <strong>• Station Holders:</strong> ${props.stationHolders ?? 'Unknown'}<br>
+    //         <hr style="margin: 5px 0 5px 0;">
+    //         <strong>Click to get weather data</strong>
+    //     `;
+    // }
     html += `</div>`;
     return html;
 }
 
-function tableAdjust(props, key) { 
-    let values = [];
-    if (key === 'soil') {
-        values = [
-            props._id, props.soil, props.theta_s, props.theta_r, props.k_sat_ver, 
-            props.soil_depth, props.conductivity_decay, props.brooks_corey
-        ];
-    } else if (key === 'land') {
-        values = [
-            props._id, props.land, props.LAI, props.root_depth, props.interception, 
-            props.manning_n, props.albedo, props.kc
-        ];
-    } else if (key === 'river') {
-        values = [props._id, props.width, props.depth];
-    }
-    return values;
+function tableAdjust(props) {
+    return Object.entries(props)
+        .filter(([k]) => k !== "geometry")
+        .map(([_, v]) => v ?? 'Unknown');
 }
-

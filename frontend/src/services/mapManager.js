@@ -14,12 +14,12 @@ const layerConfig = {
         title: 'Streams', colorKey: 'terrain', min: 0, max: 1, 
         alert: 'Please upload terrain data first.'
     },
-    catchmentLayer_Vector: {
-        layer: null, data: null,
-        getLayer() { return this.layer; }, setLayer(l) { this.layer = l; },
-        getData() { return this.data; }, setData(d) { this.data = d; },
+    soilLayer: {
+        getLayer: () => streamLayer, setLayer: (l) => streamLayer = l,
+        title: 'Soil', colorKey: 'terrain', min: 0, max: 0, 
+        alert: 'Please upload soil data first.'
     },
-    soilLayer_Vector: {
+    catchmentLayer_Vector: {
         layer: null, data: null,
         getLayer() { return this.layer; }, setLayer(l) { this.layer = l; },
         getData() { return this.data; }, setData(d) { this.data = d; },
@@ -39,25 +39,16 @@ const layerConfig = {
         getLayer() { return this.layer; }, setLayer(l) { this.layer = l; },
         getData() { return this.data; }, setData(d) { this.data = d; },
     },
-    weather_Vector: {
-        layer: null, data: null,
-        getLayer() { return this.layer; }, setLayer(l) { this.layer = l; },
-        getData() { return this.data; }, setData(d) { this.data = d; },
-    },
+    // weather_Vector: {
+    //     layer: null, data: null,
+    //     getLayer() { return this.layer; }, setLayer(l) { this.layer = l; },
+    //     getData() { return this.data; }, setData(d) { this.data = d; },
+    // },
 }
 
 const mapping = {
-    soil: {
-        key: 'soil',
-        fields: [
-            'theta_s','theta_r','k_sat_ver','soil_depth','conductivity_decay','brooks_corey'
-        ]
-    },
-    land: {
-        key: 'land', fields: ['LAI','root_depth','interception','manning_n','albedo','kc']
-    },
     river: {
-        key: 'river', fields: ['width','depth','manning_n']
+        key: 'river', fields: ['width','depth']
     }
 };
 
@@ -71,18 +62,14 @@ let currentTileLayer = null, timeCounter = null, html='', markersObs = [],
     pathCrossSection = null, pathBoundary = null, currentPointsCross = [], 
     currentPointsBoundary = [], waqObs = [], waqLoads = [], mapContainer = null,
     markerLayer = null, terrainLayer = null, streamLayer = null,
-    
-    
-    isPourpointActive = false,
-    lastLayer = null, layer = null;
+    isPourpointActive = false, lastLayer = null, layer = null;
 const configCrossSectionPoint = { color: 'blue', fillColor: 'yellow', radius: 4, fill: true, fillOpacity: 1 }, 
     configBoundaryPoint = { color: 'red', fillColor: 'green', radius: 4, fill: true, fillOpacity: 1 }, 
     configCrossSectionPath = { color: 'blue', weight: 2, dashArray: '5,5' }, 
     configBoundaryPath = {color: 'red', weight: 2};
 
 const hoverTooltip = L.tooltip({
-    permanent: false, direction: 'bottom', sticky: true, 
-    offset: [0, 10], className: 'custom-tooltip'
+    permanent: false, direction: 'bottom', sticky: true, offset: [0, 10], className: 'custom-tooltip'
 });
 
 function iconAdd(iconUrl, markers, map, pointList) {
@@ -280,28 +267,15 @@ export async function renderPreview(request=null) {
             const invalidContent = [], invalidIDs = [];
             setTimeout(() => { 
                 existing.eachLayer((layer) => { 
-                    const props = layer.feature?.properties; let check = false;
-                    if (inputType === 'soil') { 
-                        const soil = (props.soil ?? '').toString().trim();
-                        check = !soil || soil === '' || soil === 'None';
-                    } else if (inputType === 'land') { 
-                        const land = (props.land ?? '').toString().trim();
-                        check = !land || land === '' || land === 'None';
-                    } else if (inputType === 'river') {
-                        const river = (props.width ?? '').toString().trim();
-                        check = !river || river === '' || river === 'None';
-
-
-                    }
+                    const props = layer.feature?.properties; 
+                    let check = false, values = null;
+                    const river = (props.width ?? '').toString().trim();
+                    check = !river || river === '' || river === 'None';
                     // Highlight invalid polygons
                     if (check) {
                         layer.setStyle({ color: 'yellow', weight: 3 });
-                        const id = props._id; let values = null;
-                        if (inputType === 'soil' || inputType === 'land') {
-                            values = [id,'None','None','None','None','None','None','None']
-                        } else if (inputType === 'river') {
-                            values = [id,'None','None','None']
-                        }
+                        const id = props.description; let values = null;
+                        values = [id, 'None', 'None']
                         invalidContent.push(values); invalidIDs.push(id);
                     }
                 }); signalSender('hideOverlay');
@@ -314,39 +288,34 @@ export async function renderPreview(request=null) {
             }, 500);
         } else if (key === 'assignType') {
             const config = layerConfig[request.content.layerKey];
-            let typeIput = '';
             const id = request.content.id, type = request.content.type;
             const objType = mapping[type];
             if (!config) {
                 content.message = 'Layer not found';
                 signalSender('updateUIState', content); return;
             }
-            if (type === 'soil') typeIput = 'Soil';
-            else if (type === 'land') typeIput = 'Land cover';
-            else if (type === 'river') typeIput = 'River';
-            signalSender('showOverlay', `Assigning ${typeIput} attribute to the selected polygon.\nPlease wait...`);
-            let data = config.getData();
+            signalSender('showOverlay', `Assigning river attribute to the selected polygon.\nPlease wait...`);
+            let data = JSON.parse(JSON.stringify(config.getData()));
             data.features = data.features.map(f => {
-                if (Number(f.properties._id) === Number(id)) {
+                if (Number(f.properties.description) === Number(id)) {
                     const values = request.content.data.slice(1).map(v => Number(v));
                     if (objType) {
-                        f.properties[objType.key] = request.content.data[0];
                         objType.fields.forEach((field, i) => {
                             f.properties[field] = values[i];
                         });
                     }
                     values.unshift(id); content.ids = [id]; content.data = [values];
-                    alert(`${typeIput} type "${type}" assigned to polygon "${id}".`);
+                    alert(`River "${id}" was registered successfully.`);
                 }
                 return f;
             }); config.setData(data);
             const oldLayer = config.getLayer();
             if (oldLayer) currentMap.removeLayer(oldLayer);
-            lastLayer = await mapPlotter(config.getData(), currentMap, type);
+            lastLayer = await mapPlotter(data, currentMap, type);
             config.setLayer(lastLayer);
             const existing = config.getLayer();
             existing.eachLayer((layer) => { 
-                if (Number(layer.feature.properties._id) === Number(id)) {
+                if (Number(layer.feature.properties.description) === Number(id)) {
                     layer.setStyle({ color: 'green', weight: 3, fillOpacity: 0.8, fillColor: 'green' });
                 }
                 if (layer.getTooltip()) {
@@ -365,7 +334,7 @@ export async function renderPreview(request=null) {
             }
             const existing = config.getLayer();
             existing.eachLayer((layer) => { 
-                if (Number(layer.feature.properties._id) === Number(id)) {
+                if (Number(layer.feature.properties.description) === Number(id)) {
                     layer.remove(); existing.removeLayer(layer); checked = true;
                 }
                 if (layer.getTooltip()) {
@@ -375,9 +344,7 @@ export async function renderPreview(request=null) {
             if (checked) { alert(`Segment "${id}" was deleted from the river layer.`); }
             config.setLayer(existing);
             signalSender('updateUIState', content); return;
-        
-        
-            // } else if (key === 'weather') {
+        } else if (key === 'weather') {
         //     let iCon = '';
         //     const layerKey = request.content.layerKey, id = request.content.id;
         //     if (id === 'rosim') iCon = `/src_frontend/images/rain.png?v=${Date.now()}`;

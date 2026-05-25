@@ -2,7 +2,7 @@ steps:
       - setup_config:
             data:
                   time.starttime: 2025-01-01T00:00:00
-                  time.endtime: 2025-01-10T00:00:00
+                  time.endtime: 2025-01-02T00:00:00
                   time.timestepsecs: 86400
                   input.path_forcing: inmaps_forcing.nc
                   output.netcdf_grid.path: output.nc
@@ -10,7 +10,7 @@ steps:
                   output.netcdf_grid.variables.river_water__volume_flow_rate: river_q
                   output.netcdf_grid.variables.water__level: "water_level"
                   model.river_routing: "kinematic_wave"
-                  model.km_river_decay: 5000.0
+                  logging.loglevel: debug
 
       - setup_basemaps:
             hydrography_fn: my_hydro
