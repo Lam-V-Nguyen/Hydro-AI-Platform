@@ -2,7 +2,7 @@ steps:
       - setup_config:
             data:
                   time.starttime: 2025-01-01T00:00:00
-                  time.endtime: 2025-01-02T00:00:00
+                  time.endtime: 2025-01-10T00:00:00
                   time.timestepsecs: 86400
                   input.path_forcing: inmaps_forcing.nc
                   output.netcdf_grid.path: output.nc
@@ -15,14 +15,14 @@ steps:
       - setup_basemaps:
             hydrography_fn: my_hydro
             upscale_method: ihu
-            res: 10
+            res: 100
             region:
                   basin: [55010.153, 6955129.102]
 
       - setup_rivers:
             hydrography_fn: my_hydro
             river_geom_fn: river_network
-            river_upa: 5                        # upstream area in km2
+            river_upa: 20                        # upstream area in km2
             river_routing: kinematic_wave
             connectivity: 8
             smooth_len: 10000.0
@@ -34,8 +34,8 @@ steps:
             wflow_thicknesslayers: [50, 150, 250, 400, 550, 600]
 
       - setup_lulcmaps:
-            lulc_fn: esa_worldcover                     # Source for landuse data: corine, esa_worldcover
-            lulc_mapping_fn: esa_worldcover_mapping     # Source for landuse mapping: corine_mapping, esa_worldcover_mapping
+            lulc_fn: corine                     # Source for landuse data: corine, esa_worldcover
+            lulc_mapping_fn: corine_mapping     # Source for landuse mapping: corine_mapping, esa_worldcover_mapping
 
       - setup_precip_forcing:
             precip_fn: my_forcing             # Source for precipitation data

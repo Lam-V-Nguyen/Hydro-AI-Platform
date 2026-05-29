@@ -15,7 +15,7 @@ let currentProject = null, logIntervalWAQ = null, lastOffsetWAQ = 0,
 waqComponents();
 
 async function waqComponents() {
-    const respond = await getProjectList('input');
+    const respond = await getProjectList('', 'input');
     if (!respond) { obj.scenarioSelector.innerHTML = `<option value="">--- No projects found ---</option>`; return; }
     const options = respond.map(name => `<option value="${name}">${name}</option>`).join('');
     const defaultOption = `<option value="" selected>--- No selected ---</option>`;

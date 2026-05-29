@@ -55,7 +55,7 @@ setupTabs(document); projectOptions(); waqManager();
 
 async function projectOptions(){
     projectSelected = await getProjectList();
-    await projectRender(obj.projectName, obj.projectList, await getProjectList());
+    await projectRender(obj.projectName, obj.projectList, projectSelected);
     obj.projectName.style.pointerEvents = "auto";
     obj.projectName.addEventListener('click', async () => {
         if (projectSelected.length === 0) { return; }

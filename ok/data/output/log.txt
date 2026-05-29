@@ -1,0 +1,775 @@
+┌ Debug: Logger initialized.
+│   loglevel = Debug
+│   silent = false
+│   fews_run = false
+│   path_log = "C:\\Users\\vanln\\Downloads\\Hydro-AI-Platform\\ok\\data\\output\\log.txt"
+└ @ Wflow D:\buildAgent\work\46377fba7f56e004\Wflow\src\logging.jl:62
+[ Info: Wflow version `v1.0.2`
+[ Info: Initialize model variables for model type `sbm`.
+[ Info: Cyclic parameters are provided by `C:\Users\vanln\Downloads\Hydro-AI-Platform\ok\data\input\staticmaps-moselle.nc`.
+[ Info: Forcing parameters are provided by `C:\Users\vanln\Downloads\Hydro-AI-Platform\ok\data\input\forcing-moselle.nc`.
+┌ Debug: dimension 1
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\multifile.jl:243
+┌ Debug: dimension nothing
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\multifile.jl:243
+┌ Debug: dimension nothing
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\multifile.jl:243
+┌ Debug: dimension nothing
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\multifile.jl:243
+┌ Debug: dimension 3
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\multifile.jl:243
+┌ Debug: dimension nothing
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\multifile.jl:243
+┌ Debug: dimension nothing
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\multifile.jl:243
+┌ Debug: dimension 3
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\multifile.jl:243
+┌ Debug: dimension 3
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\multifile.jl:243
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: dim 1
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\multifile.jl:282
+┌ Debug: dimension 1
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\multifile.jl:243
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: dim 1
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\multifile.jl:282
+┌ Debug: dimension 1
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\multifile.jl:243
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `atmosphere_water__precipitation_volume_flux` using netCDF variable `precip` as forcing parameter.
+[ Info: Set `atmosphere_air__temperature` using netCDF variable `temp` as forcing parameter.
+[ Info: Set `land_surface_water__potential_evaporation_volume_flux` using netCDF variable `pet` as forcing parameter.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `vegetation__leaf_area_index` using netCDF variable `LAI` as cyclic parameter, with `12` timesteps.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: dim 1
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\multifile.jl:282
+┌ Debug: dimension 1
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\multifile.jl:243
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Info: General model settings
+│   snow = true
+│   gravitational_snow_transport = true
+│   glacier = false
+│   reservoirs = true
+│   pits = false
+└   water_demand = false
+[ Info: Set `subbasin_location__count` using netCDF variable `wflow_subcatch`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `basin__local_drain_direction` using netCDF variable `wflow_ldd`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `land_surface__slope` using netCDF variable `Slope`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `river_location__mask` using netCDF variable `wflow_river`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `land_water_covered__area_fraction` using netCDF variable `WaterFrac`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `reservoir_location__count` using netCDF variable `wflow_reservoirlocs`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `reservoir_area__count` using netCDF variable `wflow_reservoirareas`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `river__length` using netCDF variable `wflow_riverlength`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `river__width` using netCDF variable `wflow_riverwidth`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `river__slope` using netCDF variable `RiverSlope`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `vegetation_root__depth` using netCDF variable `RootingDepth`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `vegetation__crop_factor` using default value `1.0`.
+[ Info: Set `vegetation__specific_leaf_storage` using netCDF variable `Sl`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `vegetation_wood_water__storage_capacity` using netCDF variable `Swood`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `vegetation_canopy__light_extinction_coefficient` using netCDF variable `Kext`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `vegetation_canopy_water__mean_evaporation_to_mean_precipitation_ratio` using netCDF variable `EoverR`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `snowpack__degree_day_coefficient` using netCDF variable `Cfmax`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `atmosphere_air__snowfall_temperature_threshold` using netCDF variable `TT`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `atmosphere_air__snowfall_temperature_interval` using netCDF variable `TTI`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `snowpack__melting_temperature_threshold` using netCDF variable `TTM`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `snowpack__liquid_water_holding_capacity` using netCDF variable `WHC`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Using `3` soil layers with the following thickness: `[100, 300, 800]`
+[ Info: Set `soil_surface_temperature__weight_coefficient` using default value `0.1125`.
+[ Info: Set `soil_surface_water__infiltration_reduction_parameter` using netCDF variable `cf_soil`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `soil_water__saturated_volume_fraction` using netCDF variable `thetaS`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `soil_water__residual_volume_fraction` using netCDF variable `thetaR`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `soil_surface_water__vertical_saturated_hydraulic_conductivity` using netCDF variable `KsatVer`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `soil_water__vertical_saturated_hydraulic_conductivity_scale_parameter` using netCDF variable `f`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `soil_water__air_entry_pressure_head` using default value `-10.0`.
+[ Info: Set `vegetation_root__feddes_critical_pressure_head_h1` using default value `0.0`.
+[ Info: Set `vegetation_root__feddes_critical_pressure_head_h2` using default value `-100.0`.
+[ Info: Set `vegetation_root__feddes_critical_pressure_head_h3_high` using default value `-400.0`.
+[ Info: Set `vegetation_root__feddes_critical_pressure_head_h3_low` using default value `-1000.0`.
+[ Info: Set `vegetation_root__feddes_critical_pressure_head_h4` using default value `-16000.0`.
+[ Info: Set `vegetation_root__feddes_critical_pressure_head_h1_reduction_coefficient` using default value `1.0`.
+[ Info: Set `soil__thickness` using netCDF variable `SoilThickness`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `compacted_soil_surface_water__infiltration_capacity` using netCDF variable `InfiltCapPath`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `soil_water_saturated_zone_bottom__max_leakage_volume_flux` using netCDF variable `MaxLeakage`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `soil_layer_water__brooks_corey_exponent` using netCDF variable `c`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `soil_layer_water__vertical_saturated_hydraulic_conductivity_factor` using default value `1.0`.
+[ Info: Set `compacted_soil__area_fraction` using netCDF variable `PathFrac`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `soil_wet_root__sigmoid_function_shape_parameter` using netCDF variable `rootdistpar`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `soil_water_saturated_zone_top__capillary_rise_max_water_table_depth` using default value `2000.0`.
+[ Info: Set `soil_water_saturated_zone_top__capillary_rise_averianov_exponent` using default value `2.0`.
+[ Info: Set `subsurface_water__horizontal_to_vertical_saturated_hydraulic_conductivity_ratio` using netCDF variable `KsatHorFrac`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `land_surface_water_flow__manning_n_parameter` using netCDF variable `N`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Kinematic wave approach is used for land flow, adaptive timestepping = true.
+[ Info: Set `reservoir_surface__area` using netCDF variable `reservoir_area`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `reservoir_water_surface__initial_elevation` using netCDF variable `waterlevel_reservoir`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `reservoir_water__storage_curve_type_count` using netCDF variable `storfunc`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `reservoir_water__rating_curve_type_count` using netCDF variable `outflowfunc`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `reservoir_lower_location__count` using default value `0`.
+[ Info: Set `reservoir_location__count` using netCDF variable `wflow_reservoirlocs`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Read `2` reservoir locations.
+[ Info: Set `reservoir_water_demand__required_downstream_volume_flow_rate` using netCDF variable `ResDemand`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `reservoir_water_release_below_spillway__max_volume_flow_rate` using netCDF variable `ResMaxRelease`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `reservoir_water__max_volume` using netCDF variable `ResMaxVolume`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `reservoir_water__target_full_volume_fraction` using netCDF variable `ResTargetFullFrac`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `reservoir_water__target_min_volume_fraction` using netCDF variable `ResTargetMinFrac`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `reservoir_water__outgoing_observed_volume_flow_rate` using default value `NaN`.
+[ Info: Set `reservoir_water__external_inflow_volume_flow_rate` using default value `0.0`.
+[ Info: Kinematic wave approach is used for river flow, adaptive timestepping = true.
+[ Info: Set `river_water_flow__manning_n_parameter` using netCDF variable `N_River`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `river_bank_water__depth` using netCDF variable `RiverDepth`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Set `river_water__external_inflow_volume_flow_rate` using default value `0.0`.
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+[ Info: Create an output netCDF file `C:\Users\vanln\Downloads\Hydro-AI-Platform\ok\data\output\output_moselle.nc` for grid data, using compression level `0`.
+┌ Debug: define dimension
+│   dimname = "lon"
+│   dimnames(ds) =
+│    1-element Array{String, 1}:
+│     "time"
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\variable.jl:131
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: define dimension
+│   dimname = "lat"
+│   dimnames(ds) =
+│    2-element Array{String, 1}:
+│     "time"
+│     "lon"
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\variable.jl:131
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: define dimension
+│   dimname = "layer"
+│   dimnames(ds) =
+│    3-element Array{String, 1}:
+│     "time"
+│     "lon"
+│     "lat"
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\variable.jl:131
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Debug: parent variable
+│   _parentname = ""
+└ @ CommonDataModel C:\Users\svc-teamcity-ansible\.julia\packages\CommonDataModel\ZhkYF\src\cfvariable.jl:112
+┌ Error: State variable `subsurface_water__volume_flow_rate` not provided, please ensure that it is set correctly in the model configuration
+└ @ Wflow D:\buildAgent\work\46377fba7f56e004\Wflow\src\states.jl:202
+┌ Error: Wflow simulation failed
+│   exception =
+│    ArgumentError: Not all required states are provided, these states are missing: `("subsurface_water__volume_flow_rate",)`
+│    Stacktrace:
+│      [1] check_states(config::Wflow.Config)
+│        @ Wflow D:\buildAgent\work\46377fba7f56e004\Wflow\src\states.jl:212
+│      [2] Wflow.Writer(config::Wflow.Config, modelmap::@NamedTuple{land::Wflow.LandHydrologySBM{Wflow.NoDemand, Wflow.NoAllocationLand}, routing::Wflow.Routing{Wflow.KinWaveOverlandFlow, Wflow.KinWaveRiverFlow{Wflow.Reservoir, Wflow.NoAllocationRiver}, Wflow.LateralSSF{Wflow.KhExponential}}, mass_balance::Wflow.NoMassBalance}, domain::Wflow.Domain, nc_static::NCDatasets.NCDataset{Nothing, Missing}; extra_dim::@NamedTuple{name::String, value::Array{Float64, 1}})
+│        @ Wflow D:\buildAgent\work\46377fba7f56e004\Wflow\src\io.jl:757
+│      [3] Wflow.Model(config::Wflow.Config, type::Wflow.SbmModel)
+│        @ Wflow D:\buildAgent\work\46377fba7f56e004\Wflow\src\sbm_model.jl:32
+│      [4] Wflow.Model(config::Wflow.Config)
+│        @ Wflow D:\buildAgent\work\46377fba7f56e004\Wflow\src\Wflow.jl:179
+│      [5] run(config::Wflow.Config)
+│        @ Wflow D:\buildAgent\work\46377fba7f56e004\Wflow\src\Wflow.jl:280
+│      [6] (::Wflow.var"#741#742"{IOStream, Wflow.Config})()
+│        @ Wflow D:\buildAgent\work\46377fba7f56e004\Wflow\src\Wflow.jl:261
+│      [7] with_logstate(f::Wflow.var"#741#742"{IOStream, Wflow.Config}, logstate::Base.CoreLogging.LogState)
+│        @ Base.CoreLogging .\logging\logging.jl:524
+│      [8] with_logger
+│        @ .\logging\logging.jl:635 [inlined]
+│      [9] run(tomlpath::String; silent::Nothing)
+│        @ Wflow D:\buildAgent\work\46377fba7f56e004\Wflow\src\Wflow.jl:257
+│     [10] run
+│        @ D:\buildAgent\work\46377fba7f56e004\Wflow\src\Wflow.jl:250 [inlined]
+│     [11] julia_main()
+│        @ wflow_cli D:\buildAgent\work\46377fba7f56e004\build\wflow_cli\src\wflow_cli.jl:22
+│     [12] top-level scope
+│        @ none:1
+└ @ Wflow D:\buildAgent\work\46377fba7f56e004\Wflow\src\Wflow.jl:268
