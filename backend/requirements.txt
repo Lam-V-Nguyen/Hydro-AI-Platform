@@ -18,5 +18,7 @@ cdsapi==0.7.7
 OWSLib==0.35.0
 whitebox==2.3.6
 terracatalogueclient==0.1.19
+numpy==1.26.4
+hda==2.39
 # psycopg2-binary==2.9.11
 # sqlmodel==0.0.38

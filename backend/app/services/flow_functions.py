@@ -2,6 +2,7 @@ import os, dotenv, rasterio
 import numpy as np
 from shapely.geometry import Polygon, MultiPolygon
 from netCDF4 import Dataset
+from scipy.spatial import cKDTree
 
 dotenv.load_dotenv()
 MET_url = os.getenv('MET_ProstAPI_URL')
@@ -29,48 +30,52 @@ soil_type_reverse = {
 soil_depth_reverse = {v: k for k, v in soil_depths.items()}
 
 
-corine_codes = {
-    1: [111, "Continuous urban fabric"], 2: [112, "Discontinuous urban fabric"],
-    3: [121, "Industrial or commercial units and public facilities"],
-    4: [122, "Road and rail networks and associated land"],
-    5: [123, "Port areas"], 6: [124, "Airports"], 7: [131, "Mineral extraction sites"], 
-    8: [132, "Dump sites"], 9: [133, "Construction sites"], 10: [141, "Green urban areas"],
-    11: [142, "Sport and leisure facilities"], 12: [211, "Non-irrigated arable land"],
-    13: [212, "Permanently irrigated arable land"], 14: [213, "Rice fields"],
-    15: [221, "Vineyards"], 16: [222, "Fruit tree and berry plantations"],
-    17: [223, "Olive groves"], 18: [231, "Pastures meadows and other permanent grasslands under agricultural use"],
-    19: [241, "Annual crops associated with permanent crops"], 20: [242, "Complex cultivation patterns"],
-    21: [243, "Land principally occupied by agriculture with significant areas of natural vegetation"],
-    22: [244, "Agro-forestry areas"], 23: [311, "Broad-leaved forest"], 24: [312, "Coniferous forest"], 
-    25: [313, "Mixed forest"], 26: [321, "Natural grassland"], 27: [322, "Moors and heathland"],
-    28: [323, "Sclerophyllous vegetation"], 29: [324, "Transitional woodland/shrub"],
-    30: [331, "Beaches dunes and sand plains"], 31: [332, "Bare rock"], 32: [333, "Sparsely vegetated areas"],
-    33: [334, "Burnt areas"], 34: [335, "Glaciers and perpetual snow"], 35: [411, "Inland marshes"],
-    36: [412, "Peatbogs"], 37: [421, "Coastal salt marshes"], 38: [422, "Salines"],
-    39: [423, "Intertidal flats"], 40: [511, "Water courses"], 41: [512, "Water bodies"],
-    42: [521, "Coastal lagoons"], 43: [522, "Estuaries"], 44: [532, "Sea and ocean"], 
-    48: [999, "No data"], -128: [999, "No data"]
-}
-canopy_gap_fraction = {
-    # Urban / artificial
-    111: 0.9, 112: 0.9, 121: 0.95, 122: 0.95, 123: 0.95, 124: 0.95,
-    131: 0.98, 132: 1.0, 133: 1.0, 141: 0.7, 142: 0.75,
-    # Agriculture
-    211: 0.6, 212: 0.6, 213: 0.55, 221: 0.5, 222: 0.5, 223: 0.5,
-    231: 0.5, 241: 0.55, 242: 0.55, 243: 0.6, 244: 0.6,
-    # Forest
-    311: 0.2, 312: 0.15, 313: 0.18,
-    # Natural vegetation
-    321: 0.7, 322: 0.5, 323: 0.4, 324: 0.45,
-    # Bare / sparse
-    331: 0.98, 332: 0.98, 333: 1.0, 334: 1.0, 335: 1.0,
-    # Wetlands
-    411: 0.85, 412: 0.9, 421: 0.95, 422: 1.0, 423: 1.0,
-    # Water
-    511: 1.0, 512: 1.0, 521: 1.0, 522: 1.0, 523: 1.0,
-    # No data
-    999: -999.0
-}
+
+
+
+
+# corine_codes = {
+#     1: [111, "Continuous urban fabric"], 2: [112, "Discontinuous urban fabric"],
+#     3: [121, "Industrial or commercial units and public facilities"],
+#     4: [122, "Road and rail networks and associated land"],
+#     5: [123, "Port areas"], 6: [124, "Airports"], 7: [131, "Mineral extraction sites"], 
+#     8: [132, "Dump sites"], 9: [133, "Construction sites"], 10: [141, "Green urban areas"],
+#     11: [142, "Sport and leisure facilities"], 12: [211, "Non-irrigated arable land"],
+#     13: [212, "Permanently irrigated arable land"], 14: [213, "Rice fields"],
+#     15: [221, "Vineyards"], 16: [222, "Fruit tree and berry plantations"],
+#     17: [223, "Olive groves"], 18: [231, "Pastures meadows and other permanent grasslands under agricultural use"],
+#     19: [241, "Annual crops associated with permanent crops"], 20: [242, "Complex cultivation patterns"],
+#     21: [243, "Land principally occupied by agriculture with significant areas of natural vegetation"],
+#     22: [244, "Agro-forestry areas"], 23: [311, "Broad-leaved forest"], 24: [312, "Coniferous forest"], 
+#     25: [313, "Mixed forest"], 26: [321, "Natural grassland"], 27: [322, "Moors and heathland"],
+#     28: [323, "Sclerophyllous vegetation"], 29: [324, "Transitional woodland/shrub"],
+#     30: [331, "Beaches dunes and sand plains"], 31: [332, "Bare rock"], 32: [333, "Sparsely vegetated areas"],
+#     33: [334, "Burnt areas"], 34: [335, "Glaciers and perpetual snow"], 35: [411, "Inland marshes"],
+#     36: [412, "Peatbogs"], 37: [421, "Coastal salt marshes"], 38: [422, "Salines"],
+#     39: [423, "Intertidal flats"], 40: [511, "Water courses"], 41: [512, "Water bodies"],
+#     42: [521, "Coastal lagoons"], 43: [522, "Estuaries"], 44: [523, "Sea and ocean"], 
+#     48: [999, "No data"], -128: [999, "No data"]
+# }
+# canopy_gap_fraction = {
+#     # Urban / artificial
+#     111: 0.9, 112: 0.9, 121: 0.95, 122: 0.95, 123: 0.95, 124: 0.95,
+#     131: 0.98, 132: 1.0, 133: 1.0, 141: 0.7, 142: 0.75,
+#     # Agriculture
+#     211: 0.6, 212: 0.6, 213: 0.55, 221: 0.5, 222: 0.5, 223: 0.5,
+#     231: 0.5, 241: 0.55, 242: 0.55, 243: 0.6, 244: 0.6,
+#     # Forest
+#     311: 0.2, 312: 0.15, 313: 0.18,
+#     # Natural vegetation
+#     321: 0.7, 322: 0.5, 323: 0.4, 324: 0.45,
+#     # Bare / sparse
+#     331: 0.98, 332: 0.98, 333: 1.0, 334: 1.0, 335: 1.0,
+#     # Wetlands
+#     411: 0.85, 412: 0.9, 421: 0.95, 422: 1.0, 423: 1.0,
+#     # Water
+#     511: 1.0, 512: 1.0, 521: 1.0, 522: 1.0, 523: 1.0,
+#     # No data
+#     999: -999.0
+# }
 esa_codes = {
     0: [0, "No data"], 10: [10, "Tree cover"], 20: [20, "Shrubland"], 30: [30, "Grassland"], 
     40: [40, "Cropland"], 50: [50, "Built-up"], 60: [60, "Bare / sparse vegetation"], 
@@ -84,31 +89,68 @@ def remove_holes(geom):
         return MultiPolygon([Polygon(p.exterior) for p in geom.geoms])
     else: return geom
 
-def write_geotiff(data, profile, output_path):
-    profile.update(dtype=data.dtype, count=1, compress='lzw')
+def write_geotif(array, profile, output_path, nodata=-9999.0):
+    array[np.isnan(array)] = nodata
+    array = array.astype(profile["dtype"])
+    profile.update(nodata=nodata)
     with rasterio.open(output_path, 'w', **profile) as dst:
-        dst.write(data, 1)
+        dst.write(array, 1)
 
-def is_valid_netcdf(path):
-    try:
-        with Dataset(path, "r") as ds:
-           if len(ds.variables) == 0: return False
-        return True
-    except Exception:
-        return False
+# def is_valid_netcdf(path):
+#     try:
+#         with Dataset(path, "r") as ds:
+#            if len(ds.variables) == 0: return False
+#         return True
+#     except Exception:
+#         return False
     
-def clip_catchment(catchment, terrain, nodata=-9999.0):
-    clipped = terrain.rio.clip(catchment.geometry, terrain.rio.crs, drop=True)
-    clipped = clipped.where(clipped.notnull(), nodata)
-    return clipped
+# def clip_catchment(catchment, terrain):
+#     clipped = terrain.rio.clip(catchment.geometry, catchment.crs)
+#     clipped = clipped.fillna(terrain.rio.nodata)
+#     clipped = clipped.rio.write_nodata(terrain.rio.nodata)
+#     return clipped
 
-def create_forcing(time, ny, nx, values, single_value=True):
-    if single_value:
-        data = np.empty((len(time), ny, nx), dtype=np.float32)
-        data[:] = values[:, None, None]
+# def create_forcing(time, ny, nx, values, single_value=True):
+#     if single_value:
+#         data = np.empty((len(time), ny, nx), dtype=np.float32)
+#         data[:] = values[:, None, None]
     
 
-    return data
+#     return data
+
+def interpolate_extrapolate(data, mask_nan, get_nearest=False, power=2, max_neighbors=8):
+    h, w = data.shape
+    mask_valid = ~mask_nan
+    y_valid, x_valid = np.where(mask_valid)
+    valid_values = data[mask_valid]
+    y_fill, x_fill = np.where(mask_nan)
+    n_points, n_fill = len(valid_values), len(y_fill)
+    result = data.copy()
+    if n_points == 0: return np.full((h, w), np.nan)
+    if n_fill == 0: return result
+    points_valid = np.column_stack((x_valid, y_valid))
+    points_fill = np.column_stack((x_fill, y_fill))
+    tree = cKDTree(points_valid)
+    if not get_nearest: # interpolate using IDW
+        k = min(max_neighbors, n_points)
+        distances, indices = tree.query(points_fill, k=k)
+        if k == 1: filled_values = valid_values[indices]
+        else:
+            # IDW
+            distances = np.maximum(distances, 1e-8)
+            weights = 1.0 / (distances ** power)
+            weights = weights / weights.sum(axis=1, keepdims=True)
+            neighbor_values = valid_values[indices]
+            filled_values = np.sum(weights * neighbor_values, axis=1)
+        result[y_fill, x_fill] = filled_values
+    else: # get nearest neighbor
+        distances, indices = tree.query(points_fill, k=1)
+        nearest_values = valid_values[indices]
+        result[y_fill, x_fill] = nearest_values
+    return result
+
+
+
 
 
 # def keep_polygon(geom):
@@ -483,3 +525,52 @@ def create_forcing(time, ny, nx, values, single_value=True):
         # for col in new_cols:
         #     gdf[col] = pd.to_numeric(gdf[col], errors='coerce')
         # if gdf.crs != "EPSG:4326": gdf = gdf.to_crs("EPSG:4326")
+
+# # Download soil data 2020 from ISRIC: https://files.isric.org/soilgrids/latest/data/
+# soil_types = {
+#     'clay': 'clyppt', 'sand': 'sndppt', 'silt': 'sltppt', 
+#     'bdod': 'bd', 'soc': 'oc', 'phh2o': 'ph'
+# }
+# depths = {
+#     '0-5cm_mean': 'sl1', '5-15cm_mean': 'sl2', '15-30cm_mean': 'sl3',
+#     '30-60cm_mean': 'sl4', '60-100cm_mean': 'sl5', '100-200cm_mean': 'sl6'
+# }
+# soils = {
+#     'clay': 1, 'sand': 1, 'silt': 1, 'bdod': 100, 'soc': 10, 'phh2o': 10
+# }
+# bbox = (float(min_lon), float(min_lat), float(max_lon), float(max_lat))
+# for item, name in tqdm(soil_types.items(), total=len(soil_types), desc='Downloading soil data'):
+#     wcs = WebCoverageService(f'https://maps.isric.org/mapserv?map=/map/{item}.map', version='1.0.0')
+#     scale = soils[item]
+#     for type, value in depths.items():
+#         idx = f'{item}_{type}'
+#         response = wcs.getCoverage(
+#             identifier=idx, crs='EPSG:4326', bbox=bbox, format='image/tiff',
+#             resx=0.0025, resy=0.0025, timeout=120
+#         )
+#         with MemoryFile(response.read()) as memfile:
+#             with rioxarray.open_rasterio(memfile) as src_xr:
+#                 data_xr = src_xr.squeeze()
+#                 data_xr = data_xr.rio.reproject_match(ref, resampling=Resampling.bilinear)
+#                 data_xr = np.where(data_xr == data_xr.rio.nodata, nodata, data_xr)
+#         soil_array = data_xr
+#         # Interpolate data
+#         mask_valid = soil_array != nodata
+#         soil_values = flow_functions.interpolate_extrapolate(soil_array, ~mask_valid, True)
+#         soil_values[mask_nan] = nodata
+#         mask_land = (soil_values != nodata) & (~np.isnan(soil_values)) & (~mask_lake)
+#         soil_values[mask_land] = soil_values[mask_land] / scale
+#         soil_values[~mask_land] = nodata
+#         soil_values = np.round(soil_values, 2).astype(np.float32)
+#         path = os.path.join(soil_dir, f'{name}_{value}.tif')
+#         flow_functions.write_geotiff(soil_values, profile, path)
+# ref.close()
+# # # Create soil thickness
+# # soil_thickness_path = os.path.normpath(os.path.join(soil_dir, 'soilthickness.tif'))
+# # soil_thickness = rasterize(
+# #     shapes=[(geom, 200) for geom in area_clip], dtype=np.float32,
+# #     out_shape=(height, width), transform=transform, fill=255
+# # )
+# # profile_thickness = profile.copy()
+# # profile_thickness.update({'dtype': np.uint8, 'nodata': 255, 'count': 1, 'compress': 'lzw'})
+# # flow_functions.write_geotiff(soil_thinkness, profile_thickness, soil_thinkness_path)

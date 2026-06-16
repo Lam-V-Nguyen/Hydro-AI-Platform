@@ -13,28 +13,39 @@ my_hydro:
     category: hydrology
 
 # Forcing data
-my_forcing:
+weather_forcing:
   data_type: RasterDataset
   driver: raster_xarray
-  uri: data/forcing/my_forcing.nc
+  uri: data/forcing/weather_forcing.nc
   metadata:
     category: meteo
 
 # River data
 river_network:
   data_type: GeoDataFrame
+  driver: pyogrio
   uri: data/river/river.gpkg
   metadata:
     category: river
+river_manning_mapping:
+  data_type: DataFrame
+  driver: pandas
+  uri: data/river/river_manning.csv
+  metadata:
+    category: river
+    description: Mapping of stream order to Manning's n roughness coefficient, based on Chow (1959) and Dingman (2015)
+
+
 
 # Soil data
-soilgrids_2020:
+soilgrids:
   data_type: RasterDataset
   driver: rasterio
   uri: data/soil/{variable}.tif
   metadata:
     category: soil
-    url: https://files.isric.org/soilgrids/latest/data/
+    url_2017: https://files.isric.org/soilgrids/former/2017-03-10/data/
+    url_2020: https://files.isric.org/soilgrids/latest/data/
 
 # Land cover data
 corine:
@@ -49,28 +60,7 @@ corine:
     url: https://land.copernicus.eu/en/products/corine-land-cover
 corine_mapping:
   data_type: DataFrame
-  driver: 
-    name: pandas
-    options:
-      index_col: 0
-      dtype:
-        landuse: int16
-        vegetation_kext: float32
-        land_manning_n: float32
-        soil_compacted_fraction: float32
-        vegetation_root_depth: float32
-        vegetation_leaf_storage: float32
-        vegetation_wood_storage: float32
-        land_water_fraction: float32
-        vegetation_crop_factor: float32
-        vegetation_feddes_alpha_h1: int16
-        vegetation_feddes_h1: int16
-        vegetation_feddes_h2: int16
-        vegetation_feddes_h3_high: int16
-        vegetation_feddes_h3_low: int16
-        vegetation_feddes_h4: int16
-        erosion_usle_c: float32
-        Cov_River: float32
+  driver: pandas
   uri: data/landcover/corine.csv
   metadata:
     category: landuse & landcover
@@ -88,30 +78,23 @@ esa_worldcover:
     url: https://esa-worldcover.org/en
 esa_worldcover_mapping:
   data_type: DataFrame
-  driver: 
-    name: pandas
-    options:
-      index_col: 0
-      dtype:
-        landuse: int16
-        vegetation_kext: float32
-        land_manning_n: float32
-        soil_compacted_fraction: float32
-        vegetation_root_depth: float32
-        vegetation_leaf_storage: float32
-        vegetation_wood_storage: float32
-        land_water_fraction: float32
-        vegetation_crop_factor: float32
-        vegetation_feddes_alpha_h1: int16
-        vegetation_feddes_h1: int16
-        vegetation_feddes_h2: int16
-        vegetation_feddes_h3_high: int16
-        vegetation_feddes_h3_low: int16
-        vegetation_feddes_h4: int16
-        erosion_usle_c: float32
-        Cov_River: float32
+  driver: pandas
   uri: data/landcover/esa_worldcover.csv
   metadata:
     category: landuse & landcover
     version: 2021
     legend: https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/docs/WorldCover_PUM_V2.0.pdf
+
+lai_mapping:
+  data_type: DataFrame
+  driver: pandas
+  uri: data/landcover/lai.csv
+  metadata:
+    category: landuse & landcover
+
+# lai_modis:
+#   data_type: RasterDataset
+#   driver: rasterio
+#   uri: data/landcover/lai_modis.tif
+#   metadata:
+#     category: landuse & landcover

@@ -44,7 +44,7 @@ async def check_sim_status_hyd(request: Request, user=Depends(functions.basic_au
     if info["status"] in ("finished", "failed", "error"): processes.pop(project_name, None)
     if info["status"] == "finished":
         return JSONResponse({"status": "finished", "progress": 100,
-            "message": info.get("message", 'Simulation completed successfully')})
+            "message": info.get("message", 'Simulation completed')})
     if info["status"] == "failed":
         return JSONResponse({"status": "failed", "progress": info["progress"],
             "message": info.get("message", 'Simulation failed')})
@@ -133,7 +133,7 @@ async def start_sim_hyd(request: Request, user=Depends(functions.basic_auth)):
                         processes[project_name]["message"] = post_result["message"]
                     else:
                         processes[project_name]["status"] = "finished"
-                        processes[project_name]["message"] = "Simulation completed successfully"
+                        processes[project_name]["message"] = "Simulation completed"
                 except Exception as e:
                     processes[project_name]["status"] = "failed"
                     processes[project_name]["message"] = f"Simulation failed: {e}"
@@ -163,7 +163,7 @@ async def check_sim_status_waq(request: Request, user=Depends(functions.basic_au
     if info["status"] in ("finished", "failed", "error"): processes.pop(project_name, None)
     if info["status"] == "finished":
         return JSONResponse({"status": "finished", "progress": 100,
-            "message": info.get("message", 'Simulation completed successfully')})
+            "message": info.get("message", 'Simulation completed')})
     if info["status"] == "failed":
         return JSONResponse({"status": "failed", "progress": info["progress"],
             "message": info.get("message", 'Simulation failed')})
@@ -340,8 +340,8 @@ async def run_waq_simulation(project_name, waq_name):
                     # Delete folder
                     if os.path.exists(wq_folder): shutil.rmtree(wq_folder, onerror=functions.remove_readonly)
                     processes[project_name]["status"] = "finished"
-                    processes[project_name]["message"] = f"Simulation completed successfully"
-                    log_file.write(f"\n=== Simulation {project_name} completed successfully ===")
+                    processes[project_name]["message"] = f"Simulation completed"
+                    log_file.write(f"\n=== Simulation {project_name} completed ===")
                     log_file.flush(); log_file.close()
                 except Exception as e:
                     processes[project_name]["status"], processes[project_name]["message"] = "failed", f"Simulation failed: {e}"
