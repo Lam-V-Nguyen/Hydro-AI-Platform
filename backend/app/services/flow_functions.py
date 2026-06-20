@@ -1,8 +1,10 @@
-import os, dotenv, rasterio
-import numpy as np
+import os, dotenv, rasterio, zipfile, rioxarray
+import numpy as np, pandas as pd
 from shapely.geometry import Polygon, MultiPolygon
 from netCDF4 import Dataset
 from scipy.spatial import cKDTree
+from rasterio.io import MemoryFile
+from rasterio.enums import Resampling
 
 dotenv.load_dotenv()
 MET_url = os.getenv('MET_ProstAPI_URL')
@@ -29,9 +31,105 @@ soil_type_reverse = {
 }
 soil_depth_reverse = {v: k for k, v in soil_depths.items()}
 
+def interpolate_extrapolate(data, mask_nan, get_nearest=False, power=2, max_neighbors=8):
+    h, w = data.shape
+    mask_valid = ~mask_nan
+    y_valid, x_valid = np.where(mask_valid)
+    valid_values = data[mask_valid]
+    y_fill, x_fill = np.where(mask_nan)
+    n_points, n_fill = len(valid_values), len(y_fill)
+    result = data.copy()
+    if n_points == 0: return np.full((h, w), np.nan)
+    if n_fill == 0: return result
+    points_valid = np.column_stack((x_valid, y_valid))
+    points_fill = np.column_stack((x_fill, y_fill))
+    tree = cKDTree(points_valid)
+    if not get_nearest: # interpolate using IDW
+        k = min(max_neighbors, n_points)
+        distances, indices = tree.query(points_fill, k=k)
+        if k == 1: filled_values = valid_values[indices]
+        else:
+            # IDW
+            distances = np.maximum(distances, 1e-8)
+            weights = 1.0 / (distances ** power)
+            weights = weights / weights.sum(axis=1, keepdims=True)
+            neighbor_values = valid_values[indices]
+            filled_values = np.sum(weights * neighbor_values, axis=1)
+        result[y_fill, x_fill] = filled_values
+    else: # get nearest neighbor
+        distances, indices = tree.query(points_fill, k=1)
+        nearest_values = valid_values[indices]
+        result[y_fill, x_fill] = nearest_values
+    return result
+
+def remove_holes(geom):
+    if isinstance(geom, Polygon): return Polygon(geom.exterior)
+    elif isinstance(geom, MultiPolygon):
+        return MultiPolygon([Polygon(p.exterior) for p in geom.geoms])
+    else: return geom
+
+def write_geotif(array, profile, output_path, nodata=-9999.0):
+    array[np.isnan(array)] = nodata
+    array = array.astype(profile["dtype"])
+    profile.update(nodata=nodata)
+    with rasterio.open(output_path, 'w', **profile) as dst:
+        dst.write(array, 1)
+
+def create_LAI(arr_2D, terrain, out_path, nodata=255):
+    # Compute LAI
+    lai_path = r"backend\src\flow_samples\landcover\LAI_Norway.zip"
+    if os.path.exists(out_path): os.remove(out_path)
+    land_flat, water_classes = arr_2D.ravel(), [40, 41, 44]
+    valid_mask = (land_flat != nodata)
+    land_valid = land_flat[valid_mask]
+    unique_classes = np.unique(land_valid)
+    df = pd.DataFrame(index=unique_classes.astype(int))
+    with zipfile.ZipFile(lai_path, "r") as zip_ref:
+        tif_names = [n for n in zip_ref.namelist() if n.endswith(".tif")]
+        for name in tif_names:
+            with zip_ref.open(name) as f:
+                with MemoryFile(f.read()) as memfile:
+                    month = name.split("_")[2].replace(".tif", "")
+                    lai = rioxarray.open_rasterio(memfile).squeeze()
+                    lai_match = lai.rio.reproject_match(terrain, resampling=Resampling.nearest)
+                    lai_arr = lai_match.values.astype(np.float32)
+                    lai_arr[lai_arr < -1000] = np.nan
+                    lai_flat = lai_arr.ravel()
+                    lai_valid = lai_flat[valid_mask]
+                    lai_valid[np.isin(land_valid, water_classes)] = 0
+                    tmp = pd.DataFrame({"type": land_valid, "lai": lai_valid})
+                    df[int(month)] = np.round(tmp.groupby("type")["lai"].mean(), 3)
+    df = df.reindex(sorted(df.columns), axis=1)
+    df.index.name = os.path.basename(out_path).replace("_lai.csv", "")
+    df.to_csv(out_path, index=True)
 
 
 
+
+
+
+
+# def is_valid_netcdf(path):
+#     try:
+#         with Dataset(path, "r") as ds:
+#            if len(ds.variables) == 0: return False
+#         return True
+#     except Exception:
+#         return False
+    
+# def clip_catchment(catchment, terrain):
+#     clipped = terrain.rio.clip(catchment.geometry, catchment.crs)
+#     clipped = clipped.fillna(terrain.rio.nodata)
+#     clipped = clipped.rio.write_nodata(terrain.rio.nodata)
+#     return clipped
+
+# def create_forcing(time, ny, nx, values, single_value=True):
+#     if single_value:
+#         data = np.empty((len(time), ny, nx), dtype=np.float32)
+#         data[:] = values[:, None, None]
+    
+
+#     return data
 
 
 # corine_codes = {
@@ -76,81 +174,12 @@ soil_depth_reverse = {v: k for k, v in soil_depths.items()}
 #     # No data
 #     999: -999.0
 # }
-esa_codes = {
-    0: [0, "No data"], 10: [10, "Tree cover"], 20: [20, "Shrubland"], 30: [30, "Grassland"], 
-    40: [40, "Cropland"], 50: [50, "Built-up"], 60: [60, "Bare / sparse vegetation"], 
-    70: [70, "Snow and Ice"], 80: [80, "Permanent water bodies"], 
-    90: [90, "Herbaceous wetland"], 95: [95, "Mangroves"], 100: [100, "Moss and Lichen"],
-}
-
-def remove_holes(geom):
-    if isinstance(geom, Polygon): return Polygon(geom.exterior)
-    elif isinstance(geom, MultiPolygon):
-        return MultiPolygon([Polygon(p.exterior) for p in geom.geoms])
-    else: return geom
-
-def write_geotif(array, profile, output_path, nodata=-9999.0):
-    array[np.isnan(array)] = nodata
-    array = array.astype(profile["dtype"])
-    profile.update(nodata=nodata)
-    with rasterio.open(output_path, 'w', **profile) as dst:
-        dst.write(array, 1)
-
-# def is_valid_netcdf(path):
-#     try:
-#         with Dataset(path, "r") as ds:
-#            if len(ds.variables) == 0: return False
-#         return True
-#     except Exception:
-#         return False
-    
-# def clip_catchment(catchment, terrain):
-#     clipped = terrain.rio.clip(catchment.geometry, catchment.crs)
-#     clipped = clipped.fillna(terrain.rio.nodata)
-#     clipped = clipped.rio.write_nodata(terrain.rio.nodata)
-#     return clipped
-
-# def create_forcing(time, ny, nx, values, single_value=True):
-#     if single_value:
-#         data = np.empty((len(time), ny, nx), dtype=np.float32)
-#         data[:] = values[:, None, None]
-    
-
-#     return data
-
-def interpolate_extrapolate(data, mask_nan, get_nearest=False, power=2, max_neighbors=8):
-    h, w = data.shape
-    mask_valid = ~mask_nan
-    y_valid, x_valid = np.where(mask_valid)
-    valid_values = data[mask_valid]
-    y_fill, x_fill = np.where(mask_nan)
-    n_points, n_fill = len(valid_values), len(y_fill)
-    result = data.copy()
-    if n_points == 0: return np.full((h, w), np.nan)
-    if n_fill == 0: return result
-    points_valid = np.column_stack((x_valid, y_valid))
-    points_fill = np.column_stack((x_fill, y_fill))
-    tree = cKDTree(points_valid)
-    if not get_nearest: # interpolate using IDW
-        k = min(max_neighbors, n_points)
-        distances, indices = tree.query(points_fill, k=k)
-        if k == 1: filled_values = valid_values[indices]
-        else:
-            # IDW
-            distances = np.maximum(distances, 1e-8)
-            weights = 1.0 / (distances ** power)
-            weights = weights / weights.sum(axis=1, keepdims=True)
-            neighbor_values = valid_values[indices]
-            filled_values = np.sum(weights * neighbor_values, axis=1)
-        result[y_fill, x_fill] = filled_values
-    else: # get nearest neighbor
-        distances, indices = tree.query(points_fill, k=1)
-        nearest_values = valid_values[indices]
-        result[y_fill, x_fill] = nearest_values
-    return result
-
-
-
+# esa_codes = {
+#     0: [0, "No data"], 10: [10, "Tree cover"], 20: [20, "Shrubland"], 30: [30, "Grassland"], 
+#     40: [40, "Cropland"], 50: [50, "Built-up"], 60: [60, "Bare / sparse vegetation"], 
+#     70: [70, "Snow and Ice"], 80: [80, "Permanent water bodies"], 
+#     90: [90, "Herbaceous wetland"], 95: [95, "Mangroves"], 100: [100, "Moss and Lichen"],
+# }
 
 
 # def keep_polygon(geom):
@@ -574,3 +603,133 @@ def interpolate_extrapolate(data, mask_nan, get_nearest=False, power=2, max_neig
 # # profile_thickness = profile.copy()
 # # profile_thickness.update({'dtype': np.uint8, 'nodata': 255, 'count': 1, 'compress': 'lzw'})
 # # flow_functions.write_geotiff(soil_thinkness, profile_thickness, soil_thinkness_path)
+
+
+
+# # ============= QGIS python plugin: Process LAI downloaded from EarthData Search =============
+# from pathlib import Path
+# from datetime import datetime, timedelta
+# from collections import defaultdict
+# import numpy as np
+# from osgeo import gdal
+
+# input_dir = r"C:\Users\vanln\Downloads\MCD15A3H_061-20260618_172802"
+# output_dir = r"C:\Users\vanln\Downloads\MCD15A3H_061-20260618_172802\monthly_lai"
+# Path(output_dir).mkdir(exist_ok=True)
+
+# def get_lai_subdataset(hdf_file):
+#     ds = gdal.Open(hdf_file)
+#     for sds_name, sds_desc in ds.GetSubDatasets():
+#         if "Lai_500m" in sds_name:
+#             return sds_name
+#     raise Exception(f"Cannot find Lai_500m in {hdf_file}")
+
+# monthly_files = defaultdict(list)
+# for file in Path(input_dir).glob("*.hdf"):
+#     parts = file.name.split(".")
+#     julian = parts[1]  # A2018001
+#     year = int(julian[1:5])
+#     doy = int(julian[5:])
+#     date = datetime(year, 1, 1) + timedelta(days=doy - 1)
+#     monthly_files[(date.year, date.month)].append(str(file))
+
+# for (year, month), files in sorted(monthly_files.items()):
+#     print(f"Processing {year}-{month:02d}")
+#     arrays = []
+#     template_ds = None
+#     for hdf_file in files:
+#         lai_sds = get_lai_subdataset(hdf_file)
+#         ds = gdal.Open(lai_sds)
+#         arr = ds.ReadAsArray().astype(np.float32)
+#         # MODIS fill value
+#         arr[arr >= 249] = np.nan
+#         arrays.append(arr)
+#         if template_ds is None:
+#             template_ds = ds
+#     monthly_mean = np.nanmean(arrays, axis=0)
+#     # scale factor LAI = 0.1
+#     monthly_mean = monthly_mean * 0.1
+#     outfile = (
+#         Path(output_dir)
+#         / f"LAI_{year}_{month:02d}.tif"
+#     )
+#     driver = gdal.GetDriverByName("GTiff")
+#     out_ds = driver.Create(
+#         str(outfile),
+#         template_ds.RasterXSize,
+#         template_ds.RasterYSize,
+#         1,
+#         gdal.GDT_Float32,
+#         options=["COMPRESS=LZW"]
+#     )
+#     out_ds.SetGeoTransform(
+#         template_ds.GetGeoTransform()
+#     )
+#     out_ds.SetProjection(
+#         template_ds.GetProjection()
+#     )
+#     band = out_ds.GetRasterBand(1)
+#     band.WriteArray(monthly_mean)
+#     band.SetNoDataValue(-9999)
+#     out_ds.FlushCache()
+#     out_ds = None
+#     print(f"Saved: {outfile}")
+# print("DONE")
+
+# # Get landcover data from ESA worldcover
+# user_name, password = os.getenv('ESA_USERNAME'), os.getenv('ESA_PASSWORD')
+# catalogue = Catalogue().authenticate_non_interactive(user_name, password)
+# area = catchment.copy()
+# if area.crs != 'EPSG:4326': area = area.to_crs('EPSG:4326')
+# minx, miny, maxx, maxy = area.total_bounds
+# bbox = Polygon.from_bounds(minx, miny, maxx, maxy)
+# download_dir = os.path.join(land_dir, 'downloads')
+# if os.path.exists(download_dir): shutil.rmtree(download_dir)
+# # Get name of landcover layer
+# collections = catalogue.get_collections()
+# layers = [
+#     # 'urn:eop:VITO:ESA_WorldCover_10m_2020_V1', 
+#     'urn:eop:VITO:ESA_WorldCover_10m_2021_V2'
+# ]
+# # Search for products in the WorldCover collection
+# product = catalogue.get_products(layers, geometry=bbox)
+# catalogue.download_products(product, download_dir, force=True)
+# pattern = os.path.join(download_dir, "**", "*_Map.tif")
+# files = glob.glob(pattern, recursive=True)
+# if len(files) == 0: raise ValueError("No *_Map.tif files found in directory")
+# if len(files) == 1:
+#     src_files = [rasterio.open(files[0])]
+#     mosaic, transform = src_files[0].read(), src_files[0].transform
+# elif len(files) > 1:
+#     src_files = [rasterio.open(f) for f in files]
+#     # Merge (mosaic)
+#     mosaic, transform = merge(src_files)
+# # Copy metadata
+# out_meta = src_files[0].meta.copy()
+# out_meta.update({
+#     "height": mosaic.shape[1], "width": mosaic.shape[2],
+#     "transform": transform, "compress": "lzw"
+# })
+# merge_path = os.path.join(land_dir, 'merged.tif')
+# with rasterio.open(merge_path, "w", **out_meta) as dest:
+#     dest.write(mosaic)
+# # Close files
+# for src in src_files: src.close()
+# shutil.rmtree(download_dir)
+# # Clip raster to catchment
+# land_path = os.path.join(land_dir, 'esa_worldcover.tif')
+# land_temp = rioxarray.open_rasterio(merge_path).squeeze()
+# land_match = land_temp.rio.reproject_match(terrain_da, resampling=Resampling.nearest)
+# land_esa = land_match.values.astype(np.uint8)
+# esa_nodata = land_match.rio.nodata
+# if esa_nodata is not None:
+#     land_esa[land_esa == esa_nodata] = NODATA_FLWDR
+# land_esa[mask_nan] = NODATA_FLWDR
+# flow_functions.write_geotif(land_esa, profile_writer, land_path, NODATA_FLWDR)
+# del land_temp
+# gc.collect()
+# functions.safe_remove(merge_path)
+# # Save look up table
+# csv_path = r"backend\src\flow_samples\landcover\esa_worldcover_mapping.csv"
+# df, lai_name, land_arr = pd.read_csv(csv_path), "esa", land_esa
+# df.to_csv(os.path.join(land_dir, 'esa_worldcover.csv'), index=False)

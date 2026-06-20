@@ -66,35 +66,33 @@ corine_mapping:
     category: landuse & landcover
     version: 1.0
     legend: https://image.discomap.eea.europa.eu/arcgis/rest/services/Corine/CLC2018_WM/MapServer/legend
-
-esa_worldcover:
-  data_type: RasterDataset
-  driver: rasterio
-  uri: data/landcover/esa_worldcover.tif
-  metadata:
-    category: landuse & landcover
-    info: landuse parameters for the world
-    resolution: 10m
-    url: https://esa-worldcover.org/en
-esa_worldcover_mapping:
+lai_corine:
   data_type: DataFrame
   driver: pandas
-  uri: data/landcover/esa_worldcover.csv
-  metadata:
-    category: landuse & landcover
-    version: 2021
-    legend: https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/docs/WorldCover_PUM_V2.0.pdf
-
-lai_mapping:
-  data_type: DataFrame
-  driver: pandas
-  uri: data/landcover/lai.csv
+  uri: data/landcover/corine_lai.csv
   metadata:
     category: landuse & landcover
 
-# lai_modis:
+# esa_worldcover:
 #   data_type: RasterDataset
 #   driver: rasterio
-#   uri: data/landcover/lai_modis.tif
+#   uri: data/landcover/esa_worldcover.tif
+#   metadata:
+#     category: landuse & landcover
+#     info: landuse parameters for the world
+#     resolution: 10m
+#     url: https://esa-worldcover.org/en
+# esa_worldcover_mapping:
+#   data_type: DataFrame
+#   driver: pandas
+#   uri: data/landcover/esa_worldcover.csv
+#   metadata:
+#     category: landuse & landcover
+#     version: 2021
+#     legend: https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/docs/WorldCover_PUM_V2.0.pdf
+# lai_esa:
+#   data_type: DataFrame
+#   driver: pandas
+#   uri: data/landcover/esa_lai.csv
 #   metadata:
 #     category: landuse & landcover
