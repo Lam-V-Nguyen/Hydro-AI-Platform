@@ -35,8 +35,6 @@ river_manning_mapping:
     category: river
     description: Mapping of stream order to Manning's n roughness coefficient, based on Chow (1959) and Dingman (2015)
 
-
-
 # Soil data
 soilgrids:
   data_type: RasterDataset

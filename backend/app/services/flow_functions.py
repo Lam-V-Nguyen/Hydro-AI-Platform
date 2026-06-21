@@ -1,7 +1,6 @@
 import os, dotenv, rasterio, zipfile, rioxarray
 import numpy as np, pandas as pd
 from shapely.geometry import Polygon, MultiPolygon
-from netCDF4 import Dataset
 from scipy.spatial import cKDTree
 from rasterio.io import MemoryFile
 from rasterio.enums import Resampling
@@ -109,19 +108,7 @@ def create_LAI(arr_2D, terrain, out_path, nodata=255):
 
 
 
-# def is_valid_netcdf(path):
-#     try:
-#         with Dataset(path, "r") as ds:
-#            if len(ds.variables) == 0: return False
-#         return True
-#     except Exception:
-#         return False
-    
-# def clip_catchment(catchment, terrain):
-#     clipped = terrain.rio.clip(catchment.geometry, catchment.crs)
-#     clipped = clipped.fillna(terrain.rio.nodata)
-#     clipped = clipped.rio.write_nodata(terrain.rio.nodata)
-#     return clipped
+
 
 # def create_forcing(time, ny, nx, values, single_value=True):
 #     if single_value:
@@ -130,57 +117,6 @@ def create_LAI(arr_2D, terrain, out_path, nodata=255):
     
 
 #     return data
-
-
-# corine_codes = {
-#     1: [111, "Continuous urban fabric"], 2: [112, "Discontinuous urban fabric"],
-#     3: [121, "Industrial or commercial units and public facilities"],
-#     4: [122, "Road and rail networks and associated land"],
-#     5: [123, "Port areas"], 6: [124, "Airports"], 7: [131, "Mineral extraction sites"], 
-#     8: [132, "Dump sites"], 9: [133, "Construction sites"], 10: [141, "Green urban areas"],
-#     11: [142, "Sport and leisure facilities"], 12: [211, "Non-irrigated arable land"],
-#     13: [212, "Permanently irrigated arable land"], 14: [213, "Rice fields"],
-#     15: [221, "Vineyards"], 16: [222, "Fruit tree and berry plantations"],
-#     17: [223, "Olive groves"], 18: [231, "Pastures meadows and other permanent grasslands under agricultural use"],
-#     19: [241, "Annual crops associated with permanent crops"], 20: [242, "Complex cultivation patterns"],
-#     21: [243, "Land principally occupied by agriculture with significant areas of natural vegetation"],
-#     22: [244, "Agro-forestry areas"], 23: [311, "Broad-leaved forest"], 24: [312, "Coniferous forest"], 
-#     25: [313, "Mixed forest"], 26: [321, "Natural grassland"], 27: [322, "Moors and heathland"],
-#     28: [323, "Sclerophyllous vegetation"], 29: [324, "Transitional woodland/shrub"],
-#     30: [331, "Beaches dunes and sand plains"], 31: [332, "Bare rock"], 32: [333, "Sparsely vegetated areas"],
-#     33: [334, "Burnt areas"], 34: [335, "Glaciers and perpetual snow"], 35: [411, "Inland marshes"],
-#     36: [412, "Peatbogs"], 37: [421, "Coastal salt marshes"], 38: [422, "Salines"],
-#     39: [423, "Intertidal flats"], 40: [511, "Water courses"], 41: [512, "Water bodies"],
-#     42: [521, "Coastal lagoons"], 43: [522, "Estuaries"], 44: [523, "Sea and ocean"], 
-#     48: [999, "No data"], -128: [999, "No data"]
-# }
-# canopy_gap_fraction = {
-#     # Urban / artificial
-#     111: 0.9, 112: 0.9, 121: 0.95, 122: 0.95, 123: 0.95, 124: 0.95,
-#     131: 0.98, 132: 1.0, 133: 1.0, 141: 0.7, 142: 0.75,
-#     # Agriculture
-#     211: 0.6, 212: 0.6, 213: 0.55, 221: 0.5, 222: 0.5, 223: 0.5,
-#     231: 0.5, 241: 0.55, 242: 0.55, 243: 0.6, 244: 0.6,
-#     # Forest
-#     311: 0.2, 312: 0.15, 313: 0.18,
-#     # Natural vegetation
-#     321: 0.7, 322: 0.5, 323: 0.4, 324: 0.45,
-#     # Bare / sparse
-#     331: 0.98, 332: 0.98, 333: 1.0, 334: 1.0, 335: 1.0,
-#     # Wetlands
-#     411: 0.85, 412: 0.9, 421: 0.95, 422: 1.0, 423: 1.0,
-#     # Water
-#     511: 1.0, 512: 1.0, 521: 1.0, 522: 1.0, 523: 1.0,
-#     # No data
-#     999: -999.0
-# }
-# esa_codes = {
-#     0: [0, "No data"], 10: [10, "Tree cover"], 20: [20, "Shrubland"], 30: [30, "Grassland"], 
-#     40: [40, "Cropland"], 50: [50, "Built-up"], 60: [60, "Bare / sparse vegetation"], 
-#     70: [70, "Snow and Ice"], 80: [80, "Permanent water bodies"], 
-#     90: [90, "Herbaceous wetland"], 95: [95, "Mangroves"], 100: [100, "Moss and Lichen"],
-# }
-
 
 # def keep_polygon(geom):
 #     if geom.geom_type == 'GeometryCollection':
@@ -356,158 +292,6 @@ def create_LAI(arr_2D, terrain, out_path, nodata=255):
 #     content = weather_df.values.tolist()
 #     return content, missing
 
-    
-
-
-# ## Prepare forcing data from the global model ARE5
-
-# dotenv.load_dotenv()
-# CDS_url, CDS_key = os.getenv('CDS_URL'), os.getenv('CDS_API_KEY')
-# config_path = Path.home() / '.cdsapirc'
-# if not config_path.exists():
-#     print("Creating .cdsapirc ...")
-#     config_path.write_text(f"url: {CDS_url}\nkey: {CDS_key}\n", encoding='utf-8')
-#     print("Created at:", config_path)
-
-# # Setup variables
-# variables = [
-#     'total_precipitation', # Precipitation
-#     '2m_temperature', # Temperature
-#     '10m_u_component_of_wind', '10m_v_component_of_wind', # Wind
-#     '2m_dewpoint_temperature',  
-#     'surface_solar_radiation_downwards', # Radiation
-# ]
-# dataset = 'reanalysis-era5-single-levels'
-# forcing_dir = os.path.join(test_folder, 'data/forcing')
-# if not os.path.exists(forcing_dir): os.makedirs(forcing_dir)
-# download_dir = os.path.join(test_folder, 'data/forcing/download')
-# if not os.path.exists(download_dir): os.makedirs(download_dir)
-# start, end = '2025-03-01 00:00:00', '2025-12-31 00:00:00'
-# start_time = datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
-# end_time = datetime.strptime(end, '%Y-%m-%d %H:%M:%S')
-# minx, miny, maxx, maxy = catchment.total_bounds
-# area = [round(float(maxy), 2), round(float(minx), 2), round(float(miny), 2), round(float(maxx), 2)]
-
-# # Download ERA5 data monthly
-# client = cdsapi.Client()
-# for var in variables:
-#     current = start_time.replace(day=1)
-#     while current <= end_time:
-#         year, month = current.year, current.month
-#         last_day = calendar.monthrange(year, month)[1]
-#         month_start = datetime(year, month, 1)
-#         month_end = datetime(year, month, last_day, 23)
-#         # Clip by requested range
-#         actual_start = max(start_time, month_start)
-#         actual_end = min(end_time, month_end)
-#         # Days to download
-#         days = [f"{d:02d}" for d in range(actual_start.day, actual_end.day + 1)]
-#         # Output file
-#         out_file = f"{var}_ERA5_{year}_{month:02d}.nc"
-#         output = os.path.join(download_dir, out_file)
-#         # Skip existing file
-#         if os.path.exists(output): os.remove(output)
-#         print(f"Downloading: {out_file}")
-#         request = {
-#             'product_type': 'reanalysis', 'variable': [var],
-#             'year': [str(year)], 'month': [f"{month:02d}"], 'day': days,
-#             'time': [f"{h:02d}:00" for h in range(24)], 'area': area,
-#             'data_format': 'netcdf', 'download_format': 'unarchived'
-#         }
-#         client.retrieve(dataset, request, output)
-#         # Next month
-#         current += relativedelta(months=1)
-
-# # Check valid files
-# for var in variables:
-#     pattern = os.path.join(download_dir, f"{var}_ERA5_*.nc")
-#     raw_files = sorted(glob.glob(pattern))
-#     # Filter valid files
-#     files, bad_files = [], []
-#     for f in raw_files:
-#         if is_valid_netcdf(f): files.append(f)
-#         else: bad_files.append(f)
-#     print(f"Valid files '{var}': {len(files)}/{len(raw_files)}")
-#     if bad_files:
-#         print("Bad files:")
-#         for f in bad_files: print(" -", f)
-
-# # Concatenate sub-files
-# for var in variables:
-#     pattern = os.path.join(download_dir, f"{var}_ERA5_*.nc")
-#     raw_files, files = sorted(glob.glob(pattern)), []
-#     files = [f for f in raw_files if is_valid_netcdf(f)]
-#     if len(files) > 0:
-#         ds = xr.open_mfdataset(
-#             files, combine='by_coords', parallel=True, chunks={'valid_time':24}
-#         )
-#         # Remove ERA5 artifact dimension
-#         if 'expver' in ds: ds = ds.drop_vars('expver')
-#         encoding = {
-#             var: {"zlib": True, "complevel": 4, "dtype": "float32"}
-#             for var in ds.data_vars
-#         }
-#         output = pattern.replace('_*', "")
-#         print(f"Writing forcing file: {output}")
-#         ds.to_netcdf(output, format="NETCDF4", encoding=encoding)
-#         ds.close()
-#         del ds
-#         gc.collect()
-# print("DONE:")
-
-# # Merge files
-# final_output, datasets = os.path.join(forcing_dir, "my_ear5_forcing.nc"), []
-# for var in variables:
-#     pattern = os.path.join(download_dir, f"{var}_ERA5.nc")
-#     datasets.append(pattern)
-# if len(datasets) > 0:
-#     datasets_ds = [xr.open_dataset(f) for f in datasets]
-#     ds_final = xr.merge(datasets_ds, compat="override", join="outer")
-#     encoding = {
-#         var: {"zlib": True, "complevel": 4, "dtype": "float32"}
-#         for var in ds_final.data_vars
-#     }
-#     ds_final.to_netcdf(final_output, format="NETCDF4", encoding=encoding)
-#     ds_final.close()
-#     del ds_final
-#     gc.collect()
-#     print("DONE:")
-# else: print("No files to merge")
-
-# # Change variable name
-# rename_dict = {
-#     "tp": "precip", "t2m": "temp",
-#     "u10": "wind_u", "v10": "wind_v",
-#     "ssrd": "radiation",
-# }
-# final_output = os.path.join(forcing_dir, "my_ear5_forcing.nc")
-# final_output_rename = os.path.join(forcing_dir, "my_forcing.nc")
-# ds_final = xr.open_dataset(final_output)
-# ds_final = ds_final.rename({"longitude": "x", "latitude": "y"})
-# ds_final = ds_final.rio.set_spatial_dims(x_dim="x", y_dim="y")
-# ds_final = ds_final.rio.write_crs("EPSG:4326")
-# ds_rename = ds_final.rename({
-#     k: v for k, v in rename_dict.items() if k in ds_final.data_vars
-# })
-# # Unit conversion
-# if "radiation" in ds_rename:
-#     ds_rename["radiation"] = ds_rename["radiation"] / 3600.0
-#     ds_rename["radiation"].attrs["units"] = "mm"
-# if "precip" in ds_rename:
-#     ds_rename["precip"] = ds_rename["precip"] * 1000.0
-#     ds_rename["precip"].attrs["units"] = "mm"
-# if "temp" in ds_rename:
-#     ds_rename["temp"] = ds_rename["temp"] - 273.15
-#     ds_rename["temp"].attrs["units"] = "degC"
-# if "d2m" in ds_rename:
-#     ds_rename["d2m"] = ds_rename["d2m"] - 273.15
-#     ds_rename["d2m"].attrs["units"] = "degC"
-# ds_rename = ds_rename.sortby("valid_time")
-# encoding = {
-#     var: {"zlib": True, "complevel": 4, "dtype": "float32"}
-#     for var in ds_rename.data_vars
-# }
-# ds_rename.to_netcdf(final_output_rename, format="NETCDF4", encoding=encoding)
 
 
 # # Fix invalid soil polygon
