@@ -2,6 +2,7 @@ import os, dotenv, rasterio, zipfile, rioxarray
 import numpy as np, pandas as pd
 from shapely.geometry import Polygon, MultiPolygon
 from scipy.spatial import cKDTree
+from netCDF4 import Dataset
 from rasterio.io import MemoryFile
 from rasterio.enums import Resampling
 
@@ -102,7 +103,13 @@ def create_LAI(arr_2D, terrain, out_path, nodata=255):
     df.index.name = os.path.basename(out_path).replace("_lai.csv", "")
     df.to_csv(out_path, index=True)
 
-
+def is_valid_netcdf(path):
+    try:
+        with Dataset(path, "r") as ds:
+           if len(ds.variables) == 0: return False
+        return True
+    except Exception:
+        return False
 
 
 
@@ -460,7 +467,53 @@ def create_LAI(arr_2D, terrain, out_path, nodata=255):
 #     print(f"Saved: {outfile}")
 # print("DONE")
 
-# # Get landcover data from ESA worldcover
+
+# # ============= Create weather file =============
+# # Read weather data
+# weather_path = os.path.join(sample_folder, 'weather_2025.csv')
+# weather = pd.read_csv(weather_path, parse_dates=['datetime'], index_col='datetime')
+# weather_new = weather.loc['2025-01-01 00:00:00':'2025-01-10 00:00:00']
+# # Create forcing nc file
+# time, time_step = weather_new.index.to_numpy(), 'hours'
+# forcing_dir = os.path.join(test_folder, 'data/forcing')
+# os.makedirs(forcing_dir, exist_ok=True)
+# out_path, datasets = os.path.join(forcing_dir, "weather_forcing.nc"), {}
+# with rasterio.open(raw_path) as src:
+#     dem_array, crs = src.read(1), src.crs
+#     transform, nodata = src.transform, src.nodata
+# mask_nan = np.isnan(dem_array) | (dem_array == nodata)
+# ny, nx = dem_array.shape[0], dem_array.shape[1]
+# forcing = {
+#     'precip': ['precip_mm', 'mm'], 'temp': ['temp_C', 'degC'],
+#     'kin': ['shortwave_Wm2', 'W/m^2'], 'kout': ['longwave_Wm2', 'W/m^2'],
+#     'wind': ['wind_mps', 'm/s'], 'press_msl': ['pressure', 'Pa']
+# }
+# for var, (col, unit) in forcing.items():
+#     data = weather_new[col].values.astype(np.float32)
+#     data_3d = create_forcing(time, ny, nx, data, mask_nan, single_value=True)
+#     datasets[var] = (('time', 'y', 'x'), data_3d, {'units': unit})
+# x_coords = transform.c + (np.arange(nx) + 0.5) * transform.a
+# y_coords = transform.f + (np.arange(ny) + 0.5) * transform.e
+# ds_final = xr.Dataset(
+#     data_vars=datasets, coords={"time": time, "y": y_coords, "x": x_coords}
+# )
+# ds_final = ds_final.rio.set_spatial_dims(x_dim="x", y_dim="y")
+# ds_final = ds_final.rio.write_crs(crs)
+# ds_final["time"].encoding = {
+#     "units": f"{time_step} since 1900-01-01 00:00:00",
+#     "calendar": "proleptic_gregorian", "dtype": "float64"
+# }
+# encoding = {
+#     var: {"zlib": True, "complevel": 4, "shuffle": True, "chunksizes": (1, 256, 256)}
+#     for var in ds_final.data_vars
+# }
+# ds_final.to_netcdf(out_path, engine='netcdf4', encoding=encoding)
+
+
+
+
+
+# ########################### Get landcover data from ESA worldcover
 # user_name, password = os.getenv('ESA_USERNAME'), os.getenv('ESA_PASSWORD')
 # catalogue = Catalogue().authenticate_non_interactive(user_name, password)
 # area = catchment.copy()
