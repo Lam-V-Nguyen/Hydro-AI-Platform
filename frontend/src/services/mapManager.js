@@ -48,7 +48,7 @@ const layerConfig = {
 
 const mapping = {
     river: {
-        key: 'river', fields: ['width','depth']
+        key: 'river', fields: ['rivwth','rivdph']
     }
 };
 

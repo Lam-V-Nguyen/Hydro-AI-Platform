@@ -1,25 +1,14 @@
 import { jsonLoader, signalSender } from "./commonFunctions.js";
 import { highlightColor } from "./constant.js";
 
-export async function catchmentDelineation(projectName, inputTextObj, lat, lon, snapDistance) {
-    const layerCheck = inputTextObj.value;
-    if (layerCheck === '') { 
-        alert('Please upload terrain data first.'); return false; 
-    }
-    // Check if flow direction and flow accumulation have been run
-    const contentDir = { projectName: projectName, filename: layerCheck, key: 'flow_direction' };
-    const flowDirectionCheck = await jsonLoader('raster_check', contentDir);
-    if (flowDirectionCheck.status === 'error') { alert(flowDirectionCheck.message); return; }
-    const contentAcc = { projectName: projectName, filename: layerCheck, key: 'flow_accumulation' };
-    const flowAccumulationCheck = await jsonLoader('raster_check', contentAcc);
-    if (flowAccumulationCheck.status === 'error') { alert(flowAccumulationCheck.message); return; }
+export async function catchmentDelineation(projectName, flowName, terrainName, lat, lon, snapDistance) {
     if (lat === null || lon === null) { alert('Please set the pourpoint coordinates and create a catchment first.'); return; }
     if (threshold === '') { alert('Please set the threshold first.'); return; }
     if (snapDistance === '') { alert('Please set the snap distance first.'); return; }
     try {
-        signalSender('showOverlay', 'Delineating catchment. Please wait ...');
-        const contents = { projectName: projectName, filename: layerCheck,
-            lat: lat, lon: lon, snapDistance: snapDistance
+        signalSender('showOverlay', 'Generating catchment. Please wait ...');
+        const contents = { projectName: projectName, filename: terrainName,
+            lat: lat, lon: lon, snapDistance: snapDistance, flowName: flowName
         };
         const response = await jsonLoader('catchment', contents);
         signalSender('hideOverlay');
@@ -57,7 +46,6 @@ export async function geoJSONExporter(data, fileName) {
             URL.revokeObjectURL(url);
         }
         alert(`Exporting succeeded.`);
-        console.log('ok', data);
     } catch (error) { alert(`Exporting failed: ${error.message}`); }
 }
 

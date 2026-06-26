@@ -1,10 +1,22 @@
-import os, dotenv, rasterio, zipfile, rioxarray
-import numpy as np, pandas as pd
+import os, dotenv, rasterio, zipfile, rioxarray, threading
+import logging, cdsapi, calendar, glob, gc, shutil, traceback
+import geopandas as gpd, numpy as np, pandas as pd, xarray as xr
 from shapely.geometry import Polygon, MultiPolygon
 from scipy.spatial import cKDTree
 from netCDF4 import Dataset
 from rasterio.io import MemoryFile
 from rasterio.enums import Resampling
+import dask.array as da
+from dask import delayed
+from services import functions
+from pathlib import Path
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+
+if "bool" not in np.__dict__: np.bool = np.bool_
+
+
+
 
 dotenv.load_dotenv()
 MET_url = os.getenv('MET_ProstAPI_URL')
@@ -15,15 +27,19 @@ NODATA_DEM, NODATA_INT = -9999.0, 0
 
 soils = [
     ['Clay', 'Sand', 'Silt', 'Bulk density', 'Soil organic carbon', 'Soil pH'],
-    ['0-5', '5-15', '15-30', '30-60', '60-100', '100-200']
+    ['0', '5', '15', '30', '60', '100', '200']
 ]
 soil_types = {
-    'clay': 'clyppt', 'sand': 'sndppt', 'silt': 'sltppt', 
-    'bdod': 'bd', 'soc': 'oc', 'phh2o': 'ph'
+    'bulk density': ['BLDFIE_M', 'bd', 1000, np.int16, -32768],
+    'clay': ['CLYPPT_M', 'clyppt', 1, np.uint8, 255], 
+    'sand': ['SNDPPT_M', 'sndppt', 1, np.uint8, 255],
+    'silt': ['SLTPPT_M', 'sltppt', 1, np.uint8, 255],  
+    'organic carbon': ['OCDENS_M', 'oc', 1, np.int16, -32768], 
+    'pH': ['PHIHOX_M', 'ph', 10, np.uint8, 255]
 }
 soil_depths = {
-    '0-5cm_mean': 'sl1', '5-15cm_mean': 'sl2', '15-30cm_mean': 'sl3',
-    '30-60cm_mean': 'sl4', '60-100cm_mean': 'sl5', '100-200cm_mean': 'sl6'
+    '0cm': 'sl1', '5cm': 'sl2', '15cm': 'sl3', '30cm': 'sl4', 
+    '60cm': 'sl5', '100cm': 'sl6', '200cm': 'sl7'
 }
 soil_type_reverse = {
     'clyppt': 'Clay', 'sndppt': 'Sand', 'sltppt': 'Silt', 
@@ -111,19 +127,256 @@ def is_valid_netcdf(path):
     except Exception:
         return False
 
+def create_forcing(time, ny, nx, values, mask_nan, single_value, gdf=None, x_coords=None, y_coords=None):
+    nt = len(time)
+    if single_value:
+        values = values.reshape(nt)
+        values = da.from_array(values, chunks=(24))
+        data = da.broadcast_to(values[:, None, None], (nt, ny, nx))
+    else:
+        lazy_arrays = []
+        def interp_one_timestep(z):
+            arr = functions.interpolation_Z(gdf, x_coords, y_coords, z, geo_type='point')
+            return arr.reshape(ny, nx).astype(np.float32)
+        for it in range(nt):
+            delayed_arr = delayed(interp_one_timestep)(values[it].ravel())
+            darr = da.from_delayed(
+                delayed_arr, shape=(ny, nx), dtype=np.float32
+            )
+            lazy_arrays.append(darr)
+        data = da.stack(lazy_arrays, axis=0)
+    data = da.where(mask_nan[None, :, :], 0, data)
+    return data
 
+def weather_downloader(flow_dir, start, end, catchment):
+    # Prepare forcing data from the global model ARE5
+    # Source: https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels?tab=download
+    try:
+        CDS_url, CDS_key = os.getenv('CDS_URL'), os.getenv('CDS_API_KEY')
+        config_path = Path.home() / '.cdsapirc'
+        if not config_path.exists():
+            print("Creating .cdsapirc ...")
+            config_path.write_text(f"url: {CDS_url}\nkey: {CDS_key}\n", encoding='utf-8')
+            print("Created at:", config_path)
+        forcing_dir = os.path.join(flow_dir, 'forcing')
+        os.makedirs(forcing_dir, exist_ok=True)
+        forcing_path = os.path.join(forcing_dir, "weather_forcing.nc")
+        # Remove old log
+        log_path = os.path.join(forcing_dir, "log.txt")        
+        if os.path.exists(log_path): os.remove(log_path)
+        logfile = open(log_path, "a", encoding="utf-8", buffering=1)
 
+        start, end = '2025-01-01 00:00:00', '2025-01-10 00:00:00'
 
+        start_time = datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
+        end_time = datetime.strptime(end, '%Y-%m-%d %H:%M:%S')
+        minx, miny, maxx, maxy = catchment.total_bounds
+        area = [float(maxy), float(minx), float(miny), float(maxx)]
+        # Setup variables
+        variables = [
+            'total_precipitation', # Precipitation
+            '2m_temperature', # Temperature
+            '10m_u_component_of_wind', '10m_v_component_of_wind', # Wind
+            'surface_pressure',  # Pressure
+            'surface_solar_radiation_downwards', # Shortwave radiation
+            'surface_thermal_radiation_downwards', # Longwave radiation
+        ]
+        dataset = 'reanalysis-era5-single-levels'
+        if os.path.exists(forcing_path): 
+            functions.append_log(log_path, "Removing old forcing data...")
+        # Redirect print() to log file
+        class AppendLogHandler(logging.Handler):
+            def emit(self, record):
+                functions.append_log(log_path, self.format(record))
+        logger = logging.getLogger(f"era5_{threading.get_ident()}")
+        logger.handlers.clear()
+        logger.setLevel(logging.INFO)
+        logger.propagate = False
+        handler = AppendLogHandler()
+        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+        logger.addHandler(handler)
+        # Download ERA5 data monthly
+        download_dir = os.path.join(forcing_dir, 'download')
+        if not os.path.exists(download_dir): os.makedirs(download_dir)
+        client = cdsapi.Client(quiet=False, debug=True)
+        for var in variables:
+            current = start_time.replace(day=1)
+            while current <= end_time:
+                year, month = current.year, current.month
+                last_day = calendar.monthrange(year, month)[1]
+                month_start = datetime(year, month, 1)
+                month_end = datetime(year, month, last_day, 23)
+                # Clip by requested range
+                actual_start = max(start_time, month_start)
+                actual_end = min(end_time, month_end)
+                # Days to download
+                days = [f"{d:02d}" for d in range(actual_start.day, actual_end.day + 1)]
+                # Output file
+                out_file = f"{var}_ERA5_{year}_{month:02d}.nc"
+                output = os.path.join(download_dir, out_file)
+                # Skip existing file
+                if os.path.exists(output): os.remove(output)
+                functions.append_log(log_path, f"\nDownloading: {out_file}")
+                request = {
+                    'product_type': 'reanalysis', 'variable': [var],
+                    'year': [str(year)], 'month': [f"{month:02d}"], 'day': days,
+                    'time': [f"{h:02d}:00" for h in range(24)], 'area': area,
+                    'data_format': 'netcdf', 'download_format': 'unarchived'
+                }
+                client.retrieve(dataset, request, output)
+                # Next month
+                current += relativedelta(months=1)
+        # Check valid files
+        functions.append_log(log_path, "\nChecking valid files...")
+        for var in variables:
+            pattern = os.path.join(download_dir, f"{var}_ERA5_*.nc")
+            raw_files = sorted(glob.glob(pattern))
+            # Filter valid files
+            files, bad_files = [], []
+            for f in raw_files:
+                if is_valid_netcdf(f): files.append(f)
+                else: bad_files.append(f)
+            functions.append_log(log_path, f"Valid files '{var}': {len(files)}/{len(raw_files)}")
+            if bad_files:
+                functions.append_log(log_path, "Bad files:")
+                for f in bad_files: functions.append_log(log_path, f" - {f}")
+        # Concatenate sub-files
+        functions.append_log(log_path, "\nConcatenating files...")
+        for var in variables:
+            pattern = os.path.join(download_dir, f"{var}_ERA5_*.nc")
+            raw_files = sorted(glob.glob(pattern))
+            if len(raw_files) == 1:
+                # Rename single file
+                old_file, new_file = raw_files[0], pattern.replace('_*', "")
+                os.rename(old_file, new_file)
+            elif len(raw_files) > 1:
+                files = [f for f in raw_files if is_valid_netcdf(f)]
+                if len(files) > 0:
+                    datasets = []
+                    try:
+                        datasets = [xr.open_dataset(f) for f in files]
+                        ds = xr.merge(
+                            datasets, compat="override", join="outer"
+                        )
+                        # Remove ERA5 artifact dimension
+                        if 'expver' in ds.variables: ds = ds.drop_vars('expver')
+                        encoding = {
+                            var: {"zlib": True, "complevel": 4, "dtype": "float32"}
+                            for var in ds.data_vars
+                        }
+                        output = pattern.replace('_*', "")
+                        functions.append_log(log_path, f"Writing forcing file: {output}")
+                        ds.to_netcdf(output, format="NETCDF4", encoding=encoding)
+                    finally:
+                        for ds in datasets: ds.close()
+                        if 'ds' in locals(): ds.close()
+                        del datasets
+                        gc.collect()
+        # Merge files
+        functions.append_log(log_path, "\nMerging files...")
+        final_output = os.path.join(forcing_dir, "ear5.nc")
+        datasets = [
+            os.path.join(download_dir, f"{var}_ERA5.nc")
+            for var in variables if os.path.exists(os.path.join(download_dir, f"{var}_ERA5.nc"))
+        ]
+        if datasets:
+            datasets_ds = []
+            try:
+                datasets_ds = [xr.open_dataset(f) for f in datasets]
+                ds_final = xr.merge(datasets_ds, compat="override", join="outer")
+                encoding = {
+                    var: {"zlib": True, "complevel": 4, "dtype": "float32"}
+                    for var in ds_final.data_vars
+                }
+                ds_final.to_netcdf(final_output, format="NETCDF4", encoding=encoding)
+            finally:
+                for ds in datasets_ds:
+                    ds.close()
+                if 'ds_final' in locals():
+                    ds_final.close()
+                gc.collect()
+            # Remove sub-files
+            shutil.rmtree(download_dir)
+            print("DONE")
+        else: functions.append_log(log_path, "No files to merge")
+        raw_path, datasets = os.path.join(flow_dir, "raw", "dtm_raw.tif"), {}
+        with rasterio.open(raw_path) as src:
+            dem_array, crs = src.read(1), src.crs
+            transform, nodata = src.transform, src.nodata
+        mask_nan = np.isnan(dem_array) | (dem_array == nodata)
+        ny, nx, time_step = dem_array.shape[0], dem_array.shape[1], 'hours'
+        x_coords = transform.c + (np.arange(nx) + 0.5) * transform.a
+        y_coords = transform.f + (np.arange(ny) + 0.5) * transform.e
+        forcing = {
+            'precip': ['tp', 'mm'], 'temp': ['t2m', 'degC'],
+            'kin': ['ssrd', 'W/m^2'], 'kout': ['strd', 'W/m^2'],
+            'wind': ['', 'm/s'], 'press_msl': ['sp', 'Pa']
+        }
+        with xr.open_dataset(final_output) as ds:
+            # vars = list(ds.data_vars.keys())
+            x_known, y_known, gdf = None, None, None
+            timestamps = pd.to_datetime(ds['valid_time'].values).to_numpy()
+            lat, lon = ds['latitude'].values, ds['longitude'].values
+            single_value=True if min(lat.shape[0], lon.shape[0]) == 1 else False
+            if not single_value:
+                lon2d, lat2d = np.meshgrid(lon, lat)
+                gdf_known = gpd.GeoDataFrame(geometry=gpd.points_from_xy(lon2d.ravel(), lat2d.ravel()), crs='EPSG:4326')
+                gdf_known = gdf_known.to_crs(crs)
+                x_known, y_known = gdf_known.geometry.x, gdf_known.geometry.y
+                x, y = np.meshgrid(x_coords, y_coords)
+                gdf = gpd.GeoDataFrame(geometry=gpd.points_from_xy(x.ravel(), y.ravel()), crs=crs)
+            for var, (col, unit) in forcing.items():
+                if col != '': data = ds[col].values.astype(np.float32)
+                if var == 'precip': data = data * 1000
+                elif var == 'temp': data = data - 273.15
+                elif var == 'kin' or var == 'kout': data = data / 3600
+                elif var == 'wind':
+                    u = ds['u10'].values.astype(np.float32)
+                    v = ds['v10'].values.astype(np.float32)
+                    data = np.sqrt(u**2 + v**2)
+                    # wind_direction = (np.degrees(np.arctan2(-u, -v)) + 360) % 360
+                if np.isnan(data).any():
+                    nan_mask = np.isnan(data)
+                    if nan_mask.all(): raise ValueError(f"{var} contains only NaN")
+                    da_arr = xr.DataArray(data, dims=("valid_time", "latitude", "longitude"))
+                    da_arr = (
+                        da_arr.interpolate_na(dim="valid_time", method="linear")
+                        .ffill("valid_time").bfill("valid_time")
+                    )
+                    data = da_arr.values.astype(np.float32)
+                data_3d = create_forcing(timestamps, ny, nx, data, mask_nan, single_value, gdf, x_known, y_known)
+                datasets[var] = (('time', 'y', 'x'), data_3d, {'units': unit})
+        ds_final = xr.Dataset(
+            data_vars=datasets, coords={"time": timestamps, "y": y_coords, "x": x_coords}
+        )
+        ds_final = ds_final.rio.set_spatial_dims(x_dim="x", y_dim="y")
+        ds_final = ds_final.rio.write_crs(crs)
+        ds_final["time"].encoding = {
+            "units": f"{time_step} since 1900-01-01 00:00:00",
+            "calendar": "proleptic_gregorian", "dtype": "float64"
+        }
+        encoding = {
+            var: {
+                "zlib": True, "complevel": 5, "shuffle": True, 
+                "dtype": "float32", "chunksizes": (24, 128, 128)
+            }
+            for var in ds_final.data_vars
+        }
+        ds_final.to_netcdf(forcing_path, format="NETCDF4", engine='netcdf4', encoding=encoding)
+        ds_final.close()
+        functions.append_log(log_path, f"Saved forcing file successfully: {forcing_path}")
 
-
-
-# def create_forcing(time, ny, nx, values, single_value=True):
-#     if single_value:
-#         data = np.empty((len(time), ny, nx), dtype=np.float32)
-#         data[:] = values[:, None, None]
-    
-
-#     return data
+        # finally:
+        #     for d in datasets_ds: d.close()
+        #     if 'ds_final' in locals(): ds_final.close()
+        #     gc.collect()    
+        # shutil.rmtree(download_dir)
+        # functions.append_log(log_path, "Temporary files removed.")
+    except Exception as e:
+        print('/weather_downloader:\n==============')
+        traceback.print_exc()
+    finally:
+        logfile.close()
 
 # def keep_polygon(geom):
 #     if geom.geom_type == 'GeometryCollection':
@@ -570,3 +823,28 @@ def is_valid_netcdf(path):
 # csv_path = r"backend\src\flow_samples\landcover\esa_worldcover_mapping.csv"
 # df, lai_name, land_arr = pd.read_csv(csv_path), "esa", land_esa
 # df.to_csv(os.path.join(land_dir, 'esa_worldcover.csv'), index=False)
+
+
+# # Create soil thickness
+# with rasterio.open(terrain_path) as src:
+#     meta = src.meta.copy()
+# meta.update({"dtype": "float32", "nodata": -9999.0})
+# data = np.ones((meta["height"], meta["width"]), dtype="float32") * 100
+# data[data == meta["nodata"]] = 100
+# with rasterio.open(os.path.join(soil_dir, 'soilthickness.tif'), "w", **meta) as dst:
+#     dst.write(data, 1)
+# # Download soil data from ISRIC: https://files.isric.org/soilgrids/latest/data/
+# soil_types, soil_depths = flow_functions.soil_types, flow_functions.soil_depths
+# for item, name in soil_types.items():
+#     wcs = WebCoverageService(f'https://maps.isric.org/mapserv?map=/map/{item}.map', version='1.0.0')
+#     for type, value in soil_depths.items():
+#         idx, soil_name = f'{item}_{type}', f'{name}_{value}'
+#         response = wcs.getCoverage(
+#             identifier=idx, crs='EPSG:4326', bbox=bbox,
+#             format='image/tiff', resx=0.0025, resy=0.0025
+#         )
+#         with MemoryFile(response.read()) as memfile:
+#             with memfile.open() as src:
+#                 data = rioxarray.open_rasterio(src, masked=True)
+#                 data_reprojected = data.rio.reproject_match(terrain)
+#             data_reprojected.rio.to_raster(os.path.join(soil_dir, f'{soil_name}.tif'))
