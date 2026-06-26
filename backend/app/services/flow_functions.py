@@ -1,4 +1,4 @@
-import os, dotenv, rasterio, zipfile, rioxarray, threading
+import os, dotenv, rasterio, zipfile, rioxarray, sys
 import logging, cdsapi, calendar, glob, gc, shutil, traceback
 import geopandas as gpd, numpy as np, pandas as pd, xarray as xr
 from shapely.geometry import Polygon, MultiPolygon
@@ -148,30 +148,60 @@ def create_forcing(time, ny, nx, values, mask_nan, single_value, gdf=None, x_coo
     data = da.where(mask_nan[None, :, :], 0, data)
     return data
 
-def weather_downloader(flow_dir, start, end, catchment):
+def setup_logger(log_path: str):
+    logger = logging.getLogger("cdsapi")
+    logger.setLevel(logging.INFO)
+    logger.handlers.clear()
+    logger.propagate = False
+    file_handler = logging.FileHandler(log_path, mode="a", encoding="utf-8")
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    return logger
+
+def weather_downloader(flow_dir, start, end, catchment, buffer=0.1):
     # Prepare forcing data from the global model ARE5
     # Source: https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels?tab=download
+    forcing_dir = os.path.join(flow_dir, 'forcing')
+    os.makedirs(forcing_dir, exist_ok=True)
+    forcing_path = os.path.join(forcing_dir, "weather_forcing.nc")
+    # Remove old log
+    log_path = os.path.join(forcing_dir, "log.txt")        
+    if os.path.exists(log_path): os.remove(log_path)
+    class StreamToLogger:
+        def __init__(self, logger, level=logging.INFO):
+            self.logger = logger
+            self.level = level
+            self.linebuf = ""
+        def write(self, buf):
+            for line in buf.rstrip().splitlines():
+                self.logger.log(self.level, line.rstrip())
+        def flush(self):
+            pass
+    # reset log file
+    with open(log_path, "w", encoding="utf-8") as f:
+        f.write("")
+    logger = setup_logger(log_path)
+    old_stdout, old_stderr = sys.stdout, sys.stderr
+    sys.stdout = StreamToLogger(logger)
+    sys.stderr = StreamToLogger(logger)
     try:
+        logger.info("Weather downloader started")
         CDS_url, CDS_key = os.getenv('CDS_URL'), os.getenv('CDS_API_KEY')
         config_path = Path.home() / '.cdsapirc'
         if not config_path.exists():
-            print("Creating .cdsapirc ...")
+            logger.info("Creating .cdsapirc ...")
             config_path.write_text(f"url: {CDS_url}\nkey: {CDS_key}\n", encoding='utf-8')
-            print("Created at:", config_path)
-        forcing_dir = os.path.join(flow_dir, 'forcing')
-        os.makedirs(forcing_dir, exist_ok=True)
-        forcing_path = os.path.join(forcing_dir, "weather_forcing.nc")
-        # Remove old log
-        log_path = os.path.join(forcing_dir, "log.txt")        
-        if os.path.exists(log_path): os.remove(log_path)
-        logfile = open(log_path, "a", encoding="utf-8", buffering=1)
-
+            logger.info(f"Created at: {config_path}")
         start, end = '2025-01-01 00:00:00', '2025-01-10 00:00:00'
-
+        logger.info(f"Starting time: {start}   --   Ending time: {end}")
         start_time = datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
         end_time = datetime.strptime(end, '%Y-%m-%d %H:%M:%S')
-        minx, miny, maxx, maxy = catchment.total_bounds
-        area = [float(maxy), float(minx), float(miny), float(maxx)]
+        lon_min, lat_min, lon_max, lat_max = catchment.total_bounds
+        north, east = max(lat_min, lat_max), max(lon_min, lon_max)
+        south, west = min(lat_min, lat_max), min(lon_min, lon_max)
+        area = [north + buffer, west - buffer, south - buffer, east + buffer]
+        logger.info(f"Bounding box: {area}")
         # Setup variables
         variables = [
             'total_precipitation', # Precipitation
@@ -183,18 +213,7 @@ def weather_downloader(flow_dir, start, end, catchment):
         ]
         dataset = 'reanalysis-era5-single-levels'
         if os.path.exists(forcing_path): 
-            functions.append_log(log_path, "Removing old forcing data...")
-        # Redirect print() to log file
-        class AppendLogHandler(logging.Handler):
-            def emit(self, record):
-                functions.append_log(log_path, self.format(record))
-        logger = logging.getLogger(f"era5_{threading.get_ident()}")
-        logger.handlers.clear()
-        logger.setLevel(logging.INFO)
-        logger.propagate = False
-        handler = AppendLogHandler()
-        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
-        logger.addHandler(handler)
+            logger.info("Removing old forcing data...")
         # Download ERA5 data monthly
         download_dir = os.path.join(forcing_dir, 'download')
         if not os.path.exists(download_dir): os.makedirs(download_dir)
@@ -216,7 +235,7 @@ def weather_downloader(flow_dir, start, end, catchment):
                 output = os.path.join(download_dir, out_file)
                 # Skip existing file
                 if os.path.exists(output): os.remove(output)
-                functions.append_log(log_path, f"\nDownloading: {out_file}")
+                logger.info(f"Downloading: {out_file}")
                 request = {
                     'product_type': 'reanalysis', 'variable': [var],
                     'year': [str(year)], 'month': [f"{month:02d}"], 'day': days,
@@ -226,8 +245,9 @@ def weather_downloader(flow_dir, start, end, catchment):
                 client.retrieve(dataset, request, output)
                 # Next month
                 current += relativedelta(months=1)
+        logger.info("ERA5 download completed successfully")
         # Check valid files
-        functions.append_log(log_path, "\nChecking valid files...")
+        logger.info("Checking valid files...")
         for var in variables:
             pattern = os.path.join(download_dir, f"{var}_ERA5_*.nc")
             raw_files = sorted(glob.glob(pattern))
@@ -236,12 +256,12 @@ def weather_downloader(flow_dir, start, end, catchment):
             for f in raw_files:
                 if is_valid_netcdf(f): files.append(f)
                 else: bad_files.append(f)
-            functions.append_log(log_path, f"Valid files '{var}': {len(files)}/{len(raw_files)}")
+            logger.info(f"Valid files '{var}': {len(files)}/{len(raw_files)}")
             if bad_files:
-                functions.append_log(log_path, "Bad files:")
-                for f in bad_files: functions.append_log(log_path, f" - {f}")
+                logger.info("Bad files:")
+                for f in bad_files: logger.info(f" - {os.path.basename(f)}")
         # Concatenate sub-files
-        functions.append_log(log_path, "\nConcatenating files...")
+        logger.info("Concatenating files...")
         for var in variables:
             pattern = os.path.join(download_dir, f"{var}_ERA5_*.nc")
             raw_files = sorted(glob.glob(pattern))
@@ -249,31 +269,33 @@ def weather_downloader(flow_dir, start, end, catchment):
                 # Rename single file
                 old_file, new_file = raw_files[0], pattern.replace('_*', "")
                 os.rename(old_file, new_file)
+                logger.info(f"Renamed: {os.path.basename(new_file)}")
             elif len(raw_files) > 1:
                 files = [f for f in raw_files if is_valid_netcdf(f)]
-                if len(files) > 0:
-                    datasets = []
-                    try:
-                        datasets = [xr.open_dataset(f) for f in files]
-                        ds = xr.merge(
-                            datasets, compat="override", join="outer"
-                        )
-                        # Remove ERA5 artifact dimension
-                        if 'expver' in ds.variables: ds = ds.drop_vars('expver')
-                        encoding = {
-                            var: {"zlib": True, "complevel": 4, "dtype": "float32"}
-                            for var in ds.data_vars
-                        }
-                        output = pattern.replace('_*', "")
-                        functions.append_log(log_path, f"Writing forcing file: {output}")
-                        ds.to_netcdf(output, format="NETCDF4", encoding=encoding)
-                    finally:
-                        for ds in datasets: ds.close()
-                        if 'ds' in locals(): ds.close()
-                        del datasets
-                        gc.collect()
+                if len(files) == 0: continue
+                datasets = []
+                try:
+                    logger.info(f"Merging {var} ...")
+                    datasets = [xr.open_dataset(f) for f in files]
+                    ds = xr.merge(
+                        datasets, compat="override", join="outer"
+                    )
+                    # Remove ERA5 artifact dimension
+                    if 'expver' in ds.variables: ds = ds.drop_vars('expver')
+                    encoding = {
+                        var: {"zlib": True, "complevel": 4, "dtype": "float32"}
+                        for var in ds.data_vars
+                    }
+                    output = pattern.replace('_*', "")
+                    logger.info(f"Writing forcing file: {output}")
+                    ds.to_netcdf(output, format="NETCDF4", encoding=encoding)
+                finally:
+                    for ds in datasets: ds.close()
+                    if 'ds' in locals(): ds.close()
+                    del datasets
+                    gc.collect()
         # Merge files
-        functions.append_log(log_path, "\nMerging files...")
+        logger.info("Merging files...")
         final_output = os.path.join(forcing_dir, "ear5.nc")
         datasets = [
             os.path.join(download_dir, f"{var}_ERA5.nc")
@@ -288,17 +310,17 @@ def weather_downloader(flow_dir, start, end, catchment):
                     var: {"zlib": True, "complevel": 4, "dtype": "float32"}
                     for var in ds_final.data_vars
                 }
+                logger.info(f"Writing ERA5 file: {final_output}")
                 ds_final.to_netcdf(final_output, format="NETCDF4", encoding=encoding)
             finally:
-                for ds in datasets_ds:
-                    ds.close()
-                if 'ds_final' in locals():
-                    ds_final.close()
+                for ds in datasets_ds: ds.close()
+                if 'ds_final' in locals(): ds_final.close()
                 gc.collect()
             # Remove sub-files
             shutil.rmtree(download_dir)
-            print("DONE")
-        else: functions.append_log(log_path, "No files to merge")
+            logger.info("Temporary files removed.")
+            logger.info("Merging files completed successfully")
+        else: logger.info("No multiple files to merge")
         raw_path, datasets = os.path.join(flow_dir, "raw", "dtm_raw.tif"), {}
         with rasterio.open(raw_path) as src:
             dem_array, crs = src.read(1), src.crs
@@ -327,9 +349,9 @@ def weather_downloader(flow_dir, start, end, catchment):
                 gdf = gpd.GeoDataFrame(geometry=gpd.points_from_xy(x.ravel(), y.ravel()), crs=crs)
             for var, (col, unit) in forcing.items():
                 if col != '': data = ds[col].values.astype(np.float32)
-                if var == 'precip': data = data * 1000
-                elif var == 'temp': data = data - 273.15
-                elif var == 'kin' or var == 'kout': data = data / 3600
+                if var == 'precip': data *= 1000
+                elif var == 'temp': data -= 273.15
+                elif var == 'kin' or var == 'kout': data /= 3600
                 elif var == 'wind':
                     u = ds['u10'].values.astype(np.float32)
                     v = ds['v10'].values.astype(np.float32)
@@ -344,6 +366,7 @@ def weather_downloader(flow_dir, start, end, catchment):
                         .ffill("valid_time").bfill("valid_time")
                     )
                     data = da_arr.values.astype(np.float32)
+                logger.info(f"Interpolating {var}...")
                 data_3d = create_forcing(timestamps, ny, nx, data, mask_nan, single_value, gdf, x_known, y_known)
                 datasets[var] = (('time', 'y', 'x'), data_3d, {'units': unit})
         ds_final = xr.Dataset(
@@ -364,19 +387,12 @@ def weather_downloader(flow_dir, start, end, catchment):
         }
         ds_final.to_netcdf(forcing_path, format="NETCDF4", engine='netcdf4', encoding=encoding)
         ds_final.close()
-        functions.append_log(log_path, f"Saved forcing file successfully: {forcing_path}")
-
-        # finally:
-        #     for d in datasets_ds: d.close()
-        #     if 'ds_final' in locals(): ds_final.close()
-        #     gc.collect()    
-        # shutil.rmtree(download_dir)
-        # functions.append_log(log_path, "Temporary files removed.")
-    except Exception as e:
+        logger.info(f"Saved forcing file successfully: {forcing_path}")
+    except Exception:
         print('/weather_downloader:\n==============')
         traceback.print_exc()
     finally:
-        logfile.close()
+        sys.stdout, sys.stderr = old_stdout, old_stderr
 
 # def keep_polygon(geom):
 #     if geom.geom_type == 'GeometryCollection':

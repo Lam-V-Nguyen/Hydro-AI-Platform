@@ -633,14 +633,6 @@ async def log_tail_weather(project_name: str, offset: int = Query(0), flow_name:
             lines.append(line.rstrip())
     return {"lines": lines, "offset": os.path.getsize(log_path)}
 
-
-
-
-
-
-
-
-
 # Start a hydrodynamic simulation
 @router.post("/start_download_weather")
 async def start_download_weather(request: Request, user=Depends(functions.basic_auth)):

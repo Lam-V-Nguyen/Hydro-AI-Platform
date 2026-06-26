@@ -625,7 +625,7 @@ function weatherManager() {
             // if (WeatherRunning) { alert("Detected an HYD simulation is running. Please wait until it finishes."); return; }
             const statusRes = await jsonLoader('check_weather_status', {projectName: currentProject});
             if (statusRes.status === "running") { alert("Weather download is already running."); return; }
-            obj.weatherLog.value = '';
+            obj.weatherLog.value = ''; lastOffset = 0;
             const content = { 
                 projectName: currentProject, flowName: name,
                 data: data.data, start: startTime, end: endTime
@@ -653,13 +653,12 @@ function weatherManager() {
 
 function updateLog(currentProject, flowName, info, seconds){
     activeProject = currentProject;
-    logInterval = setInterval(async () => {
-        if (activeProject !== currentProject) { clearInterval(logInterval); logInterval = null; }
+    async function loop() {
+        if (activeProject !== currentProject) return;
         try {
             const statusRes = await jsonLoader('check_weather_status', {projectName: currentProject});
             if (statusRes.status !== "running") {
-                info.value += statusRes.message;
-                if (logInterval) { clearInterval(logInterval); logInterval = null; }
+                info.value += statusRes.message || ""; lastOffset = 0; return;
             }
             const res = await fetch(
                 `/log_tail_weather/${currentProject}?offset=${lastOffset}&flow_name=${flowName}&log_file=log.txt`
@@ -668,8 +667,10 @@ function updateLog(currentProject, flowName, info, seconds){
             const data = await res.json();
             for (const line of data.lines) { info.value += line + "\n"; }
             lastOffset = data.offset;
-        } catch (error) { clearInterval(logInterval); logInterval = null; }
-    }, seconds * 1000);
+        } catch (error) { alert(error); return; }
+        setTimeout(loop, seconds * 1000);
+    }
+    loop();
 }
 
 function windowListener() {
