@@ -446,20 +446,6 @@ async def polygon_clip(request: Request):
         traceback.print_exc()
         return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
 
-# @router.post("/assign_type")
-# async def assign_type(request: Request):
-#     try:
-#         body = await request.json()
-#         key, data = body.get('key'), body.get('data')
-#         if key == "soil": content = copy.deepcopy(flow_functions.soil_types[data])
-#         elif key == "land": content = copy.deepcopy(flow_functions.land_types[data])
-#         content.insert(0, data)
-#         return JSONResponse({'status': 'ok', 'content': content})
-#     except Exception as e:
-#         print('/assign_type:\n==============')
-#         traceback.print_exc()
-#         return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
-
 @router.post("/river_upload")
 async def river_upload(file: UploadFile = File(...), projectName: str = Form(...),
     key: str = Form(...), threshold: float = Form(...), 
