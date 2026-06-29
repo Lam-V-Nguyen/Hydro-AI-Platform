@@ -61,10 +61,12 @@ function settingManager() {
         const name = obj.projectName.value.trim();
         if (!name || name.trim() === '') { alert('Please define scenario name.'); return; }
         if (nameChecker(name)) { alert('Scenario name contains invalid characters.'); return; }
-        signalSender('showOverlay', 'Creating a new flow project. Please wait...');
-        const content = { projectName: currentProject, filename: name, key: 'create' };
+        const content = { projectName: currentProject, flowName: name };
         const data = await jsonLoader('flow_project', content);
-        signalSender('hideOverlay'); alert(data.message);
+        if (data.status === 'error' || data.status === 'create') { alert(data.message); return; }
+        obj.waterInputText.value = data.content['water'];
+        obj.catchmentInputText.value = ''; obj.terrainInputText.value = '';
+
     });
     // Add water layer
     obj.waterInputFile.addEventListener('change', async (e) => {
@@ -321,12 +323,12 @@ function soilManager() {
         obj.soilAttributeContainer.style.display = 'none'; obj.soilDownloadContainer.style.display = 'flex';
         obj.soilLog.value = ''; lastOffset = 0;
         const content = { 
-            projectName: currentProject, key: 'soil', area: data.data, flowName: name, 
-            code: value, terrainName: terrain, waterArea: obj.waterInputText.value
+            projectName: currentProject, key: 'soil', data: data.data, flowName: name, 
+            terrainName: terrain, waterArea: obj.waterInputText.value
         };
-        const request = await jsonLoader('data_download', content);
+        const request = await jsonLoader('start_download_soil', content);
         if (request.status === 'error') { alert(request.message); return; }
-        updateLog(currentProject, name, obj.soilLog, 2);
+        updateLog(currentProject, name, obj.soilLog, 2, 'soil');
     });
     obj.soilLayer.addEventListener('change', async (e) => { 
         const value = e.target.value; if (value === '') return;
@@ -627,7 +629,7 @@ function weatherManager() {
             };
             const start = await jsonLoader('start_download_weather', content);
             if (start.status === "error") { alert(start.message); return; }
-            updateLog(currentProject, name, obj.weatherLog, 2);
+            updateLog(currentProject, name, obj.weatherLog, 2, 'weather');
         }
     });
     obj.saveWeatherBtn.addEventListener('click', async () => {

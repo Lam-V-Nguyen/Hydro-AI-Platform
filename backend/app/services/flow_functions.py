@@ -1,5 +1,5 @@
-import os, dotenv, rasterio, zipfile, rioxarray, sys, time, pyflwdir
-import logging, cdsapi, calendar, glob, gc, shutil, traceback
+import os, dotenv, rasterio, zipfile, rioxarray, sys, pyflwdir
+import logging, cdsapi, calendar, gc, shutil, traceback
 import geopandas as gpd, numpy as np, pandas as pd, xarray as xr
 from shapely.geometry import Polygon, MultiPolygon
 from scipy.spatial import cKDTree
@@ -7,8 +7,6 @@ from netCDF4 import Dataset, date2num
 from rasterio.io import MemoryFile
 from rasterio.enums import Resampling
 from rasterio.features import rasterize
-import dask.array as da
-from dask import delayed
 from services import functions
 from pathlib import Path
 from datetime import datetime
@@ -311,15 +309,15 @@ def weather_downloader(project_name, processes, flow_dir, start, end, catchment,
             logger.info("\n=========================================================")
             logger.info("Checking valid files...")
             # Filter valid files
-            logger.info(f"\nYear: {year}, Month: {month}")
+            logger.info(f"Year: {year}, Month: {month}")
             n = len(files) + len(bad_files)
             logger.info(f"Number of valid files: {len(files)}/{n}")
             logger.info(f"Number of invalid files: {len(bad_files)}/{n}")
             if len(bad_files) > 0:
                 logger.info("Bad files:")
                 for f in bad_files: logger.info(f" - {os.path.basename(f)}")
-            logger.info("\n=========================================================")
-            logger.info("\nProcessing monthly forcing ...")
+            logger.info("=========================================================\n")
+            logger.info("Processing monthly forcing ...")
             ref_file = next(f for f in month_files if f.endswith("_tp.nc"))
             with xr.open_dataset(ref_file) as ref_ds:
                 timestamps = pd.to_datetime(ref_ds['valid_time'][:]).to_numpy()
@@ -391,7 +389,7 @@ def weather_downloader(project_name, processes, flow_dir, start, end, catchment,
         logger.info(f"Saved forcing file successfully: {forcing_path}")
         if os.path.exists(download_dir): shutil.rmtree(download_dir)
         logger.info("Temporary monthly files removed")
-        processes[project_name] = {"status": "finished", "message": "\nWeather download completed successfully.\n\n\n"}
+        processes[project_name] = {"status": "finished", "message": "Weather download completed successfully.\n\n\n"}
     except Exception as e:
         print('/weather_downloader:\n==============')
         traceback.print_exc()
@@ -404,7 +402,7 @@ def weather_downloader(project_name, processes, flow_dir, start, end, catchment,
             h.close()
             logger.removeHandler(h)
 
-def soil_downloader(project_name, processes, flow_dir, catchment, mask_lake, dtm_path):
+def soil_downloader(project_name, processes, flow_dir, catchment, water, dtm_path, buffer=0.1):
     try:
         # Work with log
         log_path = os.path.join(flow_dir, "log.txt")
@@ -414,8 +412,10 @@ def soil_downloader(project_name, processes, flow_dir, catchment, mask_lake, dtm
         logger.info("Preparing data download...")
         soil_dir = os.path.join(flow_dir, "soil")
         os.makedirs(soil_dir, exist_ok=True)
-        if catchment.crs != "EPSG:25833": catchment = catchment.to_crs('EPSG:4326')
-        min_lon, min_lat, max_lon, max_lat = catchment.total_bounds
+        if catchment.crs != "EPSG:4326": catchment = catchment.to_crs('EPSG:4326')
+        lon_min, lat_min, lon_max, lat_max = catchment.total_bounds
+        north, east = max(lat_min, lat_max), max(lon_min, lon_max)
+        south, west = min(lat_min, lat_max), min(lon_min, lon_max)
         soil_depths = flow_functions.soil_depths
         soil_types, depths = flow_functions.soil_types, list(soil_depths.values())
         # Get raster information
@@ -423,12 +423,14 @@ def soil_downloader(project_name, processes, flow_dir, catchment, mask_lake, dtm
         logger.info("Reading dtm data...")
         with rasterio.open(dtm_path) as src:
             nodata, profile = src.nodata, src.profile
+            crs, transform = src.crs, src.transform
+            height, width = src.height, src.width
         base_url = "https://files.isric.org/soilgrids/former/2017-03-10/data/"
         # Soil thickness
         logger.info("Creating soil thickness data...")
         soil_thickness_url, NODATA_SOIL_THICKNESS = f"{base_url}BDRICM_M_250m_ll.tif", -99999
         with rioxarray.open_rasterio(soil_thickness_url) as src:
-            data_xr = src.rio.clip_box(minx=min_lon, miny=min_lat, maxx=max_lon, maxy=max_lat)
+            data_xr = src.rio.clip_box(minx=west, miny=south, maxx=east, maxy=north)
             data_xr = data_xr.rio.reproject_match(ref, resampling=Resampling.nearest)
             nodata = data_xr.rio.nodata
         soil_thickness_array = data_xr[0].values
@@ -437,6 +439,16 @@ def soil_downloader(project_name, processes, flow_dir, catchment, mask_lake, dtm
         mask_valid = soil_thickness_array != nodata
         soil_thickness_values = flow_functions.interpolate_extrapolate(soil_thickness_array, ~mask_valid, True)
         soil_thickness_values = soil_thickness_values.astype(np.int32)
+        # Clip to lake
+        water_path, mask_lake = os.path.join(flow_dir, 'water_area', water), None
+        if os.path.exists(water_path) and os.path.getsize(water_path) > 0:
+            lake = gpd.read_file(water_path)
+            lake_reproj = lake.to_crs(crs)
+            lake_array = rasterize(
+                shapes=[geom for geom in lake_reproj.geometry], dtype=np.float32,
+                out_shape=(height, width), transform=transform, fill=nodata
+            )
+            mask_lake = (lake_array != nodata)
         if mask_lake is not None: soil_thickness_values[mask_lake] = NODATA_SOIL_THICKNESS
         soil_thickness_path = os.path.join(soil_dir, 'soilthickness.tif')
         profile_writer = profile.copy()
@@ -450,7 +462,7 @@ def soil_downloader(project_name, processes, flow_dir, catchment, mask_lake, dtm
                 file_url = f'{base_url}{file}_{depth}_250m_ll.tif'
                 logger.info(f"Downloading: {file}_{depth}_250m_ll.tif...")
                 with rioxarray.open_rasterio(file_url) as src:
-                    data_xr = src.rio.clip_box(minx=min_lon, miny=min_lat, maxx=max_lon, maxy=max_lat)
+                    data_xr = src.rio.clip_box(minx=west, miny=south, maxx=east, maxy=north)
                     data_xr = data_xr.rio.reproject_match(ref, resampling=Resampling.nearest)
                     nodata = data_xr.rio.nodata
                 soil_array = data_xr[0].values
@@ -468,8 +480,8 @@ def soil_downloader(project_name, processes, flow_dir, catchment, mask_lake, dtm
                 profile_writer.update(dtype=dtype)
                 flow_functions.write_geotif(soil_values, profile_writer, path, nodata_soil)
                 logger.info(f"Saved downloaded data to: {path}")
-        logger.info("\nSoil data downloaded successfully.\n\n\n\n")
-        processes[project_name] = {"status": "finished", "message": "Soil data downloaded successfully."}
+        logger.info("\nSoil data downloaded successfully.\n\n\n")
+        processes[project_name] = {"status": "finished", "message": "Soil data downloaded successfully.\n\n\n"}
     except Exception as e:
         print('/data_download:\n==============')
         traceback.print_exc()
@@ -662,7 +674,7 @@ def run_hydromt(project_name, processes, flow_dir, start, end, step, region, res
             snowpack__liquid_water_holding_capacity = params['snow_liq_cap'],
             glacier_ice__degree_day_coefficient = params['dd_glacier'],
             glacier_firn_accumulation__snowpack_dry_snow_leq_depth_fraction = params['firn_dry_frac'],
-            glacier_ice__melting_temperature_threshold = params['melt_t0_glacier'],
+            glacier_ice__melting_temperature_threshold = params['melt_t0_glacier']
         )
         # === Cold states ===
         model.setup_cold_states()
@@ -1184,240 +1196,3 @@ def hydro_creator(flow_dir):
 #                 data_reprojected = data.rio.reproject_match(terrain)
 #             data_reprojected.rio.to_raster(os.path.join(soil_dir, f'{soil_name}.tif'))
 
-# def weather_downloader(project_name, processes, flow_dir, start, end, catchment, buffer=0.1):
-#     # Prepare forcing data from the global model ARE5
-#     # Source: https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels?tab=download
-#     forcing_dir = os.path.join(flow_dir, 'forcing')
-#     os.makedirs(forcing_dir, exist_ok=True)
-#     forcing_path = os.path.join(forcing_dir, "weather_forcing.nc")
-#     # Remove old log
-#     log_path = os.path.join(flow_dir, "log.txt")
-#     if os.path.exists(log_path): os.remove(log_path)
-#     logger = setup_logger("cdsapi", log_path)
-#     old_stdout, old_stderr = sys.stdout, sys.stderr
-#     sys.stdout, sys.stderr = StreamToLogger(logger), StreamToLogger(logger)
-#     try:
-#         logger.info("Weather downloader started")
-#         CDS_url, CDS_key = os.getenv('CDS_URL'), os.getenv('CDS_API_KEY')
-#         config_path = Path.home() / '.cdsapirc'
-#         if not config_path.exists():
-#             logger.info("Creating .cdsapirc ...")
-#             config_path.write_text(f"url: {CDS_url}\nkey: {CDS_key}\n", encoding='utf-8')
-#             logger.info(f"Created at: {config_path}")
-#         # start, end = '2025-01-01 00:00:00', '2025-01-03 00:00:00'
-#         logger.info(f"Starting time: {start}   --   Ending time: {end}")
-#         start_time = datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
-#         end_time = datetime.strptime(end, '%Y-%m-%d %H:%M:%S')
-#         lon_min, lat_min, lon_max, lat_max = catchment.total_bounds
-#         north, east = max(lat_min, lat_max), max(lon_min, lon_max)
-#         south, west = min(lat_min, lat_max), min(lon_min, lon_max)
-#         area = [north + buffer, west - buffer, south - buffer, east + buffer]
-#         logger.info(f"Bounding box: {area}")
-#         # Setup variables
-#         variables = [
-#             'total_precipitation', # Precipitation
-#             '2m_temperature', # Temperature
-#             '10m_u_component_of_wind', '10m_v_component_of_wind', # Wind
-#             'surface_pressure',  # Pressure
-#             'surface_solar_radiation_downwards', # Shortwave radiation
-#             'surface_thermal_radiation_downwards', # Longwave radiation
-#         ]
-#         dataset = 'reanalysis-era5-single-levels'
-#         if os.path.exists(forcing_path):
-#             functions.safe_remove(forcing_path)
-#             logger.info("Removing old forcing data...")
-#         # Download ERA5 data monthly
-#         download_dir = os.path.join(forcing_dir, 'download')
-#         if not os.path.exists(download_dir): os.makedirs(download_dir)
-#         client = cdsapi.Client(quiet=False, debug=False)
-#         for var in variables:
-#             current = start_time.replace(day=1)
-#             while current <= end_time:
-#                 year, month = current.year, current.month
-#                 last_day = calendar.monthrange(year, month)[1]
-#                 month_start = datetime(year, month, 1)
-#                 month_end = datetime(year, month, last_day, 23)
-#                 # Clip by requested range
-#                 actual_start = max(start_time, month_start)
-#                 actual_end = min(end_time, month_end)
-#                 # Days to download
-#                 days = [f"{d:02d}" for d in range(actual_start.day, actual_end.day + 1)]
-#                 # Output file
-#                 out_file = f"{var}_ERA5_{year}_{month:02d}.nc"
-#                 output = os.path.join(download_dir, out_file)
-#                 # Skip existing file
-#                 if os.path.exists(output): os.remove(output)
-#                 logger.info(f"Downloading: {out_file}")
-#                 request = {
-#                     'product_type': 'reanalysis', 'variable': [var],
-#                     'year': [str(year)], 'month': [f"{month:02d}"], 'day': days,
-#                     'time': [f"{h:02d}:00" for h in range(24)], 'area': area,
-#                     'data_format': 'netcdf', 'download_format': 'unarchived'
-#                 }
-#                 client.retrieve(dataset, request, output)
-#                 # Next month
-#                 current += relativedelta(months=1)
-#         logger.info("ERA5 download completed successfully")
-#         # Check valid files
-#         logger.info("Checking valid files...")
-#         # Filter valid files
-#         files, bad_files = [], []
-#         for var in variables:
-#             pattern = os.path.join(download_dir, f"{var}_ERA5_*.nc")
-#             raw_files = sorted(glob.glob(pattern))
-#             for f in raw_files:
-#                 if is_valid_netcdf(f): files.append(f)
-#                 else: bad_files.append(f)
-#         logger.info(f"Number of valid files: {len(files)}/{len(files) + len(bad_files)}")
-#         if len(bad_files) > 0:
-#             logger.info("Bad files:")
-#             for f in bad_files: logger.info(f" - {os.path.basename(f)}")
-#         # Concatenate sub-files
-#         logger.info("Concatenating files...")
-#         for var in variables:
-#             pattern = os.path.join(download_dir, f"{var}_ERA5_*.nc")
-#             raw_files = sorted(glob.glob(pattern))
-#             if len(raw_files) == 1:
-#                 # Rename single file
-#                 old_file, new_file = raw_files[0], pattern.replace('_*', "")
-#                 os.rename(old_file, new_file)
-#                 logger.info(f"Renamed: {os.path.basename(new_file)}")
-#             elif len(raw_files) > 1:
-#                 files = [f for f in raw_files if is_valid_netcdf(f)]
-#                 if len(files) == 0: continue
-#                 datasets = []
-#                 try:
-#                     logger.info(f"Merging {var} ...")
-#                     datasets = [xr.open_dataset(f) for f in files]
-#                     ds = xr.merge(
-#                         datasets, compat="override", join="outer"
-#                     )
-#                     # Remove ERA5 artifact dimension
-#                     if 'expver' in ds.variables: ds = ds.drop_vars('expver')
-#                     encoding = {
-#                         var: {"zlib": True, "complevel": 4, "dtype": "float32"}
-#                         for var in ds.data_vars
-#                     }
-#                     output = pattern.replace('_*', "")
-#                     logger.info(f"Writing forcing file: {output}")
-#                     ds.to_netcdf(output, format="NETCDF4", encoding=encoding)
-#                 finally:
-#                     for ds in datasets: ds.close()
-#                     if 'ds' in locals(): ds.close()
-#                     del datasets
-#                     gc.collect()
-#         # Merge files
-#         logger.info("Merging files...")
-#         final_output = os.path.join(forcing_dir, "ear5.nc")
-#         datasets = [
-#             os.path.join(download_dir, f"{var}_ERA5.nc")
-#             for var in variables if os.path.exists(os.path.join(download_dir, f"{var}_ERA5.nc"))
-#         ]
-#         if datasets:
-#             datasets_ds = []
-#             try:
-#                 datasets_ds = [xr.open_dataset(f) for f in datasets]
-#                 ds_final = xr.merge(datasets_ds, compat="override", join="outer")
-#                 encoding = {
-#                     var: {"zlib": True, "complevel": 4, "dtype": "float32"}
-#                     for var in ds_final.data_vars
-#                 }
-#                 logger.info(f"Writing ERA5 file: {final_output}")
-#                 ds_final.to_netcdf(final_output, format="NETCDF4", encoding=encoding)
-#             finally:
-#                 for ds in datasets_ds: ds.close()
-#                 if 'ds_final' in locals(): ds_final.close()
-#                 gc.collect()
-#             # Remove sub-files
-#             shutil.rmtree(download_dir)
-#             logger.info("Temporary files removed.")
-#             logger.info("Merging files completed successfully")
-#         else: logger.info("No multiple files to merge")
-#         raw_path, datasets = os.path.join(flow_dir, "raw", "dtm_raw.tif"), {}
-#         with rasterio.open(raw_path) as src:
-#             dem_array, crs = src.read(1), src.crs
-#             transform, nodata = src.transform, src.nodata
-#         mask_nan = np.isnan(dem_array) | (dem_array == nodata)
-#         ny, nx, time_step = dem_array.shape[0], dem_array.shape[1], 'hours'
-#         x_coords = transform.c + (np.arange(nx) + 0.5) * transform.a
-#         y_coords = transform.f + (np.arange(ny) + 0.5) * transform.e
-#         forcing = {
-#             'precip': ['tp', 'mm'], 'temp': ['t2m', 'degC'],
-#             'kin': ['ssrd', 'W/m^2'], 'kout': ['strd', 'W/m^2'],
-#             'wind': ['', 'm/s'], 'press_msl': ['sp', 'Pa']
-#         }
-#         with xr.open_dataset(final_output) as ds:
-#             # vars = list(ds.data_vars.keys())
-#             x_known, y_known, gdf = None, None, None
-#             timestamps = pd.to_datetime(ds['valid_time'].values).to_numpy()
-#             lat, lon = ds['latitude'].values, ds['longitude'].values
-#             single_value = (lat.size * lon.size == 1)
-#             if not single_value:
-#                 lon2d, lat2d = np.meshgrid(lon, lat)
-#                 gdf_known = gpd.GeoDataFrame(geometry=gpd.points_from_xy(lon2d.ravel(), lat2d.ravel()), crs='EPSG:4326')
-#                 gdf_known = gdf_known.to_crs(crs)
-#                 x_known, y_known = gdf_known.geometry.x, gdf_known.geometry.y
-#                 x, y = np.meshgrid(x_coords, y_coords)
-#                 gdf = gpd.GeoDataFrame(geometry=gpd.points_from_xy(x.ravel(), y.ravel()), crs=crs)
-#             for var, (col, unit) in forcing.items():
-#                 t0 = time.time()
-#                 if col != '': data = ds[col].values.astype(np.float32)
-#                 if var == 'precip': data *= 1000
-#                 elif var == 'temp': data -= 273.15
-#                 elif var == 'kin' or var == 'kout': data /= 3600
-#                 elif var == 'wind':
-#                     u = ds['u10'].values.astype(np.float32)
-#                     v = ds['v10'].values.astype(np.float32)
-#                     data = np.sqrt(u**2 + v**2)
-#                     # wind_direction = (np.degrees(np.arctan2(-u, -v)) + 360) % 360
-#                 if np.isnan(data).any():
-#                     nan_mask = np.isnan(data)
-#                     if nan_mask.all(): raise ValueError(f"{var} contains only NaN")
-#                     da_arr = xr.DataArray(data, dims=("valid_time", "latitude", "longitude"))
-#                     da_arr = (
-#                         da_arr.interpolate_na(dim="valid_time", method="linear")
-#                         .ffill("valid_time").bfill("valid_time")
-#                     )
-#                     data = da_arr.values.astype(np.float32)
-#                 logger.info(f"Interpolating: {var}...")
-#                 data_3d = create_forcing(timestamps, ny, nx, data, mask_nan, single_value, gdf, x_known, y_known)
-#                 datasets[var] = (('time', 'y', 'x'), data_3d, {'units': unit})
-#                 logger.info(f"Finished interpolating: {var} in: {time.time() - t0:.2f}s")
-#         functions.safe_remove(final_output)
-#         logger.info("Generating forcing file...")
-#         ds_final = xr.Dataset(
-#             data_vars=datasets, coords={"time": timestamps, "y": y_coords, "x": x_coords}
-#         )
-#         logger.info("Dataset created")
-#         logger.info("Setting spatial dims...")
-#         ds_final = ds_final.rio.set_spatial_dims(x_dim="x", y_dim="y")
-#         logger.info("Spatial dims set")
-#         logger.info("Assigning crs...")
-#         ds_final = ds_final.rio.write_crs(crs)
-#         logger.info("Encoding...")
-#         ds_final["time"].encoding = {
-#             "units": f"{time_step} since 1900-01-01 00:00:00",
-#             "calendar": "proleptic_gregorian", "dtype": "float64"
-#         }
-#         encoding = {
-#             var: {
-#                 "dtype": "float32", "zlib": True, "complevel": 5, "shuffle": False
-#             }
-#             for var in ds_final.data_vars
-#         }
-#         logger.info("Writing netcdf...")
-#         ds_final.to_netcdf(forcing_path, format="NETCDF4", engine='netcdf4', encoding=encoding)
-#         ds_final.close()
-#         logger.info(f"Saved forcing file successfully: {forcing_path}")
-#         processes[project_name] = {"status": "finished", "message": "\nWeather download completed successfully.\n\n\n"}
-#     except Exception as e:
-#         print('/weather_downloader:\n==============')
-#         traceback.print_exc()
-#         logger.exception("Weather download failed")
-#         processes[project_name] = {"status": "failed", "message": str(e)}
-#     finally:
-#         sys.stdout, sys.stderr = old_stdout, old_stderr
-#         for h in logger.handlers[:]:
-#             h.flush()
-#             h.close()
-#             logger.removeHandler(h)

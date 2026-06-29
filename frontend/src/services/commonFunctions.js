@@ -600,22 +600,28 @@ export function formatDate(date) {
     return `${Y}-${M}-${D} ${h}:${m}:${s}`;
 }
 
-export function updateLog(currentProject, flowName, info, seconds){
-    activeProject = currentProject;
+export function updateLog(currentProject, flowName, info, seconds, key){
+    const new_key = `${currentProject}_${key}`;
+    activeProject = new_key;
     async function loop() {
-        if (activeProject !== currentProject) return;
+        if (activeProject !== new_key) return;
         try {
             const statusRes = await jsonLoader('check_download_status', {projectName: currentProject});
-            if (statusRes.status !== "running") {
-                info.value += statusRes.message || "" + "\n"; lastOffset = 0; return;
-            }
             const res = await fetch(
                 `/log_tail_download/${currentProject}?offset=${lastOffset}&flow_name=${flowName}&log_file=log.txt`
             );
-            if (!res.ok) return;
-            const data = await res.json();
-            for (const line of data.lines) { info.value += line + "\n"; }
-            lastOffset = data.offset;
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data.lines)) {
+                    for (const line of data.lines) {
+                        info.value += line + "\n";
+                    }
+                }
+                lastOffset = data.offset;
+            }
+            if (statusRes.status !== "running") {
+                info.value += (statusRes.message || "") + "\n"; lastOffset = 0; return;
+            }
         } catch (error) { alert(error); return; }
         setTimeout(loop, seconds * 1000);
     }
