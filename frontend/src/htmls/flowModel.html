@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="/src_frontend/styles/tabControler.css?v=1">
+    <link rel="stylesheet" href="/src_frontend/styles/flowPreparation.css?v=1">
+</head>
+<body>
+    <div class="wrapper">
+        <section class="main-tab" id="control-tab">
+            <div class="tab-header" id="main-tabs">
+                <div class="tabs-list">
+                    <button class="tab-btn" data-tab="settings-tab">Settings</button>
+                    <button class="tab-btn" data-tab="model-tab">Model</button>
+                </div>
+            </div>
+            <div class="tabs-content">
+                <!-- Tab 1: Settings -->
+                <div class="tabpanel main-panel" data-panel="settings-tab">
+                    <div class="grid">
+                        <div class="tile"><h3>Flow Project</h3>
+                            <div class="row">
+                                <div class="field-inline">
+                                    <label for="project-name">Scenario:</label>
+                                    <div id="project-name-wrapper">
+                                        <input type="text" id="project-name" placeholder="Enter scenario's name">
+                                        <ul id="project-list"></ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="tile"><h3>Simulation Options</h3>
+                            <div class="row">
+                                <label for="model-start">Start time:</label>
+                                <input type="text" class="datetime" id="model-start" placeholder="YYYY-mm-dd HH:mm:ss" style="width: auto;">
+                            </div>
+                            <div class="row">
+                                <label for="model-end">End time:</label>
+                                <input type="text" class="datetime" id="model-end" placeholder="YYYY-mm-dd HH:mm:ss" style="width: auto;">
+                            </div>
+                            <div class="row">
+                                <label for="model-step">Steps:</label>
+                                <select id="model-step" style="width: 100%;">
+                                    <option value="3600" selected>Hourly</option>
+                                    <option value="86400">Daily</option>
+                                    <option value="604800">Weekly</option>
+                                    <option value="18144000">Monthly</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="tile initial-conditions-tile" style="grid-column: span 8;"><h3>Initial Conditions</h3>
+                            <div class="single-row">
+                                <label for="k_sat_ratio">Subsurface conductivity ratio:</label>
+                                <input type="text" id="k_sat_ratio" value='100'>
+                            </div>
+                            <div class="single-row">
+                                <label for="dd_snow">Snow degree-day coefficient (mm/°C/day):</label>
+                                <input type="text" id="dd_snow" value='3.75653'>
+                            </div>
+                            <div class="single-row">
+                                <label for="inf_red">Infiltration reduction:</label>
+                                <input type="text" id="inf_red" value='0.038'>
+                            </div>
+                            <div class="single-row">
+                                <label for="canopy_evap_ratio">Canopy evaporation ratio:</label>
+                                <input type="text" id="canopy_evap_ratio" value='0.11'>
+                            </div>
+                            <div class="single-row">
+                                <label for="inf_cap">Compacted soil infiltration capacity (mm/h):</label>
+                                <input type="text" id="inf_cap" value='10'>
+                            </div>
+                            <div class="single-row">
+                                <label for="leak_max">Max leakage flux (mm/h):</label>
+                                <input type="text" id="leak_max" value='0'>
+                            </div>
+                            <div class="single-row">
+                                <label for="soil_sigmoid">Sigmoid function shape:</label>
+                                <input type="text" id="soil_sigmoid" value='-500'>
+                            </div>
+                            <div class="single-row">
+                                <label for="snowfall_t0">Snowfall temperature threshold (°C):</label>
+                                <input type="text" id="snowfall_t0" value='0'>
+                            </div>
+                            <div class="single-row">
+                                <label for="snowfall_dt">Snowfall temperature interval (°C):</label>
+                                <input type="text" id="snowfall_dt" value='2'>
+                            </div>
+                            <div class="single-row">
+                                <label for="melt_t0_snow">Snow melting temperature threshold (°C):</label>
+                                <input type="text" id="melt_t0_snow" value='0'>
+                            </div>
+                            <div class="single-row">
+                                <label for="snow_liq_cap">Liquid water holding capacity:</label>
+                                <input type="text" id="snow_liq_cap" value='0.1'>
+                            </div>
+                            <div class="single-row">
+                                <label for="dd_glacier">Glacier degree-day coefficient (mm/°C/day):</label>
+                                <input type="text" id="dd_glacier" value='3'>
+                            </div>
+                            <div class="single-row">
+                                <label for="firn_dry_frac">Dry snow equivalent depth fraction:</label>
+                                <input type="text" id="firn_dry_frac" value='0.001'>
+                            </div>
+                            <div class="single-row">
+                                <label for="melt_t0_glacier">Glacier melting temperature threshold (°C):</label>
+                                <input type="text" id="melt_t0_glacier" value='0'>
+                            </div>
+                        </div>
+                    </div>
+
+
+                </div>
+                <!-- Tab 2: Model -->
+                <div class="tabpanel main-panel" data-panel="model-tab">
+                    <div class="grid">
+                        <div class="tile" style="grid-column: span 2;"><h3>Model Options</h3>
+                            
+
+
+
+
+
+                            <div class="row">
+                                <button type="button" id="model-build-btn">1. Build Model</button>
+                            </div>
+                            <div class="row">
+                                <button type="button" id="model-run-btn">2. Run Wflow Model</button>
+                            </div>
+                        </div>
+                        <div class="tile" style="grid-column: span 6;" id="model-container"><h3>View Logs</h3>
+                            <textarea id="model-text" placeholder="Logs..." readonly></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+        flatpickr(".datetime", {
+            enableTime: true, enableSeconds: true, dateFormat: "Y-m-d H:i:S", time_24hr: true,
+            defaultHour: 0, defaultMinute: 0, defaultSecond: 0
+        });
+    </script>
+    <script type="module" src="/src_frontend/services/flowModel.js?v=0"></script>
+</body>
+</html>

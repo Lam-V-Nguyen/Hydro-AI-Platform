@@ -47,44 +47,6 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="tile initial-conditions-tile" style="grid-column: span 8;"><h3>Initial Conditions</h3>
-                            <div class="single-row">
-                                <label for="initial-top-moisture">Top soil moisture (m³/m³):</label>
-                                <input type="text" id="initial-top-moisture" value='0.25'>
-                            </div>
-                            <div class="single-row">
-                                <label for="initial-sub-moisture">Sub soil moisture (m³/m³):</label>
-                                <input type="text" id="initial-sub-moisture" value='0.30'>
-                            </div>
-                            <div class="single-row">
-                                <label for="initial-groundwater">Groundwater level (mm):</label>
-                                <input type="text" id="initial-groundwater" value='50'>
-                            </div>
-                            <div class="single-row">
-                                <label for="initial-overland-flow">Overland flow (mm):</label>
-                                <input type="text" id="initial-overland-flow" value='0'>
-                            </div>
-                            <div class="single-row">
-                                <label for="initial-river-storage">River/Channel storage (mm):</label>
-                                <input type="text" id="initial-river-storage" value='0'>
-                            </div>
-                            <div class="single-row">
-                                <label for="initial-lake-storage">Lake storage (mm):</label>
-                                <input type="text" id="initial-lake-storage" value='500'>
-                            </div>
-                            <div class="single-row">
-                                <label for="initial-snow-depth">Initial snow depth (mm):</label>
-                                <input type="text" id="initial-snow-depth" value='0'>
-                            </div>
-                            <div class="single-row">
-                                <label for="initial-water-depth">Initial water depth (mm) or discharge (m³/s):</label>
-                                <input type="text" id="initial-water-depth" value='0'>
-                            </div>
-                            <div class="single-row">
-                                <label for="initial-saturation-deficit">Saturation deficit (mm):</label>
-                                <input type="text" id="initial-saturation-deficit" value='100'>
-                            </div>
-                        </div>
                     </div>
                 </div>
                 <!-- Tab 2: Topography -->
@@ -194,7 +156,7 @@
                                 </a>
                             </div>
                         </div>
-                        <div class="tile"><h3>Attribute Table</h3>
+                        <div class="tile" id="soil-attribute-container"><h3>Attribute Table</h3>
                             <div class="table-container">
                                 <table class="attributes-table" id="soil-attributes-table">
                                     <thead><tr>
@@ -208,6 +170,10 @@
                                     </tbody>
                                 </table>
                             </div>
+                        </div>
+                        <div class="tile" id="soil-download-container"><h3>Download Progress</h3>
+                            <textarea id="soil-download-text" placeholder="Download progress..." readonly></textarea>
+
                         </div>
                     </div>
                 </div>
@@ -372,8 +338,6 @@
                                 <select id="weather-station" style="width: 100%;">
                                     <option value="" selected>--- Select a source ---</option>
                                     <option value="era5">Climate Data Store - ERA5</option>
-                                    <!-- <option value="met">Norwegian Meteorological Institute - MET</option>
-                                    <option value="rosim">ROSIM (regnbyge.no)</option> -->
                                 </select>
                             </div>
                             <div class="row" id="weather-catchment-container" style="display: none;">
@@ -397,9 +361,6 @@
                                 <a class="data-link" href="https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels?tab=download"
                                     target="_blank">ERA5 - Hourly Data
                                 </a>
-                                <!-- <a class="data-link" href="https://frost.met.no/elementtable"
-                                    target="_blank">MET - API Table
-                                </a> -->
                             </div>
                         </div>
                         <div class="tile" style="grid-column: span 6;">
@@ -431,17 +392,15 @@
                                 </div>
                             </div>
                             <div class="row" id="weather-download-container">
+                                <h3 style="margin: 10px 0 -20px 0;">Download Progress</h3>
                                 <div class="row">
-                                    <h3 style="margin-top: 10px;">Download Progress</h3>
+                                    <a style="margin-top: 10px;">References:</a>
+                                    <a class="data-link" href="#"
+                                        onclick="window.open('/src_frontend/pdfs/CropEvapotranspiration.pdf', '_blank'); return false;"
+                                        target="_blank">Allen et al., (1998): Crop Evapotranspiration – FAO Irrigation and Drainage Paper 56
+                                    </a>
                                 </div>
                                 <textarea id="weather-download-text" placeholder="Download progress..." readonly></textarea>
-                            </div>
-                            <div class="row">
-                                <a style="margin-top: 10px;">References:</a>
-                                <a class="data-link" href="#"
-                                    onclick="window.open('/src_frontend/pdfs/CropEvapotranspiration.pdf', '_blank'); return false;"
-                                    target="_blank">Allen et al., (1998): Crop Evapotranspiration – FAO Irrigation and Drainage Paper 56
-                                </a>
                             </div>
                         </div>
                     </div>

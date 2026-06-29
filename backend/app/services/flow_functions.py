@@ -1,22 +1,23 @@
-import os, dotenv, rasterio, zipfile, rioxarray, sys
+import os, dotenv, rasterio, zipfile, rioxarray, sys, time, pyflwdir
 import logging, cdsapi, calendar, glob, gc, shutil, traceback
 import geopandas as gpd, numpy as np, pandas as pd, xarray as xr
 from shapely.geometry import Polygon, MultiPolygon
 from scipy.spatial import cKDTree
-from netCDF4 import Dataset
+from netCDF4 import Dataset, date2num
 from rasterio.io import MemoryFile
 from rasterio.enums import Resampling
+from rasterio.features import rasterize
 import dask.array as da
 from dask import delayed
 from services import functions
 from pathlib import Path
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+from hydromt_wflow import WflowSbmModel
+from pyflwdir import dem
+from services import flow_functions
 
 if "bool" not in np.__dict__: np.bool = np.bool_
-
-
-
 
 dotenv.load_dotenv()
 MET_url = os.getenv('MET_ProstAPI_URL')
@@ -46,6 +47,17 @@ soil_type_reverse = {
     'bd': 'Bulk density', 'oc': 'Soil organic carbon', 'ph': 'Soil pH'
 }
 soil_depth_reverse = {v: k for k, v in soil_depths.items()}
+
+class StreamToLogger:
+    def __init__(self, logger, level=logging.INFO):
+        self.logger = logger
+        self.level = level
+    def write(self, buf):
+        if not buf: return
+        for line in buf.rstrip().splitlines():
+            self.logger.log(self.level, line.rstrip())
+    def flush(self):
+        pass
 
 def interpolate_extrapolate(data, mask_nan, get_nearest=False, power=2, max_neighbors=8):
     h, w = data.shape
@@ -119,81 +131,114 @@ def create_LAI(arr_2D, terrain, out_path, nodata=255):
     df.index.name = os.path.basename(out_path).replace("_lai.csv", "")
     df.to_csv(out_path, index=True)
 
-def is_valid_netcdf(path):
+def is_valid_netcdf(path, var):
     try:
-        with Dataset(path, "r") as ds:
-           if len(ds.variables) == 0: return False
+        with xr.open_dataset(path) as ds:
+           vars = list(ds.data_vars)
+           if len(vars) == 0 or var not in vars: return False
         return True
     except Exception:
         return False
 
-def create_forcing(time, ny, nx, values, mask_nan, single_value, gdf=None, x_coords=None, y_coords=None):
-    nt = len(time)
+def prepare_interpolator(grid_net, x_coords, y_coords, n_neighbors=2, geo_type="point"):
+    gdf_known = gpd.GeoDataFrame(
+        geometry=gpd.points_from_xy(x_coords, y_coords), crs=grid_net.crs,
+    )
+    utm = grid_net.estimate_utm_crs()
+    gdf_known = gdf_known.to_crs(utm)
+    gdf_points = grid_net.to_crs(utm).copy()
+    if geo_type == "polygon": gdf_points.geometry = gdf_points.geometry.centroid
+    tree = cKDTree(
+        np.column_stack(
+            [gdf_known.geometry.x, gdf_known.geometry.y]
+        )
+    )
+    dists, idx = tree.query(
+        np.column_stack(
+            [gdf_points.geometry.x, gdf_points.geometry.y]
+        ), k=n_neighbors,
+    )
+    weight = 1.0 / (dists + 1e-10) ** 2
+    weight /= weight.sum(axis=1, keepdims=True)
+    return idx, weight
+
+def create_forcing(values, ny, nx, mask_nan, single_value, idx=None, weight=None):
+    values = np.asarray(values, dtype=np.float32)
+    nt = values.shape[0]
+    values = values.reshape(nt, -1)
     if single_value:
-        values = values.reshape(nt)
-        values = da.from_array(values, chunks=(24))
-        data = da.broadcast_to(values[:, None, None], (nt, ny, nx))
+        if values.shape[1] != 1: return None
+        values = values[:, 0]
+        data = np.broadcast_to(
+            values[:, None, None], (nt, ny, nx),
+        ).astype(np.float32)
     else:
-        lazy_arrays = []
-        def interp_one_timestep(z):
-            arr = functions.interpolation_Z(gdf, x_coords, y_coords, z, geo_type='point')
-            return arr.reshape(ny, nx).astype(np.float32)
-        for it in range(nt):
-            delayed_arr = delayed(interp_one_timestep)(values[it].ravel())
-            darr = da.from_delayed(
-                delayed_arr, shape=(ny, nx), dtype=np.float32
-            )
-            lazy_arrays.append(darr)
-        data = da.stack(lazy_arrays, axis=0)
-    data = da.where(mask_nan[None, :, :], 0, data)
+        interp = values[:, idx]
+        interp = np.sum(interp * weight[None, :, :], axis=2)
+        data = interp.reshape(nt, ny, nx).astype(np.float32)
+    data[..., mask_nan] = 0
     return data
 
-def setup_logger(log_path: str):
-    logger = logging.getLogger("cdsapi")
+def setup_logger(name, log_path: str):
+    logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
-    logger.handlers.clear()
     logger.propagate = False
     file_handler = logging.FileHandler(log_path, mode="a", encoding="utf-8")
+    file_handler.setLevel(logging.INFO)
     formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
     file_handler.setFormatter(formatter)
+    logger.handlers.clear()
     logger.addHandler(file_handler)
     return logger
 
-def weather_downloader(flow_dir, start, end, catchment, buffer=0.1):
+def weather_downloader(project_name, processes, flow_dir, start, end, catchment, buffer=0.1):
     # Prepare forcing data from the global model ARE5
     # Source: https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels?tab=download
+    # Remove old log
+    log_path = os.path.join(flow_dir, "log.txt")
+    if os.path.exists(log_path): os.remove(log_path)
+    logger = setup_logger("cdsapi", log_path)
+    CDS_url, CDS_key = os.getenv('CDS_URL'), os.getenv('CDS_API_KEY')
+    config_path = Path.home() / '.cdsapirc'
+    if not config_path.exists():
+        logger.info("Creating .cdsapirc ...")
+        config_path.write_text(f"url: {CDS_url}\nkey: {CDS_key}\n", encoding='utf-8')
+        logger.info(f"Created at: {config_path}")
     forcing_dir = os.path.join(flow_dir, 'forcing')
     os.makedirs(forcing_dir, exist_ok=True)
+    download_dir = os.path.join(forcing_dir, 'download')
+    if not os.path.exists(download_dir): os.makedirs(download_dir)
+    # Setup variables
+    variables = {
+        'total_precipitation': 'tp', # Precipitation
+        '2m_temperature': 't2m', # Temperature
+        '10m_u_component_of_wind': 'u10', '10m_v_component_of_wind': 'v10', # Wind
+        'surface_pressure': 'sp',  # Pressure
+        'surface_solar_radiation_downwards': 'ssrd', # Shortwave radiation
+        'surface_thermal_radiation_downwards': 'strd', # Longwave radiation
+    }
     forcing_path = os.path.join(forcing_dir, "weather_forcing.nc")
-    # Remove old log
-    log_path = os.path.join(forcing_dir, "log.txt")        
-    if os.path.exists(log_path): os.remove(log_path)
-    class StreamToLogger:
-        def __init__(self, logger, level=logging.INFO):
-            self.logger = logger
-            self.level = level
-            self.linebuf = ""
-        def write(self, buf):
-            for line in buf.rstrip().splitlines():
-                self.logger.log(self.level, line.rstrip())
-        def flush(self):
-            pass
-    # reset log file
-    with open(log_path, "w", encoding="utf-8") as f:
-        f.write("")
-    logger = setup_logger(log_path)
+    if os.path.exists(forcing_path): functions.safe_remove(forcing_path)
+    forcing = {
+        'precip': ['tp', 'mm'], 'temp': ['t2m', 'degC'],
+        'kin': ['ssrd', 'W/m^2'], 'kout': ['strd', 'W/m^2'],
+        'wind': ['', 'm/s'], 'press_msl': ['sp', 'Pa']
+    }
+    dataset = 'reanalysis-era5-single-levels'
     old_stdout, old_stderr = sys.stdout, sys.stderr
-    sys.stdout = StreamToLogger(logger)
-    sys.stderr = StreamToLogger(logger)
+    sys.stdout, sys.stderr = StreamToLogger(logger), StreamToLogger(logger)
     try:
         logger.info("Weather downloader started")
-        CDS_url, CDS_key = os.getenv('CDS_URL'), os.getenv('CDS_API_KEY')
-        config_path = Path.home() / '.cdsapirc'
-        if not config_path.exists():
-            logger.info("Creating .cdsapirc ...")
-            config_path.write_text(f"url: {CDS_url}\nkey: {CDS_key}\n", encoding='utf-8')
-            logger.info(f"Created at: {config_path}")
-        start, end = '2025-01-01 00:00:00', '2025-01-10 00:00:00'
+        logger.info("Preparing output NetCDF...")
+        raw_path = os.path.join(flow_dir, "raw", "dtm_raw.tif")      
+        with rasterio.open(raw_path) as src:
+            dem_array, crs = src.read(1), src.crs
+            transform, nodata = src.transform, src.nodata
+            height, width = src.height, src.width        
+        mask_nan = np.isnan(dem_array) | (dem_array == nodata)
+        mask_nan = mask_nan.astype(bool)
+        ny, nx = dem_array.shape[0], dem_array.shape[1]
+        if catchment.crs != "EPSG:4326": catchment = catchment.to_crs("EPSG:4326")
         logger.info(f"Starting time: {start}   --   Ending time: {end}")
         start_time = datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
         end_time = datetime.strptime(end, '%Y-%m-%d %H:%M:%S')
@@ -202,197 +247,516 @@ def weather_downloader(flow_dir, start, end, catchment, buffer=0.1):
         south, west = min(lat_min, lat_max), min(lon_min, lon_max)
         area = [north + buffer, west - buffer, south - buffer, east + buffer]
         logger.info(f"Bounding box: {area}")
-        # Setup variables
-        variables = [
-            'total_precipitation', # Precipitation
-            '2m_temperature', # Temperature
-            '10m_u_component_of_wind', '10m_v_component_of_wind', # Wind
-            'surface_pressure',  # Pressure
-            'surface_solar_radiation_downwards', # Shortwave radiation
-            'surface_thermal_radiation_downwards', # Longwave radiation
-        ]
-        dataset = 'reanalysis-era5-single-levels'
-        if os.path.exists(forcing_path): 
+        if os.path.exists(forcing_path):
+            functions.safe_remove(forcing_path)
             logger.info("Removing old forcing data...")
-        # Download ERA5 data monthly
-        download_dir = os.path.join(forcing_dir, 'download')
-        if not os.path.exists(download_dir): os.makedirs(download_dir)
-        client = cdsapi.Client(quiet=False, debug=True)
-        for var in variables:
-            current = start_time.replace(day=1)
-            while current <= end_time:
-                year, month = current.year, current.month
-                last_day = calendar.monthrange(year, month)[1]
-                month_start = datetime(year, month, 1)
-                month_end = datetime(year, month, last_day, 23)
-                # Clip by requested range
-                actual_start = max(start_time, month_start)
-                actual_end = min(end_time, month_end)
-                # Days to download
-                days = [f"{d:02d}" for d in range(actual_start.day, actual_end.day + 1)]
-                # Output file
-                out_file = f"{var}_ERA5_{year}_{month:02d}.nc"
-                output = os.path.join(download_dir, out_file)
-                # Skip existing file
-                if os.path.exists(output): os.remove(output)
-                logger.info(f"Downloading: {out_file}")
+        start_time = datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
+        end_time = datetime.strptime(end, '%Y-%m-%d %H:%M:%S')
+        time_index, time_step = 0, 'hours'
+        x_coords = transform.c + (np.arange(width) + 0.5) * transform.a
+        y_coords = transform.f + (np.arange(height) + 0.5) * transform.e
+        nc = Dataset(forcing_path, "w", format="NETCDF4")
+        nc.createDimension("time", None)
+        nc.createDimension("y", ny)
+        nc.createDimension("x", nx)
+        time_var = nc.createVariable("time", "f8", ("time",))
+        time_var.units = f"{time_step} since 1900-01-01 00:00:00"
+        time_var.calendar = "proleptic_gregorian"
+        y_var = nc.createVariable("y", "f4", ("y",))
+        x_var = nc.createVariable("x", "f4", ("x",))        
+        y_var[:], x_var[:], nc_vars = y_coords, x_coords, {}
+        crs_var = nc.createVariable("crs", "i4")
+        if crs.is_geographic: crs_var.grid_mapping_name = "latitude_longitude"
+        else: crs_var.grid_mapping_name = "transverse_mercator"
+        crs_var.crs_wkt = crs.to_wkt()
+        try: crs_var.epsg_code = crs.to_epsg()
+        except Exception: pass
+        for var, (_, unit) in forcing.items():
+            nc_vars[var] = nc.createVariable(
+                var, "f4", ("time", "y", "x"), zlib=True, complevel=7, fill_value=-9999.0,
+                shuffle=True, chunksizes=(24, 128, 128), least_significant_digit=2
+            )
+            nc_vars[var].units, nc_vars[var].grid_mapping = unit, "crs"
+        # Download ERA5 data
+        logger.info("Downloading ERA5...")
+        client = cdsapi.Client(quiet=False, debug=False)
+        current = start_time.replace(day=1)
+        while current <= end_time:
+            files, bad_files, month_files = [], [], []
+            year, month = current.year, current.month
+            last_day = calendar.monthrange(year, month)[1]
+            month_start = datetime(year, month, 1)
+            month_end = datetime(year, month, last_day, 23)
+            # Clip by requested range
+            actual_start = max(start_time, month_start)
+            actual_end = min(end_time, month_end)
+            # Days to download
+            days = [f"{d:02d}" for d in range(actual_start.day, actual_end.day + 1)]
+            for key, var in variables.items():
                 request = {
-                    'product_type': 'reanalysis', 'variable': [var],
+                    'product_type': 'reanalysis', 'variable': [key],
                     'year': [str(year)], 'month': [f"{month:02d}"], 'day': days,
                     'time': [f"{h:02d}:00" for h in range(24)], 'area': area,
                     'data_format': 'netcdf', 'download_format': 'unarchived'
                 }
-                client.retrieve(dataset, request, output)
-                # Next month
-                current += relativedelta(months=1)
-        logger.info("ERA5 download completed successfully")
-        # Check valid files
-        logger.info("Checking valid files...")
-        for var in variables:
-            pattern = os.path.join(download_dir, f"{var}_ERA5_*.nc")
-            raw_files = sorted(glob.glob(pattern))
+                out_file = f"{year}_{month:02d}_{var}.nc"
+                out_path = os.path.join(download_dir, out_file)
+                client.retrieve(dataset, request, out_path)
+                # Check valid files
+                if flow_functions.is_valid_netcdf(out_path, var): files.append(out_path)
+                else: bad_files.append(out_path)
+                month_files.append(out_path)
+            logger.info("ERA5 download completed successfully")
+            # Check valid files
+            logger.info("\n=========================================================")
+            logger.info("Checking valid files...")
             # Filter valid files
-            files, bad_files = [], []
-            for f in raw_files:
-                if is_valid_netcdf(f): files.append(f)
-                else: bad_files.append(f)
-            logger.info(f"Valid files '{var}': {len(files)}/{len(raw_files)}")
-            if bad_files:
+            logger.info(f"\nYear: {year}, Month: {month}")
+            n = len(files) + len(bad_files)
+            logger.info(f"Number of valid files: {len(files)}/{n}")
+            logger.info(f"Number of invalid files: {len(bad_files)}/{n}")
+            if len(bad_files) > 0:
                 logger.info("Bad files:")
                 for f in bad_files: logger.info(f" - {os.path.basename(f)}")
-        # Concatenate sub-files
-        logger.info("Concatenating files...")
-        for var in variables:
-            pattern = os.path.join(download_dir, f"{var}_ERA5_*.nc")
-            raw_files = sorted(glob.glob(pattern))
-            if len(raw_files) == 1:
-                # Rename single file
-                old_file, new_file = raw_files[0], pattern.replace('_*', "")
-                os.rename(old_file, new_file)
-                logger.info(f"Renamed: {os.path.basename(new_file)}")
-            elif len(raw_files) > 1:
-                files = [f for f in raw_files if is_valid_netcdf(f)]
-                if len(files) == 0: continue
-                datasets = []
-                try:
-                    logger.info(f"Merging {var} ...")
-                    datasets = [xr.open_dataset(f) for f in files]
-                    ds = xr.merge(
-                        datasets, compat="override", join="outer"
-                    )
-                    # Remove ERA5 artifact dimension
-                    if 'expver' in ds.variables: ds = ds.drop_vars('expver')
-                    encoding = {
-                        var: {"zlib": True, "complevel": 4, "dtype": "float32"}
-                        for var in ds.data_vars
-                    }
-                    output = pattern.replace('_*', "")
-                    logger.info(f"Writing forcing file: {output}")
-                    ds.to_netcdf(output, format="NETCDF4", encoding=encoding)
-                finally:
-                    for ds in datasets: ds.close()
-                    if 'ds' in locals(): ds.close()
-                    del datasets
-                    gc.collect()
-        # Merge files
-        logger.info("Merging files...")
-        final_output = os.path.join(forcing_dir, "ear5.nc")
-        datasets = [
-            os.path.join(download_dir, f"{var}_ERA5.nc")
-            for var in variables if os.path.exists(os.path.join(download_dir, f"{var}_ERA5.nc"))
-        ]
-        if datasets:
-            datasets_ds = []
-            try:
-                datasets_ds = [xr.open_dataset(f) for f in datasets]
-                ds_final = xr.merge(datasets_ds, compat="override", join="outer")
-                encoding = {
-                    var: {"zlib": True, "complevel": 4, "dtype": "float32"}
-                    for var in ds_final.data_vars
-                }
-                logger.info(f"Writing ERA5 file: {final_output}")
-                ds_final.to_netcdf(final_output, format="NETCDF4", encoding=encoding)
-            finally:
-                for ds in datasets_ds: ds.close()
-                if 'ds_final' in locals(): ds_final.close()
-                gc.collect()
-            # Remove sub-files
-            shutil.rmtree(download_dir)
-            logger.info("Temporary files removed.")
-            logger.info("Merging files completed successfully")
-        else: logger.info("No multiple files to merge")
-        raw_path, datasets = os.path.join(flow_dir, "raw", "dtm_raw.tif"), {}
-        with rasterio.open(raw_path) as src:
-            dem_array, crs = src.read(1), src.crs
-            transform, nodata = src.transform, src.nodata
-        mask_nan = np.isnan(dem_array) | (dem_array == nodata)
-        ny, nx, time_step = dem_array.shape[0], dem_array.shape[1], 'hours'
-        x_coords = transform.c + (np.arange(nx) + 0.5) * transform.a
-        y_coords = transform.f + (np.arange(ny) + 0.5) * transform.e
-        forcing = {
-            'precip': ['tp', 'mm'], 'temp': ['t2m', 'degC'],
-            'kin': ['ssrd', 'W/m^2'], 'kout': ['strd', 'W/m^2'],
-            'wind': ['', 'm/s'], 'press_msl': ['sp', 'Pa']
-        }
-        with xr.open_dataset(final_output) as ds:
-            # vars = list(ds.data_vars.keys())
+            logger.info("\n=========================================================")
+            logger.info("\nProcessing monthly forcing ...")
+            ref_file = next(f for f in month_files if f.endswith("_tp.nc"))
+            with xr.open_dataset(ref_file) as ref_ds:
+                timestamps = pd.to_datetime(ref_ds['valid_time'][:]).to_numpy()
+                lat, lon = ref_ds['latitude'][:], ref_ds['longitude'][:]
             x_known, y_known, gdf = None, None, None
-            timestamps = pd.to_datetime(ds['valid_time'].values).to_numpy()
-            lat, lon = ds['latitude'].values, ds['longitude'].values
-            single_value=True if min(lat.shape[0], lon.shape[0]) == 1 else False
+            single_value = lat.size * lon.size == 1
             if not single_value:
                 lon2d, lat2d = np.meshgrid(lon, lat)
-                gdf_known = gpd.GeoDataFrame(geometry=gpd.points_from_xy(lon2d.ravel(), lat2d.ravel()), crs='EPSG:4326')
-                gdf_known = gdf_known.to_crs(crs)
-                x_known, y_known = gdf_known.geometry.x, gdf_known.geometry.y
+                gdf_known = gpd.GeoDataFrame(
+                    geometry=gpd.points_from_xy(lon2d.ravel(), lat2d.ravel()), crs='EPSG:4326'
+                ).to_crs(crs)
+                x_known, y_known = gdf_known.geometry.x.values, gdf_known.geometry.y.values
                 x, y = np.meshgrid(x_coords, y_coords)
                 gdf = gpd.GeoDataFrame(geometry=gpd.points_from_xy(x.ravel(), y.ravel()), crs=crs)
+                idx, weight = prepare_interpolator(gdf, x_known, y_known, geo_type="point")
+            n_time, chunk_size, overlap = len(timestamps), 24, 2        
             for var, (col, unit) in forcing.items():
-                if col != '': data = ds[col].values.astype(np.float32)
-                if var == 'precip': data *= 1000
-                elif var == 'temp': data -= 273.15
-                elif var == 'kin' or var == 'kout': data /= 3600
-                elif var == 'wind':
-                    u = ds['u10'].values.astype(np.float32)
-                    v = ds['v10'].values.astype(np.float32)
-                    data = np.sqrt(u**2 + v**2)
-                    # wind_direction = (np.degrees(np.arctan2(-u, -v)) + 360) % 360
-                if np.isnan(data).any():
-                    nan_mask = np.isnan(data)
-                    if nan_mask.all(): raise ValueError(f"{var} contains only NaN")
-                    da_arr = xr.DataArray(data, dims=("valid_time", "latitude", "longitude"))
-                    da_arr = (
-                        da_arr.interpolate_na(dim="valid_time", method="linear")
-                        .ffill("valid_time").bfill("valid_time")
-                    )
-                    data = da_arr.values.astype(np.float32)
-                logger.info(f"Interpolating {var}...")
-                data_3d = create_forcing(timestamps, ny, nx, data, mask_nan, single_value, gdf, x_known, y_known)
-                datasets[var] = (('time', 'y', 'x'), data_3d, {'units': unit})
-        ds_final = xr.Dataset(
-            data_vars=datasets, coords={"time": timestamps, "y": y_coords, "x": x_coords}
-        )
-        ds_final = ds_final.rio.set_spatial_dims(x_dim="x", y_dim="y")
-        ds_final = ds_final.rio.write_crs(crs)
-        ds_final["time"].encoding = {
-            "units": f"{time_step} since 1900-01-01 00:00:00",
-            "calendar": "proleptic_gregorian", "dtype": "float64"
-        }
-        encoding = {
-            var: {
-                "zlib": True, "complevel": 5, "shuffle": True, 
-                "dtype": "float32", "chunksizes": (24, 128, 128)
-            }
-            for var in ds_final.data_vars
-        }
-        ds_final.to_netcdf(forcing_path, format="NETCDF4", engine='netcdf4', encoding=encoding)
-        ds_final.close()
+                logger.info(f"Processing {var}")
+                if var == 'wind':
+                    u_file = os.path.join(download_dir,f"{year}_{month:02d}_u10.nc")
+                    v_file = os.path.join(download_dir,f"{year}_{month:02d}_v10.nc")
+                    ds_u, ds_v = Dataset(u_file), Dataset(v_file)
+                else: ds = Dataset(os.path.join(download_dir, f"{year}_{month:02d}_{col}.nc"))
+                for start in range(0, n_time, chunk_size):
+                    start_eff = max(0, start - overlap)
+                    end_eff = min(n_time, start + chunk_size + overlap)
+                    if var == "wind":
+                        u = ds_u["u10"][start_eff:end_eff].astype(np.float32)
+                        v = ds_v["v10"][start_eff:end_eff].astype(np.float32)
+                        data = np.hypot(u, v)
+                    else: data = ds[col][start_eff:end_eff].astype(np.float32)
+                    if var == "precip": data *= 1000
+                    elif var == "temp": data -= 273.15
+                    elif var in ("kin", "kout"): data /= 3600
+                    if np.isnan(data).any():
+                        da = xr.DataArray(data, dims=("valid_time", "latitude", "longitude"))
+                        da = da.interpolate_na(dim="valid_time", method="linear")
+                        da = da.ffill("valid_time").bfill("valid_time")
+                        da = da.fillna(0.0)
+                        data = da.values.astype(np.float32)
+                    # Interpolate
+                    data_3d = create_forcing(data, ny, nx, mask_nan, single_value, idx, weight)
+                    if data_3d is None:
+                        logger.info("FAILED: No valid data found for interpolation")
+                        processes[project_name] = {"status": "failed", "message": "No valid data found for interpolation."}
+                    t0, t1 = start, min(start + chunk_size, n_time)
+                    chunk_start = t0 - start_eff
+                    chunk_end = chunk_start + (t1 - t0)
+                    chunk = data_3d[chunk_start:chunk_end]
+                    chunk = np.nan_to_num(chunk, nan=0.0)
+                    chunk = np.where(mask_nan[None, :, :], 0.0, chunk)
+                    nc_vars[var][t0:t1, :, :] = chunk
+                    del data, data_3d, chunk
+                    if var == "wind": del u, v
+                if var == "wind":
+                    ds_u.close()
+                    ds_v.close()
+                else: ds.close()
+            logger.info("\n")
+            for i, t in enumerate(timestamps):
+                time_var[time_index + i] = date2num(pd.Timestamp(t).to_pydatetime(), time_var.units, time_var.calendar)
+            time_index += n_time
+            # Cleanup
+            gc.collect()
+            for f in month_files: functions.safe_remove(f)
+            # Next month
+            current += relativedelta(months=1)
+        nc.close()
         logger.info(f"Saved forcing file successfully: {forcing_path}")
-    except Exception:
+        if os.path.exists(download_dir): shutil.rmtree(download_dir)
+        logger.info("Temporary monthly files removed")
+        processes[project_name] = {"status": "finished", "message": "\nWeather download completed successfully.\n\n\n"}
+    except Exception as e:
         print('/weather_downloader:\n==============')
         traceback.print_exc()
+        logger.exception("Weather download failed")
+        processes[project_name] = {"status": "failed", "message": str(e)}
     finally:
         sys.stdout, sys.stderr = old_stdout, old_stderr
+        for h in logger.handlers[:]:
+            h.flush()
+            h.close()
+            logger.removeHandler(h)
+
+def soil_downloader(project_name, processes, flow_dir, catchment, mask_lake, dtm_path):
+    try:
+        # Work with log
+        log_path = os.path.join(flow_dir, "log.txt")
+        if os.path.exists(log_path): os.remove(log_path)
+        logger = setup_logger("soil", log_path)
+        # Download soil data 2017 from ISRIC: https://files.isric.org/soilgrids/former/2017-03-10/
+        logger.info("Preparing data download...")
+        soil_dir = os.path.join(flow_dir, "soil")
+        os.makedirs(soil_dir, exist_ok=True)
+        if catchment.crs != "EPSG:25833": catchment = catchment.to_crs('EPSG:4326')
+        min_lon, min_lat, max_lon, max_lat = catchment.total_bounds
+        soil_depths = flow_functions.soil_depths
+        soil_types, depths = flow_functions.soil_types, list(soil_depths.values())
+        # Get raster information
+        ref = rioxarray.open_rasterio(dtm_path).squeeze()
+        logger.info("Reading dtm data...")
+        with rasterio.open(dtm_path) as src:
+            nodata, profile = src.nodata, src.profile
+        base_url = "https://files.isric.org/soilgrids/former/2017-03-10/data/"
+        # Soil thickness
+        logger.info("Creating soil thickness data...")
+        soil_thickness_url, NODATA_SOIL_THICKNESS = f"{base_url}BDRICM_M_250m_ll.tif", -99999
+        with rioxarray.open_rasterio(soil_thickness_url) as src:
+            data_xr = src.rio.clip_box(minx=min_lon, miny=min_lat, maxx=max_lon, maxy=max_lat)
+            data_xr = data_xr.rio.reproject_match(ref, resampling=Resampling.nearest)
+            nodata = data_xr.rio.nodata
+        soil_thickness_array = data_xr[0].values
+        # Interpolate data
+        logger.info("Interpolating soil thickness data...")
+        mask_valid = soil_thickness_array != nodata
+        soil_thickness_values = flow_functions.interpolate_extrapolate(soil_thickness_array, ~mask_valid, True)
+        soil_thickness_values = soil_thickness_values.astype(np.int32)
+        if mask_lake is not None: soil_thickness_values[mask_lake] = NODATA_SOIL_THICKNESS
+        soil_thickness_path = os.path.join(soil_dir, 'soilthickness.tif')
+        profile_writer = profile.copy()
+        profile_writer.update(dtype=np.int32)
+        flow_functions.write_geotif(soil_thickness_values, profile_writer, soil_thickness_path, NODATA_SOIL_THICKNESS)
+        logger.info(f"Saving soil thickness data to: {soil_thickness_path}")
+        # Download soil data
+        for _, values in soil_types.items():
+            file, name, scale, dtype, nodata_soil, bulk_density = values[0], values[1], values[2], values[3], values[4], None
+            for depth in depths:
+                file_url = f'{base_url}{file}_{depth}_250m_ll.tif'
+                logger.info(f"Downloading: {file}_{depth}_250m_ll.tif...")
+                with rioxarray.open_rasterio(file_url) as src:
+                    data_xr = src.rio.clip_box(minx=min_lon, miny=min_lat, maxx=max_lon, maxy=max_lat)
+                    data_xr = data_xr.rio.reproject_match(ref, resampling=Resampling.nearest)
+                    nodata = data_xr.rio.nodata
+                soil_array = data_xr[0].values
+                # Interpolate data
+                mask_valid = soil_array != nodata
+                logger.info(f"Interpolating {file}_{depth}_250m_ll.tif...")
+                soil_values = flow_functions.interpolate_extrapolate(soil_array, ~mask_valid, True)
+                if name == 'BLDFIE_M': bulk_density = soil_values + 1e-6
+                if name == 'OCDENS_M':
+                    # Convert Organic Carbon Density (kg/m³) to Organic Carbon Content (%)
+                    soil_values = soil_values / bulk_density * 100
+                soil_values = soil_values / scale
+                if mask_lake is not None: soil_values[mask_lake] = nodata_soil
+                path = os.path.join(soil_dir, f'{name}_{depth}.tif')
+                profile_writer.update(dtype=dtype)
+                flow_functions.write_geotif(soil_values, profile_writer, path, nodata_soil)
+                logger.info(f"Saved downloaded data to: {path}")
+        logger.info("\nSoil data downloaded successfully.\n\n\n\n")
+        processes[project_name] = {"status": "finished", "message": "Soil data downloaded successfully."}
+    except Exception as e:
+        print('/data_download:\n==============')
+        traceback.print_exc()
+        logger.exception("Data download failed")
+        processes[project_name] = {"status": "failed", "message": str(e)}
+    finally:
+        for h in logger.handlers[:]:
+            h.flush()
+            h.close()
+            logger.removeHandler(h)
+
+
+
+
+
+
+def run_hydromt(project_name, processes, flow_dir, start, end, step, region, resolution, soil_layers, data_lib, params, 
+    lulc_function='corine', lulc_mapping_fn='corine_mapping', lai_fn='lai_corine'):
+    mod_path = os.path.join(flow_dir, 'model')
+    if os.path.exists(mod_path): shutil.rmtree(mod_path)
+    os.makedirs(mod_path)
+    # Remove old log
+    log_path = os.path.join(flow_dir, "log.txt")
+    if os.path.exists(log_path): os.remove(log_path)
+    logger = setup_logger("cdsapi", log_path)
+    old_stdout, old_stderr = sys.stdout, sys.stderr
+    sys.stdout, sys.stderr = StreamToLogger(logger), StreamToLogger(logger)
+
+
+    try:
+        logger.info("Starting hydromt...")
+        # Prepare model
+        if os.path.exists(mod_path): shutil.rmtree(mod_path)
+        os.makedirs(mod_path, exist_ok=True)
+        model = WflowSbmModel(
+            root=mod_path, config_filename='wflow_sbm.toml', data_libs=data_lib, mode='w'
+        )
+        # Setup configurations
+        configs = {
+            "time.starttime": datetime.strptime(start, "%Y-%m-%d %H:%M:%S").isoformat(), 
+            "time.endtime": datetime.strptime(end, "%Y-%m-%d %H:%M:%S").isoformat(), 
+            "time.timestepsecs": step,
+            # Reference: https://deltares.github.io/Wflow.jl/dev/model_docs/model_settings.html
+            'model.type': 'sbm', # model type: [sbm, sbm_gwf]
+            'model.cold_start__flag': True,  # Initialize model with cold (cold_start__flag = true) or warm state
+            # Unit cell length of input rasters in lat/lon degree (cell_length_in_meter__flag = false) or in meter
+            'model.cell_length_in_meter__flag': False, 'model.reservoir__flag': False, #Include reservoir modelling
+            'model.water_mass_balance__flag': False, # Include water mass balance error computations
+            'model.snow_gravitational_transport__flag': True, # Include gravitational lateral snow transport
+            'model.glacier__flag': False, # Include glacier modelling
+            'model.soil_infiltration_reduction__flag': False, # Enable reduction factor applied to the soil infiltration capacity
+            'model.snow__flag': True, # Include snow modelling
+            # Saturated hydraulic conductivity depth profile for SBM soil model
+            # optional, one of ("exponential", "exponential_constant", "layered", "layered_exponential"), default is "exponential"
+            'model.saturated_hydraulic_conductivity_profile': 'exponential',
+            'model.land_routing': 'kinematic_wave', # Routing approach for overland flow: ["kinematic_wave", "local_inertial"]
+            'model.river_routing': 'kinematic_wave', # Routing approach for river flow: ["kinematic_wave", "local_inertial"]
+            'model.river_kinematic_wave__time_step': 900, 'model.land_kinematic_wave__time_step': 3600,
+            'model.kinematic_wave__adaptive_time_step_flag': False, # Enable kinematic wave adaptive (internal) time stepping
+            'output.netcdf_grid.path': 'output.nc', 'output.netcdf_grid.compressionlevel': 2,
+            # ========== Output variables ==========
+            # Source: https://deltares.github.io/Wflow.jl/previews/PR586/model_docs/parameters_routing.html
+            # # Lake variables
+            # 'output.netcdf_grid.variables.lake_water__volume': 'lake_volume', # Lake volume (average over timestep), m³
+            # 'output.netcdf_grid.variables.lake_water_surface__elevation': 'lake_level', # Lake water level (average over timestep), m
+            # 'output.netcdf_grid.variables.lake_water~outgoing__volume_flow_rate': 'lake_outflow', # Outflow of the lake (average over timestep)	m³ s⁻¹
+            # 'output.netcdf_grid.variables.lake_water~incoming__volume_flow_rate': 'lake_inflow', # Inflow into the lake (average over timestep)	m³ s⁻¹
+            # 'output.netcdf_grid.variables.lake_water__evaporation_volume_flux': 'lake_evaporation', # Average actual evaporation over the lake area	mm Δt⁻¹
+            # 'output.netcdf_grid.variables.lake_water__precipitation_volume_flux': 'lake_precipitation', # Average precipitation over the lake area	mm Δt⁻¹
+            # 'output.netcdf_grid.variables.lake_water__potential_evaporation_volume_flux': 'lake_potential_evaporation', # Average potential evaporation over the lake area	mm Δt⁻¹
+            # # Reservoir variables
+            # 'output.netcdf_grid.variables.reservoir_water__volume': 'reservoir_volume', # Reservoir volume (average over the timestep)	m³
+            # 'output.netcdf_grid.variables.reservoir_water~outgoing__volume_flow_rate': 'reservoir_outflow', # Outflow of the reservoir (average over the timestep)	m³ s⁻¹
+            # 'output.netcdf_grid.variables.reservoir_water~incoming__volume_flow_rate': 'reservoir_inflow', # Inflow into the reservoir (average over the timestep)	m³ s⁻¹
+            # 'output.netcdf_grid.variables.reservoir_water__evaporation_volume_flux': 'reservoir_evaporation', # Average actual evaporation over the reservoir area	mm Δt⁻¹
+            # 'output.netcdf_grid.variables.reservoir_water__precipitation_volume_flux': 'reservoir_precipitation', # Average precipitation over the reservoir area	mm Δt⁻¹
+            # 'output.netcdf_grid.variables.reservoir_water__potential_evaporation_volume_flux': 'reservoir_potential_evaporation', # Average potential evaporation over the reservoir area	mm Δt⁻¹
+            # # River variables (Kinematic wave)
+            # 'output.netcdf_grid.variables.river_water__volume_flow_rate': 'river_discharge', # River discharge (average over timestep)	m³ s⁻¹
+            # 'output.netcdf_grid.variables.river_water__depth': 'river_depth', # River depth (average over timestep)	m
+            # 'output.netcdf_grid.variables.river_water__volume': 'river_volume', # River volume (average over timestep)	m³
+            # 'output.netcdf_grid.variables.river_water_inflow~lateral__volume_flow_rate': 'river_lateral_inflow', # Lateral inflow into the river (average over timestep)	m³ s⁻¹
+            # # Overland flow variables
+            'output.netcdf_grid.variables.land_surface_water__volume_flow_rate': 'overland_volume_flow', # Overland discharge (average over timestep)	m³ s⁻¹
+            'output.netcdf_grid.variables.land_surface_water__depth': 'overland_depth', # Overland depth (average over timestep)	m
+            # 'output.netcdf_grid.variables.land_surface_water__volume': 'overland_volume', # Overland volume (average over timestep)	m³
+            # 'output.netcdf_grid.variables.land_surface_water__instantaneous_volume_flow_rate': 'overland_discharge_flow', # Discharge overland flow	m³ s⁻¹
+            # 'output.netcdf_grid.variables.land_surface_water__instantaneous_depth': 'overland_water_depth_flow', # Water depth overland flow	m
+            # # Snow variables
+            # 'output.netcdf_grid.variables.snowpack__leq-depth': 'snow_water',  # Liquid-water equivalent of snow pack (SWE)	mm
+            # 'output.netcdf_grid.variables.snowpack_meltwater__volume_flux': 'snow_melt',  # Amount of snow melt	mm Δt⁻¹
+            # 'output.netcdf_grid.variables.snowpack_water__runoff_volume_flux': 'snow_runoff',  # Runoff from snowpack	mm Δt⁻¹
+            # # Glacier variables
+            # 'output.netcdf_grid.variables.glacier_ice__melt_volume_flux': 'glacier_melt',  # Melt from the glacier	mm Δt⁻¹
+            # # Vegetation variables
+            # 'output.netcdf_grid.variables.vegetation_canopy_water__stemflow_volume_flux': 'vegetation_stemflow',  # Stemflow	mm Δt⁻¹
+            # 'output.netcdf_grid.variables.vegetation_canopy_water__throughfall_volume_flux': 'vegetation_throughfall',  # Throughfall	mm Δt⁻¹
+            # # Soil variables
+            # 'output.netcdf_grid.variables.land_surface__evapotranspiration_volume_flux': 'soil_evapotranspiration',  # Total actual evapotranspiration	mm
+            # 'output.netcdf_grid.variables.land_water~storage~total__depth': 'soil_storage_total',  # Total water storage (excluding floodplains, lakes and reservoirs)	mm
+            # 'output.netcdf_grid.variables.soil_water__infiltration_volume_flux': 'soil_infiltration_volume',  # Actual infiltration into the unsaturated zone	mm Δt⁻¹
+            # 'output.netcdf_grid.variables.soil_water__transpiration_volume_flux': 'soil_transpiration_volume',  # Transpiration from vegetation	mm Δt⁻¹
+            'output.netcdf_grid.variables.soil_surface_water__runoff_volume_flux': 'soil_runoff',  # Total surface runoff from infiltration and saturation excess	mm Δt⁻¹
+            # 'output.netcdf_grid.variables.soil_surface_water__net_runoff_volume_flux': 'soil_net_runoff',  # Net surface runoff (after open water evaporation)	mm Δt⁻¹
+            # 'output.netcdf_grid.variables.soil_layer_water__volume_fraction': 'soil_water_volume_fraction',  # Volumetric water content per soil layer (including residual water content and saturated zone)
+            # 'output.netcdf_grid.variables.soil_layer_water__volume_percentage': 'soil_water_volume_percentage',  # Volumetric water content per soil layer (including residual water content and saturated zone)	%
+            # 'output.netcdf_grid.variables.soil_water_root-zone__volume_fraction': 'soil_water_rootzone_volume_fraction',  # Volumetric water content in root zone (including residual water content and saturated zone)
+            # 'output.netcdf_grid.variables.soil_water_root-zone__volume_percentage': 'soil_water_rootzone_volume_percentage',  # Volumetric water content in root zone (including residual water content and saturated zone)	%
+            # 'output.netcdf_grid.variables.soil_water_root-zone__depth': 'soil_water_rootzone_depth',  # Root water storage in unsaturated and saturated zone (excluding residual water content)	mm
+            # 'output.netcdf_grid.variables.soil_water_unsat-zone__depth': 'soil_water_unsatzone_depth',  # Amount of water in the unsaturated store	mm
+            # 'output.netcdf_grid.variables.soil_water_sat-zone_top__capillary_volume_flux': 'soil_water_satzone_capillary_volume_flux',  # Actual capillary rise	mm Δt⁻¹
+            # 'output.netcdf_grid.variables.soil_water_sat-zone_top__recharge_volume_flux': 'soil_water_satzone_recharge_volume_flux',  # Downward flux from unsaturated to saturated zone	mm Δt⁻¹
+            # 'output.netcdf_grid.variables.soil_water_sat-zone_top__net_recharge_volume_flux': 'soil_water_satzone_net_recharge_volume_flux',  # Net recharge to saturated zone	mm Δt⁻¹
+            # 'output.netcdf_grid.variables.soil_water_sat-zone_bottom__leakage_volume_flux': 'soil_water_satzone_leakage_volume_flux',  # Actual leakage from saturated store	mm Δt⁻¹
+            # 'output.netcdf_grid.variables.soil_water_sat-zone_top__depth': 'soil_water_satzone_depth',  # Pseudo-water table depth (top of the saturated zone)	mm
+        }
+        model.setup_config(configs)
+        # Setup basemaps: https://deltares.github.io/hydromt_wflow/stable/api/_generated/hydromt_wflow.WflowSbmModel.setup_basemaps.html
+        model.setup_basemaps(
+            region=region, hydrography_fn='my_hydro', res=resolution, upscale_method='ihu' # 'ihu', 'eam', 'dmm'
+        )
+        # Setup rivers: https://deltares.github.io/hydromt_wflow/stable/api/_generated/hydromt_wflow.WflowSbmModel.setup_rivers.html
+        output_names = {
+            'river__length': 'river_length', 'river__width': 'river_width', 'river__slope': 'river_slope',
+            'river_bank_water__depth': 'river_bank_depth', # Bankfull depth of river, default is 1.0 m
+            'river_water_flow__manning_n_parameter': 'river_manning_n', # Manning's roughness, default is 0.036
+            'river_bank_water__elevation': 'river_bank_elevation', 'river_location__mask': 'river_mask'
+        }
+        model.setup_rivers(
+            hydrography_fn='my_hydro', river_geom_fn='river_network', 
+            river_upa=10, # Minimum upstream area threshold for the river map [km2]
+            rivdph_method='powlaw', # 'gvf', 'manning', 'powlaw'
+            slope_len=2, #  Length over which the river slope is calculated [km]
+            min_rivlen_ratio=0, min_rivdph=1.0, # Minimum river depth [m]
+            min_rivwth=30, # Minimum river width [m]
+            smooth_len=5000, # Length [m] over which to smooth the output river width and depth
+            connectivity=8, river_routing='kinematic_wave', # 'kinematic_wave', 'local_inertial'
+            elevtn_map='land_elevation', # Name of the elevation map in the current WflowBaseModel.staticmaps
+            output_names=output_names
+        )
+        model.setup_river_roughness(
+            rivman_mapping_fn='river_manning_mapping', # Name of the river manning n map in the current WflowBaseModel.river_maps
+            strord_name='meta_streamorder', # Name of the stream order map in the current WflowBaseModel.staticmaps
+            output_name='river_manning_n' # Mapping of output variable names.
+        )
+        # Setup soil maps: https://deltares.github.io/hydromt_wflow/stable/api/_generated/hydromt_wflow.WflowSbmModel.setup_soilmaps.html
+        soil_names = {
+            'soil__thickness': 'soil_thickness', 'soil_layer_water__brooks_corey_exponent': 'soil_brooks_corey_c',
+            'soil_surface_water__vertical_saturated_hydraulic_conductivity': 'soil_ksat_vertical', 
+            'soil_water__residual_volume_fraction': 'soil_theta_r', 'soil_water__saturated_volume_fraction': 'soil_theta_s', 
+            'soil_water__vertical_saturated_hydraulic_conductivity_scale_parameter': 'soil_f'
+        }
+        model.setup_soilmaps(
+            soil_fn='soilgrids', ptf_ksatver='brakensiek', # 'brakensiek', 'cosby'
+            wflow_thicknesslayers=soil_layers, # Thickness of soil layers [mm] for wflow_sbm soil model
+            output_names=soil_names
+        )
+        model.setup_laimaps_from_lulc_mapping(lulc_fn=lulc_function, lai_mapping_fn=lai_fn)
+        # Setup land use maps: https://deltares.github.io/hydromt_wflow/stable/api/_generated/hydromt_wflow.WflowSbmModel.setup_lulcmaps.html
+        lulc_variables = [
+            'landuse', 'vegetation_kext', 'land_manning_n', 'soil_compacted_fraction', 
+            'vegetation_root_depth', 'vegetation_leaf_storage', 'vegetation_wood_storage', 
+            'land_water_fraction', 'vegetation_crop_factor', 'vegetation_feddes_alpha_h1', 
+            'vegetation_feddes_h1', 'vegetation_feddes_h2', 'vegetation_feddes_h3_high', 
+            'vegetation_feddes_h3_low', 'vegetation_feddes_h4'
+        ]
+        model.setup_lulcmaps(
+            lulc_fn=lulc_function, lulc_mapping_fn=lulc_mapping_fn, lulc_vars=lulc_variables
+        )
+        # Setup forcing
+        model.setup_precip_forcing(precip_fn='weather_forcing')
+        model.setup_temp_pet_forcing(
+            temp_pet_fn='weather_forcing', pet_method='debruin', # 'debruin', 'makkink', 'penman-monteith_rh_simple', 'penman-monteith_tdew'
+            press_correction=True, temp_correction=True, wind_correction=True,
+            wind_altitude=10, reproj_method='nearest', fillna_method='nearest',
+            dem_forcing_fn='dtm', skip_pet=False
+        )
+        # === Constant parameters ===
+        model.setup_constant_pars(
+            subsurface_water__horizontal_to_vertical_saturated_hydraulic_conductivity_ratio = params['k_sat_ratio'],
+            snowpack__degree_day_coefficient = params['dd_snow'],
+            soil_surface_water__infiltration_reduction_parameter = params['inf_red'],
+            vegetation_canopy_water__mean_evaporation_to_mean_precipitation_ratio = params['canopy_evap_ratio'],
+            compacted_soil_surface_water__infiltration_capacity = params['inf_cap'],
+            soil_water_saturated_zone_bottom__max_leakage_volume_flux = params['leak_max'],
+            soil_wet_root__sigmoid_function_shape_parameter = params['soil_sigmoid'],
+            atmosphere_air__snowfall_temperature_threshold = params['snowfall_t0'],
+            atmosphere_air__snowfall_temperature_interval = params['snowfall_dt'],
+            snowpack__melting_temperature_threshold = params['melt_t0_snow'],
+            snowpack__liquid_water_holding_capacity = params['snow_liq_cap'],
+            glacier_ice__degree_day_coefficient = params['dd_glacier'],
+            glacier_firn_accumulation__snowpack_dry_snow_leq_depth_fraction = params['firn_dry_frac'],
+            glacier_ice__melting_temperature_threshold = params['melt_t0_glacier'],
+        )
+        # === Cold states ===
+        model.setup_cold_states()
+        # === Write model ===
+        model.write(
+            grid_filename='static_grid.nc', geoms_folder='staticgeoms', 
+            forcing_filename='weather_forcing.nc', states_filename='output_state.nc'
+        )
+        logger.info(f"Run HydroMT completed successfully.\n\n\n")
+        processes[project_name] = {"status": "finished", "message": "\nRun HydroMT completed successfully."}
+    except Exception as e:
+        print('/weather_downloader:\n==============')
+        traceback.print_exc()
+        logger.exception("Run HydroMT failed")
+        processes[project_name] = {"status": "failed", "message": str(e)}
+    finally:
+        sys.stdout, sys.stderr = old_stdout, old_stderr
+        for h in logger.handlers[:]:
+            h.flush()
+            h.close()
+            logger.removeHandler(h)
+
+def hydro_creator(flow_dir):
+    # Prepare template raster dataset
+    NODATA_FLWDR, NODATA_BASIN = 255, 0
+    hydro_dir = os.path.join(flow_dir, 'hydro')
+    if not os.path.exists(hydro_dir): os.makedirs(hydro_dir)
+    raw_path = os.path.join(flow_dir, 'raw', 'dtm_raw.tif')
+    river_path = os.path.join(hydro_dir, 'river', 'river.gpkg')
+    with rasterio.open(raw_path) as src:
+        dem_array = src.read(1)
+        crs, nodata = src.crs, src.nodata
+        transform, profile = src.transform, src.profile
+        height, width = src.height, src.width
+    # Fill depressions
+    filled_array, flwdir_array = dem.fill_depressions(elevtn=dem_array, max_depth=-1)
+    flw = pyflwdir.from_dem(filled_array, transform=transform, latlon=crs.is_geographic)
+    lake_path = os.path.join(flow_dir, 'water_area', 'water_area.geojson')
+    if os.path.exists(lake_path):
+        lake = gpd.read_file(lake_path)
+        lake_reproj = lake.to_crs(crs)
+        lake_array = rasterize(
+            shapes=[geom for geom in lake_reproj.geometry], dtype=np.float32,
+            out_shape=(height, width), transform=transform, fill=nodata
+        )
+        mask_lake = (lake_array != nodata)
+        filled_array[mask_lake] = dem_array[mask_lake] # Replace lake elevation
+    # Create basins
+    basins_array = flw.basins()
+    unique, counts = np.unique(basins_array, return_counts=True)
+    largest_basin_id = unique[np.argmax(counts)]
+    basins_mask = (basins_array == largest_basin_id)
+    basins_array[basins_mask], basins_array[~basins_mask] = 1, NODATA_BASIN
+    elevtn_array = filled_array.copy()
+    # Create slope
+    dx, dy = transform.a, abs(transform.e)
+    # Gradient elevation
+    gradient_array = filled_array.copy()
+    gy, gx = np.gradient(gradient_array, dy, dx)
+    slope_array = np.sqrt(gx**2 + gy**2)
+    # Create stream order
+    uparea_array = flw.upstream_area(unit='km2')
+    # Create stream mask and stream order
+    stream_mask = (uparea_array > 10)
+    strord_array = flw.stream_order(type='strahler', mask=stream_mask)
+    # Create upstream grid
+    upstream_array = flw.upstream_area(unit='cell')
+    files_float = {
+        'elevtn.tif': [elevtn_array, nodata, np.float32],
+        'flwdir.tif': [flwdir_array, NODATA_FLWDR, np.uint8],
+        'lndslp.tif': [slope_array, nodata, np.float32],
+        'basins.tif': [basins_array, NODATA_BASIN, np.int32], 
+        'uparea.tif': [uparea_array, nodata, np.float32],
+        'strord.tif': [strord_array, NODATA_BASIN, np.int16],
+        'upgrid.tif': [upstream_array, NODATA_BASIN, np.int32]
+    }    
+    # Create river width
+    if os.path.exists(river_path):
+        river = gpd.read_file(river_path).to_crs(crs)
+        shape = ((geom, value) for geom, value in zip(river.geometry, river["rivwth"]))
+        rivwth_array = rasterize(
+            shapes=shape, out_shape=(profile["height"], profile["width"]),
+            transform=transform, fill=nodata, dtype=np.float32
+        )
+        files_float['rivwth.tif'] = [rivwth_array, nodata, np.float32]
+    profile_writer = profile.copy()
+    for file, array in files_float.items():
+        profile_writer.update({'dtype': array[2]})
+        flow_functions.write_geotif(array[0], profile_writer, os.path.join(hydro_dir, file), array[1])
+
+
+
+
+
 
 # def keep_polygon(geom):
 #     if geom.geom_type == 'GeometryCollection':
@@ -737,51 +1101,6 @@ def weather_downloader(flow_dir, start, end, catchment, buffer=0.1):
 # print("DONE")
 
 
-# # ============= Create weather file =============
-# # Read weather data
-# weather_path = os.path.join(sample_folder, 'weather_2025.csv')
-# weather = pd.read_csv(weather_path, parse_dates=['datetime'], index_col='datetime')
-# weather_new = weather.loc['2025-01-01 00:00:00':'2025-01-10 00:00:00']
-# # Create forcing nc file
-# time, time_step = weather_new.index.to_numpy(), 'hours'
-# forcing_dir = os.path.join(test_folder, 'data/forcing')
-# os.makedirs(forcing_dir, exist_ok=True)
-# out_path, datasets = os.path.join(forcing_dir, "weather_forcing.nc"), {}
-# with rasterio.open(raw_path) as src:
-#     dem_array, crs = src.read(1), src.crs
-#     transform, nodata = src.transform, src.nodata
-# mask_nan = np.isnan(dem_array) | (dem_array == nodata)
-# ny, nx = dem_array.shape[0], dem_array.shape[1]
-# forcing = {
-#     'precip': ['precip_mm', 'mm'], 'temp': ['temp_C', 'degC'],
-#     'kin': ['shortwave_Wm2', 'W/m^2'], 'kout': ['longwave_Wm2', 'W/m^2'],
-#     'wind': ['wind_mps', 'm/s'], 'press_msl': ['pressure', 'Pa']
-# }
-# for var, (col, unit) in forcing.items():
-#     data = weather_new[col].values.astype(np.float32)
-#     data_3d = create_forcing(time, ny, nx, data, mask_nan, single_value=True)
-#     datasets[var] = (('time', 'y', 'x'), data_3d, {'units': unit})
-# x_coords = transform.c + (np.arange(nx) + 0.5) * transform.a
-# y_coords = transform.f + (np.arange(ny) + 0.5) * transform.e
-# ds_final = xr.Dataset(
-#     data_vars=datasets, coords={"time": time, "y": y_coords, "x": x_coords}
-# )
-# ds_final = ds_final.rio.set_spatial_dims(x_dim="x", y_dim="y")
-# ds_final = ds_final.rio.write_crs(crs)
-# ds_final["time"].encoding = {
-#     "units": f"{time_step} since 1900-01-01 00:00:00",
-#     "calendar": "proleptic_gregorian", "dtype": "float64"
-# }
-# encoding = {
-#     var: {"zlib": True, "complevel": 4, "shuffle": True, "chunksizes": (1, 256, 256)}
-#     for var in ds_final.data_vars
-# }
-# ds_final.to_netcdf(out_path, engine='netcdf4', encoding=encoding)
-
-
-
-
-
 # ########################### Get landcover data from ESA worldcover
 # user_name, password = os.getenv('ESA_USERNAME'), os.getenv('ESA_PASSWORD')
 # catalogue = Catalogue().authenticate_non_interactive(user_name, password)
@@ -864,3 +1183,241 @@ def weather_downloader(flow_dir, start, end, catchment, buffer=0.1):
 #                 data = rioxarray.open_rasterio(src, masked=True)
 #                 data_reprojected = data.rio.reproject_match(terrain)
 #             data_reprojected.rio.to_raster(os.path.join(soil_dir, f'{soil_name}.tif'))
+
+# def weather_downloader(project_name, processes, flow_dir, start, end, catchment, buffer=0.1):
+#     # Prepare forcing data from the global model ARE5
+#     # Source: https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels?tab=download
+#     forcing_dir = os.path.join(flow_dir, 'forcing')
+#     os.makedirs(forcing_dir, exist_ok=True)
+#     forcing_path = os.path.join(forcing_dir, "weather_forcing.nc")
+#     # Remove old log
+#     log_path = os.path.join(flow_dir, "log.txt")
+#     if os.path.exists(log_path): os.remove(log_path)
+#     logger = setup_logger("cdsapi", log_path)
+#     old_stdout, old_stderr = sys.stdout, sys.stderr
+#     sys.stdout, sys.stderr = StreamToLogger(logger), StreamToLogger(logger)
+#     try:
+#         logger.info("Weather downloader started")
+#         CDS_url, CDS_key = os.getenv('CDS_URL'), os.getenv('CDS_API_KEY')
+#         config_path = Path.home() / '.cdsapirc'
+#         if not config_path.exists():
+#             logger.info("Creating .cdsapirc ...")
+#             config_path.write_text(f"url: {CDS_url}\nkey: {CDS_key}\n", encoding='utf-8')
+#             logger.info(f"Created at: {config_path}")
+#         # start, end = '2025-01-01 00:00:00', '2025-01-03 00:00:00'
+#         logger.info(f"Starting time: {start}   --   Ending time: {end}")
+#         start_time = datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
+#         end_time = datetime.strptime(end, '%Y-%m-%d %H:%M:%S')
+#         lon_min, lat_min, lon_max, lat_max = catchment.total_bounds
+#         north, east = max(lat_min, lat_max), max(lon_min, lon_max)
+#         south, west = min(lat_min, lat_max), min(lon_min, lon_max)
+#         area = [north + buffer, west - buffer, south - buffer, east + buffer]
+#         logger.info(f"Bounding box: {area}")
+#         # Setup variables
+#         variables = [
+#             'total_precipitation', # Precipitation
+#             '2m_temperature', # Temperature
+#             '10m_u_component_of_wind', '10m_v_component_of_wind', # Wind
+#             'surface_pressure',  # Pressure
+#             'surface_solar_radiation_downwards', # Shortwave radiation
+#             'surface_thermal_radiation_downwards', # Longwave radiation
+#         ]
+#         dataset = 'reanalysis-era5-single-levels'
+#         if os.path.exists(forcing_path):
+#             functions.safe_remove(forcing_path)
+#             logger.info("Removing old forcing data...")
+#         # Download ERA5 data monthly
+#         download_dir = os.path.join(forcing_dir, 'download')
+#         if not os.path.exists(download_dir): os.makedirs(download_dir)
+#         client = cdsapi.Client(quiet=False, debug=False)
+#         for var in variables:
+#             current = start_time.replace(day=1)
+#             while current <= end_time:
+#                 year, month = current.year, current.month
+#                 last_day = calendar.monthrange(year, month)[1]
+#                 month_start = datetime(year, month, 1)
+#                 month_end = datetime(year, month, last_day, 23)
+#                 # Clip by requested range
+#                 actual_start = max(start_time, month_start)
+#                 actual_end = min(end_time, month_end)
+#                 # Days to download
+#                 days = [f"{d:02d}" for d in range(actual_start.day, actual_end.day + 1)]
+#                 # Output file
+#                 out_file = f"{var}_ERA5_{year}_{month:02d}.nc"
+#                 output = os.path.join(download_dir, out_file)
+#                 # Skip existing file
+#                 if os.path.exists(output): os.remove(output)
+#                 logger.info(f"Downloading: {out_file}")
+#                 request = {
+#                     'product_type': 'reanalysis', 'variable': [var],
+#                     'year': [str(year)], 'month': [f"{month:02d}"], 'day': days,
+#                     'time': [f"{h:02d}:00" for h in range(24)], 'area': area,
+#                     'data_format': 'netcdf', 'download_format': 'unarchived'
+#                 }
+#                 client.retrieve(dataset, request, output)
+#                 # Next month
+#                 current += relativedelta(months=1)
+#         logger.info("ERA5 download completed successfully")
+#         # Check valid files
+#         logger.info("Checking valid files...")
+#         # Filter valid files
+#         files, bad_files = [], []
+#         for var in variables:
+#             pattern = os.path.join(download_dir, f"{var}_ERA5_*.nc")
+#             raw_files = sorted(glob.glob(pattern))
+#             for f in raw_files:
+#                 if is_valid_netcdf(f): files.append(f)
+#                 else: bad_files.append(f)
+#         logger.info(f"Number of valid files: {len(files)}/{len(files) + len(bad_files)}")
+#         if len(bad_files) > 0:
+#             logger.info("Bad files:")
+#             for f in bad_files: logger.info(f" - {os.path.basename(f)}")
+#         # Concatenate sub-files
+#         logger.info("Concatenating files...")
+#         for var in variables:
+#             pattern = os.path.join(download_dir, f"{var}_ERA5_*.nc")
+#             raw_files = sorted(glob.glob(pattern))
+#             if len(raw_files) == 1:
+#                 # Rename single file
+#                 old_file, new_file = raw_files[0], pattern.replace('_*', "")
+#                 os.rename(old_file, new_file)
+#                 logger.info(f"Renamed: {os.path.basename(new_file)}")
+#             elif len(raw_files) > 1:
+#                 files = [f for f in raw_files if is_valid_netcdf(f)]
+#                 if len(files) == 0: continue
+#                 datasets = []
+#                 try:
+#                     logger.info(f"Merging {var} ...")
+#                     datasets = [xr.open_dataset(f) for f in files]
+#                     ds = xr.merge(
+#                         datasets, compat="override", join="outer"
+#                     )
+#                     # Remove ERA5 artifact dimension
+#                     if 'expver' in ds.variables: ds = ds.drop_vars('expver')
+#                     encoding = {
+#                         var: {"zlib": True, "complevel": 4, "dtype": "float32"}
+#                         for var in ds.data_vars
+#                     }
+#                     output = pattern.replace('_*', "")
+#                     logger.info(f"Writing forcing file: {output}")
+#                     ds.to_netcdf(output, format="NETCDF4", encoding=encoding)
+#                 finally:
+#                     for ds in datasets: ds.close()
+#                     if 'ds' in locals(): ds.close()
+#                     del datasets
+#                     gc.collect()
+#         # Merge files
+#         logger.info("Merging files...")
+#         final_output = os.path.join(forcing_dir, "ear5.nc")
+#         datasets = [
+#             os.path.join(download_dir, f"{var}_ERA5.nc")
+#             for var in variables if os.path.exists(os.path.join(download_dir, f"{var}_ERA5.nc"))
+#         ]
+#         if datasets:
+#             datasets_ds = []
+#             try:
+#                 datasets_ds = [xr.open_dataset(f) for f in datasets]
+#                 ds_final = xr.merge(datasets_ds, compat="override", join="outer")
+#                 encoding = {
+#                     var: {"zlib": True, "complevel": 4, "dtype": "float32"}
+#                     for var in ds_final.data_vars
+#                 }
+#                 logger.info(f"Writing ERA5 file: {final_output}")
+#                 ds_final.to_netcdf(final_output, format="NETCDF4", encoding=encoding)
+#             finally:
+#                 for ds in datasets_ds: ds.close()
+#                 if 'ds_final' in locals(): ds_final.close()
+#                 gc.collect()
+#             # Remove sub-files
+#             shutil.rmtree(download_dir)
+#             logger.info("Temporary files removed.")
+#             logger.info("Merging files completed successfully")
+#         else: logger.info("No multiple files to merge")
+#         raw_path, datasets = os.path.join(flow_dir, "raw", "dtm_raw.tif"), {}
+#         with rasterio.open(raw_path) as src:
+#             dem_array, crs = src.read(1), src.crs
+#             transform, nodata = src.transform, src.nodata
+#         mask_nan = np.isnan(dem_array) | (dem_array == nodata)
+#         ny, nx, time_step = dem_array.shape[0], dem_array.shape[1], 'hours'
+#         x_coords = transform.c + (np.arange(nx) + 0.5) * transform.a
+#         y_coords = transform.f + (np.arange(ny) + 0.5) * transform.e
+#         forcing = {
+#             'precip': ['tp', 'mm'], 'temp': ['t2m', 'degC'],
+#             'kin': ['ssrd', 'W/m^2'], 'kout': ['strd', 'W/m^2'],
+#             'wind': ['', 'm/s'], 'press_msl': ['sp', 'Pa']
+#         }
+#         with xr.open_dataset(final_output) as ds:
+#             # vars = list(ds.data_vars.keys())
+#             x_known, y_known, gdf = None, None, None
+#             timestamps = pd.to_datetime(ds['valid_time'].values).to_numpy()
+#             lat, lon = ds['latitude'].values, ds['longitude'].values
+#             single_value = (lat.size * lon.size == 1)
+#             if not single_value:
+#                 lon2d, lat2d = np.meshgrid(lon, lat)
+#                 gdf_known = gpd.GeoDataFrame(geometry=gpd.points_from_xy(lon2d.ravel(), lat2d.ravel()), crs='EPSG:4326')
+#                 gdf_known = gdf_known.to_crs(crs)
+#                 x_known, y_known = gdf_known.geometry.x, gdf_known.geometry.y
+#                 x, y = np.meshgrid(x_coords, y_coords)
+#                 gdf = gpd.GeoDataFrame(geometry=gpd.points_from_xy(x.ravel(), y.ravel()), crs=crs)
+#             for var, (col, unit) in forcing.items():
+#                 t0 = time.time()
+#                 if col != '': data = ds[col].values.astype(np.float32)
+#                 if var == 'precip': data *= 1000
+#                 elif var == 'temp': data -= 273.15
+#                 elif var == 'kin' or var == 'kout': data /= 3600
+#                 elif var == 'wind':
+#                     u = ds['u10'].values.astype(np.float32)
+#                     v = ds['v10'].values.astype(np.float32)
+#                     data = np.sqrt(u**2 + v**2)
+#                     # wind_direction = (np.degrees(np.arctan2(-u, -v)) + 360) % 360
+#                 if np.isnan(data).any():
+#                     nan_mask = np.isnan(data)
+#                     if nan_mask.all(): raise ValueError(f"{var} contains only NaN")
+#                     da_arr = xr.DataArray(data, dims=("valid_time", "latitude", "longitude"))
+#                     da_arr = (
+#                         da_arr.interpolate_na(dim="valid_time", method="linear")
+#                         .ffill("valid_time").bfill("valid_time")
+#                     )
+#                     data = da_arr.values.astype(np.float32)
+#                 logger.info(f"Interpolating: {var}...")
+#                 data_3d = create_forcing(timestamps, ny, nx, data, mask_nan, single_value, gdf, x_known, y_known)
+#                 datasets[var] = (('time', 'y', 'x'), data_3d, {'units': unit})
+#                 logger.info(f"Finished interpolating: {var} in: {time.time() - t0:.2f}s")
+#         functions.safe_remove(final_output)
+#         logger.info("Generating forcing file...")
+#         ds_final = xr.Dataset(
+#             data_vars=datasets, coords={"time": timestamps, "y": y_coords, "x": x_coords}
+#         )
+#         logger.info("Dataset created")
+#         logger.info("Setting spatial dims...")
+#         ds_final = ds_final.rio.set_spatial_dims(x_dim="x", y_dim="y")
+#         logger.info("Spatial dims set")
+#         logger.info("Assigning crs...")
+#         ds_final = ds_final.rio.write_crs(crs)
+#         logger.info("Encoding...")
+#         ds_final["time"].encoding = {
+#             "units": f"{time_step} since 1900-01-01 00:00:00",
+#             "calendar": "proleptic_gregorian", "dtype": "float64"
+#         }
+#         encoding = {
+#             var: {
+#                 "dtype": "float32", "zlib": True, "complevel": 5, "shuffle": False
+#             }
+#             for var in ds_final.data_vars
+#         }
+#         logger.info("Writing netcdf...")
+#         ds_final.to_netcdf(forcing_path, format="NETCDF4", engine='netcdf4', encoding=encoding)
+#         ds_final.close()
+#         logger.info(f"Saved forcing file successfully: {forcing_path}")
+#         processes[project_name] = {"status": "finished", "message": "\nWeather download completed successfully.\n\n\n"}
+#     except Exception as e:
+#         print('/weather_downloader:\n==============')
+#         traceback.print_exc()
+#         logger.exception("Weather download failed")
+#         processes[project_name] = {"status": "failed", "message": str(e)}
+#     finally:
+#         sys.stdout, sys.stderr = old_stdout, old_stderr
+#         for h in logger.handlers[:]:
+#             h.flush()
+#             h.close()
+#             logger.removeHandler(h)

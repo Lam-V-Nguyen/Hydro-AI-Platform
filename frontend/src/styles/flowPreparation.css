@@ -101,11 +101,12 @@ ul { line-height: 1.4; font-size: 16px; text-align: center; }
   margin-bottom: 10px; list-style-type: disc; margin-left: 30px;
 }
 
-#weather-download-container {
-  display: none; flex-direction: column; margin-top: -10px;
+#weather-download-container, #model-container, #soil-download-container {
+  display: none; flex-direction: column; margin-top: -10px; min-width: 0; 
   justify-content: flex-start; align-items: stretch; height: 100%;
 }
-#weather-download-text { 
-  flex: 1; width: 100%; resize: none; margin-top: -10px;
-  box-sizing: border-box; font-family: monospace;
+#weather-download-text, #model-text, #soil-download-text { 
+  flex: 1 1 auto; width: 100%; resize: none; min-height: 0;
+  box-sizing: border-box; font-family: monospace; overflow: auto;
 }
+#model-container { display: flex; }

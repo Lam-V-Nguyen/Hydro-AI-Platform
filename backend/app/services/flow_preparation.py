@@ -1,4 +1,4 @@
-import os, json, traceback, mercantile, rasterio, shutil
+import os, json, traceback, mercantile, rasterio, shutil, logging
 import io, sknw, shapely, rioxarray, zipfile, pyflwdir, threading
 from fastapi import APIRouter, Request, Depends, UploadFile, File, Form, Response, Query
 from fastapi.responses import JSONResponse
@@ -97,7 +97,7 @@ async def water_upload(file: UploadFile = File(...), flowName: str = Form(...),
         if not os.path.exists(flow_dir): os.makedirs(flow_dir, exist_ok=True)
         water_dir = os.path.join(flow_dir, flowName, "water_area")
         if not os.path.exists(water_dir): os.makedirs(water_dir, exist_ok=True)
-        water_path = os.path.join(water_dir, file.filename)
+        water_path = os.path.join(water_dir, 'water_area.geojson')
         with open(water_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         file.file.close()
@@ -336,59 +336,11 @@ async def data_download(request: Request, user=Depends(functions.basic_auth)):
         raw_path = os.path.join(terrain_dir, 'dtm_raw.tif')
         flow_functions.write_geotif(terrain_values, profile, raw_path, nodata)
         if key == "soil":
-            # Download soil data 2017 from ISRIC: https://files.isric.org/soilgrids/former/2017-03-10/
-            soil_dir = os.path.join(flow_dir, "soil")
-            os.makedirs(soil_dir, exist_ok=True)
-            catchment_WGS84 = catchmentUTM_buffer.to_crs('EPSG:4326')
-            min_lon, min_lat, max_lon, max_lat = catchment_WGS84.total_bounds
-            soil_depths = flow_functions.soil_depths
-            soil_types, depths = flow_functions.soil_types, list(soil_depths.values())
-            # Get raster information
-            ref = rioxarray.open_rasterio(raw_path).squeeze()
-            with rasterio.open(raw_path) as src:
-                profile, transform = src.profile, src.transform
-                height, width = src.height, src.width
-                nodata, crs = src.nodata, src.crs
-            base_url = "https://files.isric.org/soilgrids/former/2017-03-10/data/"
-            # Soil thickness
-            soil_thickness_url, NODATA_SOIL_THICKNESS = f"{base_url}BDRICM_M_250m_ll.tif", -99999
-            with rioxarray.open_rasterio(soil_thickness_url) as src:
-                data_xr = src.rio.clip_box(minx=min_lon, miny=min_lat, maxx=max_lon, maxy=max_lat)
-                data_xr = data_xr.rio.reproject_match(ref, resampling=Resampling.nearest)
-                nodata = data_xr.rio.nodata
-            soil_thickness_array = data_xr[0].values
-            # Interpolate data
-            mask_valid = soil_thickness_array != nodata
-            soil_thickness_values = flow_functions.interpolate_extrapolate(soil_thickness_array, ~mask_valid, True)
-            soil_thickness_values = soil_thickness_values.astype(np.int32)
-            if mask_lake is not None: soil_thickness_values[mask_lake] = NODATA_SOIL_THICKNESS
-            soil_thickness_path = os.path.join(soil_dir, 'soilthickness.tif')
-            profile_writer = profile.copy()
-            profile_writer.update(dtype=np.int32)
-            flow_functions.write_geotif(soil_thickness_values, profile_writer, soil_thickness_path, NODATA_SOIL_THICKNESS)
-            # Download soil data
-            for _, values in soil_types.items():
-                file, name, scale, dtype, nodata_soil, bulk_density = values[0], values[1], values[2], values[3], values[4], None
-                for depth in depths:
-                    file_url = f'{base_url}{file}_{depth}_250m_ll.tif'
-                    with rioxarray.open_rasterio(file_url) as src:
-                        data_xr = src.rio.clip_box(minx=min_lon, miny=min_lat, maxx=max_lon, maxy=max_lat)
-                        data_xr = data_xr.rio.reproject_match(ref, resampling=Resampling.nearest)
-                        nodata = data_xr.rio.nodata
-                    soil_array = data_xr[0].values
-                    # Interpolate data
-                    mask_valid = soil_array != nodata
-                    soil_values = flow_functions.interpolate_extrapolate(soil_array, ~mask_valid, True)
-                    if name == 'BLDFIE_M': bulk_density = soil_values + 1e-6
-                    if name == 'OCDENS_M':
-                        # Convert Organic Carbon Density (kg/m³) to Organic Carbon Content (%)
-                        soil_values = soil_values / bulk_density * 100
-                    soil_values = soil_values / scale
-                    if mask_lake is not None: soil_values[mask_lake] = nodata_soil
-                    path = os.path.join(soil_dir, f'{name}_{depth}.tif')
-                    profile_writer.update(dtype=dtype)
-                    flow_functions.write_geotif(soil_values, profile_writer, path, nodata_soil)
-        return JSONResponse({'status': 'ok', 'message': f"Soil data downloaded successfully."})
+            threading.Thread(
+                target=flow_functions.soil_downloader, 
+                args=(project_name, processes, flow_dir, catchmentUTM_buffer, mask_lake, raw_path), daemon=True
+            ).start()
+            return JSONResponse({'status': 'ok', 'message': "Soil data downloaded successfully."})
     except Exception as e:
         print('/data_download:\n==============')
         traceback.print_exc()
@@ -610,8 +562,8 @@ async def river_saver(request: Request, user=Depends(functions.basic_auth)):
         return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
 
 # Check if weather download is running
-@router.post("/check_weather_status")
-async def check_weather_status(request: Request, user=Depends(functions.basic_auth)):
+@router.post("/check_download_status")
+async def check_download_status(request: Request, user=Depends(functions.basic_auth)):
     body = await request.json()
     project_name, _ = functions.project_definer(body.get('projectName'), user)
     info = processes.get(project_name)
@@ -621,8 +573,8 @@ async def check_weather_status(request: Request, user=Depends(functions.basic_au
     if status in ("finished", "failed", "error"): processes.pop(project_name, None)
     return JSONResponse({"status": status, "message": message})
 
-@router.get("/log_tail_weather/{project_name}")
-async def log_tail_weather(project_name: str, offset: int = Query(0), flow_name: str = Query(""),
+@router.get("/log_tail_download/{project_name}")
+async def log_tail_download(project_name: str, offset: int = Query(0), flow_name: str = Query(""),
     log_file: str = Query(""), user=Depends(functions.basic_auth)):
     project_name, _ = functions.project_definer(project_name, user)
     log_path, lines = os.path.join(PROJECT_ROOT, project_name, "flows", flow_name, log_file), []
@@ -651,13 +603,9 @@ async def start_download_weather(request: Request, user=Depends(functions.basic_
         processes[project_name] = {"status": "running", "message": "Preparing download..."}
         threading.Thread(
             target=flow_functions.weather_downloader, 
-            args=(flow_dir, start, end, catchment_WGS84), daemon=True).start()
+            args=(project_name, processes, flow_dir, start, end, catchment_WGS84), daemon=True
+        ).start()
     return JSONResponse({"status": "ok", "message": "Weather download started"})
-
-
-
-
-
 
 @router.post("/save_flow_weather")
 async def save_flow_weather(request: Request, user=Depends(functions.basic_auth)):
@@ -713,32 +661,36 @@ async def save_flow_weather(request: Request, user=Depends(functions.basic_auth)
         traceback.print_exc()
         return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
 
-# @router.post("/weather_location")
-# async def weather_location(request: Request):
-#     try:
-#         body = await request.json()
-#         content = flowFunctions.weather_init(body.get('key'))
-#         if len(content) == 0: return JSONResponse({'status': 'error', 'message': 'No data found.'})
-#         return JSONResponse({'status': 'ok', 'content': json.loads(content.to_json())})
-#     except Exception as e:
-#         print('/weather_location:\n==============')
-#         traceback.print_exc()
-#         return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
+@router.post("/wflow_model")
+async def wflow_model(request: Request, user=Depends(functions.basic_auth)):
+    try:
+        body = await request.json()
+        project_name, _ = functions.project_definer(body.get('projectName'), user)
+        key, flow_name = body.get('key'), body.get('flowName')
+        flow_dir = os.path.join(PROJECT_ROOT, project_name, "flows", flow_name)
+        if key == "build":
+            # Check parameters
+            nan_vars, path = [], os.path.join(flow_dir)
+            with xr.open_dataset(path) as ds:
+                for item in ds.data_vars:
+                    if np.unique(ds[item].values).size == 1 and np.isnan(np.unique(ds[item].values)[0]):
+                        nan_vars.append(item)
+            if len(nan_vars) > 0: return JSONResponse({"status": 'error', "message": f"NaN values found in {nan_vars}"})
+            processes[project_name] = {"status": "running", "message": "Preparing data for building model..."}
+            step, start, end = body.get('step'), body.get('start'), body.get('end')
+            lib_path = os.path.join(SOURCE_BACKEND, 'flow_samples', 'config.yml')
+            data_lib, soil_layers = [lib_path], [50, 100, 150, 300, 400, 600]
+            params = body.get('params')
+            region = {'subbasin': [55010.153, 6955129.102]} 
+            threading.Thread(
+                target=flow_functions.run_hydromt, 
+                args=(project_name, processes, flow_dir, start, end, step, 
+                    region, 10, soil_layers, data_lib, params
+                ), daemon=True
+            ).start()
+            return JSONResponse({"status": "ok", "message": "Model built started."})
+    except Exception as e:
+        print('/wflow_model:\n==============')
+        traceback.print_exc()
+        return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
 
-# @router.post("/weather_provider")
-# async def weather_provider(request: Request):
-#     try:
-#         body = await request.json()
-#         source, station = body.get('source'), body.get('station')
-#         start, end = body.get('start'), body.get('end')
-#         start_time = datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
-#         end_time = datetime.strptime(end, '%Y-%m-%d %H:%M:%S')
-#         if start_time >= end_time: 
-#             return JSONResponse({'status': 'error', 'message': "Error: Start time is later than end time."})
-#         content, missing = flowFunctions.weather_downloader(source, station, start_time, end_time)
-#         if len(content) == 0: return JSONResponse({'status': 'error', 'message': 'No data found.'})
-#         return JSONResponse({'status': 'ok', 'content': content, 'missing': missing})
-#     except Exception as e:
-#         print('/weather_provider:\n==============')
-#         traceback.print_exc()
-#         return JSONResponse({'status': 'error', 'message': f"Error: {e}"})

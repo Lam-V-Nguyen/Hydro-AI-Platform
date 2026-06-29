@@ -3,7 +3,7 @@ import { origin } from "./constant.js";
 import { getColorFromValue } from "./unstructuredGrid.js";
 const pendingRequests = new Map();
 
-let zIndex = 3000;
+let zIndex = 3000, activeProject = null, lastOffset = 0;
 
 export function signalSender(key, contents={}) {
     window.parent.postMessage({type: key, content: contents}, origin);
@@ -600,7 +600,24 @@ export function formatDate(date) {
     return `${Y}-${M}-${D} ${h}:${m}:${s}`;
 }
 
-
-
-
-
+export function updateLog(currentProject, flowName, info, seconds){
+    activeProject = currentProject;
+    async function loop() {
+        if (activeProject !== currentProject) return;
+        try {
+            const statusRes = await jsonLoader('check_download_status', {projectName: currentProject});
+            if (statusRes.status !== "running") {
+                info.value += statusRes.message || "" + "\n"; lastOffset = 0; return;
+            }
+            const res = await fetch(
+                `/log_tail_download/${currentProject}?offset=${lastOffset}&flow_name=${flowName}&log_file=log.txt`
+            );
+            if (!res.ok) return;
+            const data = await res.json();
+            for (const line of data.lines) { info.value += line + "\n"; }
+            lastOffset = data.offset;
+        } catch (error) { alert(error); return; }
+        setTimeout(loop, seconds * 1000);
+    }
+    loop();
+}
