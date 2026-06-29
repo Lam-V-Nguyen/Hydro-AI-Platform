@@ -109,4 +109,4 @@ ul { line-height: 1.4; font-size: 16px; text-align: center; }
   flex: 1 1 auto; width: 100%; resize: none; min-height: 0;
   box-sizing: border-box; font-family: monospace; overflow: auto;
 }
-#model-container { display: flex; }
+#model-container { display: flex; margin-top: 0; }

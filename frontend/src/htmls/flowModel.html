@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link rel="stylesheet" href="/src_frontend/styles/tabControler.css?v=1">
-    <link rel="stylesheet" href="/src_frontend/styles/flowPreparation.css?v=1">
+    <link rel="stylesheet" href="/src_frontend/styles/flowPreparation.css?v=2">
 </head>
 <body>
     <div class="wrapper">
@@ -28,6 +28,7 @@
                                         <input type="text" id="project-name" placeholder="Enter scenario's name">
                                         <ul id="project-list"></ul>
                                     </div>
+                                    <button id="create-btn" style="max-width: 80px;">Open</button>
                                 </div>
                             </div>
                         </div>
@@ -109,28 +110,33 @@
                             </div>
                         </div>
                     </div>
-
-
                 </div>
                 <!-- Tab 2: Model -->
                 <div class="tabpanel main-panel" data-panel="model-tab">
                     <div class="grid">
-                        <div class="tile" style="grid-column: span 2;"><h3>Model Options</h3>
-                            
-
-
-
-
-
+                        <div class="tile" style="grid-column: span 2;"><h3>Model Implementation</h3>
                             <div class="row">
-                                <button type="button" id="model-build-btn">1. Build Model</button>
+                                <button type="button" id="model-check-btn">1. Check Model</button>
+                            </div>
+                            <div class="row">
+                                <label>Pour point:</label>
+                                <input type="file" id="model-pourpoint-file" accept=".geojson,.shp" hidden>
+                                <button type="button" id="model-pourpoint-btn">Add pour point</button>
+                            </div>
+                            <div class="row">
+                                <input type="text" id="model-lat" placeholder="Latitude (°)" style="width: auto;">
+                            </div>
+                            <div class="row">
+                                <input type="text" id="model-lon" placeholder="Longitude (°)" style="width: auto;">
                             </div>
                             <div class="row">
                                 <button type="button" id="model-run-btn">2. Run Wflow Model</button>
                             </div>
                         </div>
+
+
                         <div class="tile" style="grid-column: span 6;" id="model-container"><h3>View Logs</h3>
-                            <textarea id="model-text" placeholder="Logs..." readonly></textarea>
+                            <textarea wrap="off" id="model-text" placeholder="Logs..." readonly></textarea>
                         </div>
                     </div>
                 </div>

@@ -402,7 +402,7 @@ def weather_downloader(project_name, processes, flow_dir, start, end, catchment,
             h.close()
             logger.removeHandler(h)
 
-def soil_downloader(project_name, processes, flow_dir, catchment, water, dtm_path, buffer=0.1):
+def soil_downloader(project_name, processes, flow_dir, catchment, water, dtm_path):
     try:
         # Work with log
         log_path = os.path.join(flow_dir, "log.txt")
@@ -480,10 +480,9 @@ def soil_downloader(project_name, processes, flow_dir, catchment, water, dtm_pat
                 profile_writer.update(dtype=dtype)
                 flow_functions.write_geotif(soil_values, profile_writer, path, nodata_soil)
                 logger.info(f"Saved downloaded data to: {path}")
-        logger.info("\nSoil data downloaded successfully.\n\n\n")
-        processes[project_name] = {"status": "finished", "message": "Soil data downloaded successfully.\n\n\n"}
+        processes[project_name] = {"status": "finished", "message": "\nSoil data downloaded successfully.\n\n"}
     except Exception as e:
-        print('/data_download:\n==============')
+        print('/soil_downloader:\n==============')
         traceback.print_exc()
         logger.exception("Data download failed")
         processes[project_name] = {"status": "failed", "message": str(e)}
@@ -493,10 +492,69 @@ def soil_downloader(project_name, processes, flow_dir, catchment, water, dtm_pat
             h.close()
             logger.removeHandler(h)
 
-
-
-
-
+def wflow_check(project_name, processes, flow_dir):
+    try:
+        # Work with log
+        log_path = os.path.join(flow_dir, "log.txt")
+        if os.path.exists(log_path): os.remove(log_path)
+        logger = setup_logger("wflow", log_path)
+        logger.info("Checking wflow inputs...")
+        logger.info("===============================")
+        logger.info("Checking weather forcing data...")
+        forcing_path = os.path.join(flow_dir, 'forcing', 'weather_forcing.nc')
+        if not os.path.exists(forcing_path):
+            logger.info("Weather forcing data not found.")
+            processes[project_name] = {"status": "failed", "message": "Weather forcing data not found."}
+        logger.info(f"Found weather forcing data at: {forcing_path}")
+        logger.info("===============================")
+        logger.info("Checking landcover data...")
+        landcover_dir = os.path.join(flow_dir, 'landcover')
+        landcover_files = [f for f in os.listdir(landcover_dir)]
+        if len(landcover_files) != 3:
+            logger.info("Number of landcover files is not equal to 3.")
+            processes[project_name] = {"status": "failed", "message": "Please download landcover data."}
+        logger.info(f"Found landcover data at: {landcover_dir}")
+        logger.info("===============================")
+        logger.info("Checking terrain data...")
+        terrain_path = os.path.join(flow_dir, 'raw', 'dtm_raw.tif')
+        if not os.path.exists(terrain_path):
+            logger.info("Terrain data not found.")
+            processes[project_name] = {"status": "failed", "message": "Terrain data not found."}
+        logger.info(f"Found terrain data at: {terrain_path}")
+        logger.info("===============================")
+        logger.info("Checking river data...")
+        river_dir = os.path.join(flow_dir, 'river')
+        river_files = [f for f in os.listdir(river_dir)]
+        if len(river_files) != 2:
+            logger.info("Number of river files is not equal to 2.")
+            processes[project_name] = {"status": "failed", "message": "Please upload river data."}
+        logger.info(f"Found river data at: {river_dir}")
+        logger.info("===============================")
+        logger.info("Checking soil data...")
+        soil_dir = os.path.join(flow_dir, 'soil')
+        soil_files = [f for f in os.listdir(soil_dir)]
+        if len(soil_files) != 43:
+            logger.info("Number of soil files is not equal to 43.")
+            processes[project_name] = {"status": "failed", "message": "Please download soil data."}
+        logger.info(f"Found soil data at: {soil_dir}")
+        logger.info("===============================")
+        logger.info("Checking water area data...")
+        water_path = os.path.join(flow_dir, 'water_area', 'water_area.geojson')
+        if not os.path.exists(water_path):
+            logger.info("Water area data not found.")
+        logger.info(f"Found water area data at: {water_path}")
+        logger.info("===============================")
+        processes[project_name] = {"status": "finished", "message": "\nChecking Wflow inputs completed.\n\n"}
+    except Exception as e:
+        print('/wflow_check:\n==============')
+        traceback.print_exc()
+        logger.exception("Check of wflow failed")
+        processes[project_name] = {"status": "failed", "message": str(e)}
+    finally:
+        for h in logger.handlers[:]:
+            h.flush()
+            h.close()
+            logger.removeHandler(h)
 
 def run_hydromt(project_name, processes, flow_dir, start, end, step, region, resolution, soil_layers, data_lib, params, 
     lulc_function='corine', lulc_mapping_fn='corine_mapping', lai_fn='lai_corine'):

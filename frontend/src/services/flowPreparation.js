@@ -61,12 +61,10 @@ function settingManager() {
         const name = obj.projectName.value.trim();
         if (!name || name.trim() === '') { alert('Please define scenario name.'); return; }
         if (nameChecker(name)) { alert('Scenario name contains invalid characters.'); return; }
-        const content = { projectName: currentProject, flowName: name };
+        const content = { projectName: currentProject, flowName: name, key: 'create' };
         const data = await jsonLoader('flow_project', content);
         if (data.status === 'error' || data.status === 'create') { alert(data.message); return; }
-        obj.waterInputText.value = data.content['water'];
-        obj.catchmentInputText.value = ''; obj.terrainInputText.value = '';
-
+        obj.waterInputText.value = data.content['water']; obj.terrainInputText.value = data.content['dtm'];
     });
     // Add water layer
     obj.waterInputFile.addEventListener('change', async (e) => {

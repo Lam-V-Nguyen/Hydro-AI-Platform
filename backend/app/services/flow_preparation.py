@@ -1,4 +1,4 @@
-import os, json, traceback, mercantile, rasterio, shutil, logging
+import os, json, traceback, mercantile, rasterio, shutil
 import io, sknw, shapely, rioxarray, zipfile, pyflwdir, threading
 from fastapi import APIRouter, Request, Depends, UploadFile, File, Form, Response, Query
 from fastapi.responses import JSONResponse
@@ -7,7 +7,7 @@ from config import PROJECT_ROOT, WHITEBOX_DIR, SOURCE_BACKEND
 from dotenv import load_dotenv
 from rasterio.enums import Resampling
 from rasterio.warp import calculate_default_transform, reproject
-from rasterio.features import shapes, rasterize
+from rasterio.features import shapes
 from shapely.geometry import shape, LineString
 from shapely.ops import unary_union, linemerge
 from shapely import force_2d
@@ -30,21 +30,31 @@ router, processes = APIRouter(), {}
 async def flow_project(request: Request, user=Depends(functions.basic_auth)):
     body = await request.json()
     try:
-        flow_name = body.get('flowName')
+        flow_name, key = body.get('flowName'), body.get('key')
         project_name, _ = functions.project_definer(body.get('projectName'), user)
         flow_dir = os.path.join(PROJECT_ROOT, project_name, "flows")
         os.makedirs(flow_dir, exist_ok=True)
         dir, content = os.path.join(flow_dir, flow_name), {}
-        if not os.path.exists(dir):
-            os.makedirs(dir, exist_ok=True)
-            return JSONResponse({'status': 'create', 'message': f"Project '{flow_name}' created successfully."})
-        water_path = os.path.join(dir, 'water_area', 'water_area.geojson')
-        content['water'] = 'water_area.geojson' if os.path.exists(water_path) else ''
-        dtm_path = os.path.join(dir, 'raw', 'dtm_raw.tif')
-        
-        
-        
-
+        if key == 'create':
+            if not os.path.exists(dir):
+                os.makedirs(dir, exist_ok=True)
+                return JSONResponse({'status': 'create', 'message': f"Project '{flow_name}' created successfully."})
+            water_path = os.path.join(dir, 'water_area', 'water_area.geojson')
+            content['water'] = 'water_area.geojson' if os.path.exists(water_path) else ''
+            files = [f for f in os.listdir(dir) if f.endswith("_filled.tif")]
+            dtm_file = files[0].replace("_filled", "")
+            dtm_path = os.path.join(dir, dtm_file)
+            content['dtm'] = dtm_file if os.path.exists(dtm_path) else ''
+        elif key == 'open':
+            forcing_path = os.path.join(dir, 'forcing', 'weather_forcing.nc')
+            if not os.path.exists(forcing_path):
+                return JSONResponse({'status': 'error', 'message': f"Forcing file not found."})
+            with xr.open_dataset(forcing_path) as forcing:
+                start, end = forcing.time.values[0], forcing.time.values[-1]
+            dt_start = start.astype('datetime64[ns]').astype('datetime64[s]').astype(object)
+            dt_end = end.astype('datetime64[ns]').astype('datetime64[s]').astype(object)
+            content['start'] = dt_start.strftime('%Y-%m-%d %H:%M:%S')
+            content['end'] = dt_end.strftime('%Y-%m-%d %H:%M:%S')
         return JSONResponse({'content': content})
     except Exception as e:
         print('/data_upload:\n==============')
@@ -121,11 +131,10 @@ async def terrain_upload(file: UploadFile = File(...), flowName: str = Form(...)
     projectName: str = Form(...), user=Depends(functions.basic_auth)):
     try:
         project_name, _ = functions.project_definer(projectName, user)
-        flow_dir = os.path.join(PROJECT_ROOT, project_name, "flows")
-        if not os.path.exists(flow_dir): os.makedirs(flow_dir, exist_ok=True)
-        terrain_dir = os.path.join(flow_dir, flowName)
-        if not os.path.exists(terrain_dir): os.makedirs(terrain_dir, exist_ok=True)
-        terrain_path = os.path.join(terrain_dir, file.filename)
+        flow_dir = os.path.join(PROJECT_ROOT, project_name, "flows", flowName)
+        if os.path.exists(flow_dir): shutil.rmtree(flow_dir)
+        os.makedirs(flow_dir, exist_ok=True)
+        terrain_path = os.path.join(flow_dir, file.filename)
         with open(terrain_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         file.file.close()
@@ -351,11 +360,10 @@ async def catchment(request: Request, user=Depends(functions.basic_auth)):
         flw_path = os.path.join(flow_dir, f"{folder}_flowdir.tif")
         stream_path = os.path.join(flow_dir, f"{folder}_streams.tif")
         with rasterio.open(stream_path) as src:
-            crs = src.crs        
-        dir = os.path.join(flow_dir, folder)
+            crs = src.crs
         # Create outlet point for catchment
-        outlet_dir = os.path.join(dir, "outlet")
-        os.makedirs(outlet_dir, exist_ok=True)
+        outlet_dir = os.path.join(flow_dir, "outlet")
+        if not os.path.exists(outlet_dir): os.makedirs(outlet_dir, exist_ok=True)
         outlet_path = os.path.join(outlet_dir, "outlet.shp")
         if os.path.exists(outlet_path): functions.safe_remove(outlet_path)
         outlet = gpd.GeoDataFrame(geometry=[shapely.geometry.Point(lon, lat)], crs="EPSG:4326")
@@ -364,7 +372,7 @@ async def catchment(request: Request, user=Depends(functions.basic_auth)):
         # Create pour point
         snap_path = os.path.join(outlet_dir, "snapped.shp")
         if os.path.exists(snap_path): functions.safe_remove(snap_path)
-        catchment_path = os.path.join(dir, f"{folder}_catchment.tif")
+        catchment_path = os.path.join(flow_dir, f"{folder}_catchment.tif")
         if os.path.exists(catchment_path): functions.safe_remove(catchment_path)
         wtb.jenson_snap_pour_points(pour_pts=outlet_path, streams=stream_path, output=snap_path, snap_dist=snap_distance)
         wtb.watershed(d8_pntr=flw_path, pour_pts=snap_path, output=catchment_path)
@@ -522,12 +530,13 @@ async def log_tail_download(project_name: str, offset: int = Query(0), flow_name
     log_file: str = Query(""), user=Depends(functions.basic_auth)):
     project_name, _ = functions.project_definer(project_name, user)
     log_path, lines = os.path.join(PROJECT_ROOT, project_name, "flows", flow_name, log_file), []
+    log_path = os.path.normpath(log_path)
     if not os.path.exists(log_path): return {"lines": lines, "offset": offset}
     with open(log_path, "r", encoding=functions.encoding_detect(log_path), errors="replace") as f:
         f.seek(offset)
-        for line in f:
-            lines.append(line.rstrip())
-    return {"lines": lines, "offset": os.path.getsize(log_path)}
+        data = f.read()
+        new_offset = f.tell()
+    return {"lines": data.splitlines(), "offset": new_offset}
 
 # Download soil
 @router.post("/start_download_soil")
@@ -536,9 +545,9 @@ async def start_download_soil(request: Request, user=Depends(functions.basic_aut
     project_name, project_id = functions.project_definer(body.get('projectName'), user)
     flow_name, data, water_area = body.get('flowName'), body.get('data'), body.get('waterArea')
     terrain_name = body.get('terrainName').replace(".tif", "")
+    flow_dir = os.path.join(PROJECT_ROOT, project_name, "flows", flow_name)
     terrain_path = os.path.join(flow_dir, f'{terrain_name}_filled.tif')
     redis = request.app.state.redis
-    flow_dir = os.path.join(PROJECT_ROOT, project_name, "flows", flow_name)
     if not os.path.exists(flow_dir): os.makedirs(flow_dir)
     lock = redis.lock(f"{project_id}:soil", timeout=1000, blocking_timeout=10)
     async with lock:
@@ -563,7 +572,7 @@ async def start_download_weather(request: Request, user=Depends(functions.basic_
     flow_dir = os.path.join(PROJECT_ROOT, project_name, "flows", flow_name)
     lock = redis.lock(f"{project_id}:weather", timeout=1000, blocking_timeout=10)
     async with lock:
-        # Check if simulation already running
+        # Check if process already running
         if project_name in processes and processes[project_name]["status"] == "running":
             return JSONResponse({"status": "running", "message": 'Data downloading in progress.'})
         catchment_WGS84 = gpd.GeoDataFrame.from_features(data['features'], crs="EPSG:4326")
@@ -633,30 +642,55 @@ async def save_flow_weather(request: Request, user=Depends(functions.basic_auth)
 async def wflow_model(request: Request, user=Depends(functions.basic_auth)):
     try:
         body = await request.json()
-        project_name, _ = functions.project_definer(body.get('projectName'), user)
+        project_name, project_id = functions.project_definer(body.get('projectName'), user)
         key, flow_name = body.get('key'), body.get('flowName')
         flow_dir = os.path.join(PROJECT_ROOT, project_name, "flows", flow_name)
-        if key == "build":
-            # Check parameters
-            nan_vars, path = [], os.path.join(flow_dir)
-            with xr.open_dataset(path) as ds:
-                for item in ds.data_vars:
-                    if np.unique(ds[item].values).size == 1 and np.isnan(np.unique(ds[item].values)[0]):
-                        nan_vars.append(item)
-            if len(nan_vars) > 0: return JSONResponse({"status": 'error', "message": f"NaN values found in {nan_vars}"})
-            processes[project_name] = {"status": "running", "message": "Preparing data for building model..."}
-            step, start, end = body.get('step'), body.get('start'), body.get('end')
-            lib_path = os.path.join(SOURCE_BACKEND, 'flow_samples', 'config.yml')
-            data_lib, soil_layers = [lib_path], [50, 100, 150, 300, 400, 600]
-            params = body.get('params')
-            region = {'subbasin': [55010.153, 6955129.102]} 
-            threading.Thread(
-                target=flow_functions.run_hydromt, 
-                args=(project_name, processes, flow_dir, start, end, step, 
-                    region, 10, soil_layers, data_lib, params
-                ), daemon=True
-            ).start()
-            return JSONResponse({"status": "ok", "message": "Model built started."})
+        if key == "check":
+            # Check inputs
+            redis = request.app.state.redis
+            lock = redis.lock(f"{project_id}:weather", timeout=1000, blocking_timeout=10)
+            async with lock:
+                if project_name in processes and processes[project_name]["status"] == "running":
+                    return JSONResponse({"status": "running", "message": 'Checking inputs for Wflow is in progress.'})
+                processes[project_name] = {"status": "running", "message": "Checking inputs for Wflow..."}
+                threading.Thread(
+                    target=flow_functions.wflow_check, 
+                    args=(project_name, processes, flow_dir), daemon=True
+                ).start()
+            outlet_path = os.path.join(flow_dir, "outlet", "outlet.shp")
+            lat, lon = '', ''
+            if os.path.exists(outlet_path):
+                outlet = gpd.read_file(outlet_path)
+                if outlet.crs != "EPSG:4326": outlet = outlet.to_crs("EPSG:4326")
+                lat, lon = outlet.geometry[0].y, outlet.geometry[0].x
+            return JSONResponse({"status": "ok", 'content': [lat, lon]})
+        elif key == "pourpoint":    
+            
+            
+            return JSONResponse({"status": "ok", 'content': [lat, lon]})
+
+
+
+
+        #     nan_vars, path = [], os.path.join(flow_dir)
+        #     with xr.open_dataset(path) as ds:
+        #         for item in ds.data_vars:
+        #             if np.unique(ds[item].values).size == 1 and np.isnan(np.unique(ds[item].values)[0]):
+        #                 nan_vars.append(item)
+        #     if len(nan_vars) > 0: return JSONResponse({"status": 'error', "message": f"NaN values found in {nan_vars}"})
+        #     processes[project_name] = {"status": "running", "message": "Preparing data for building model..."}
+        #     step, start, end = body.get('step'), body.get('start'), body.get('end')
+        #     lib_path = os.path.join(SOURCE_BACKEND, 'flow_samples', 'config.yml')
+        #     data_lib, soil_layers = [lib_path], [50, 100, 150, 300, 400, 600]
+        #     params = body.get('params')
+        #     region = {'subbasin': [55010.153, 6955129.102]} 
+        #     threading.Thread(
+        #         target=flow_functions.run_hydromt, 
+        #         args=(project_name, processes, flow_dir, start, end, step, 
+        #             region, 10, soil_layers, data_lib, params
+        #         ), daemon=True
+        #     ).start()
+        #     return JSONResponse({"status": "ok", "message": "Model built started."})
     except Exception as e:
         print('/wflow_model:\n==============')
         traceback.print_exc()
