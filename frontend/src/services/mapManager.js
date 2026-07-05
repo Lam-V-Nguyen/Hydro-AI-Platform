@@ -38,12 +38,7 @@ const layerConfig = {
         layer: null, data: null,
         getLayer() { return this.layer; }, setLayer(l) { this.layer = l; },
         getData() { return this.data; }, setData(d) { this.data = d; },
-    },
-    // weather_Vector: {
-    //     layer: null, data: null,
-    //     getLayer() { return this.layer; }, setLayer(l) { this.layer = l; },
-    //     getData() { return this.data; }, setData(d) { this.data = d; },
-    // },
+    }
 }
 
 const mapping = {

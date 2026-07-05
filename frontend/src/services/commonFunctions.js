@@ -602,7 +602,7 @@ export function formatDate(date) {
 
 export function updateLog(currentProject, flowName, info, seconds, key){
     const new_key = `${currentProject}_${key}`;
-    activeProject = new_key;
+    activeProject = new_key; lastOffset = 0;
     async function loop() {
         if (activeProject !== new_key) return;
         try {

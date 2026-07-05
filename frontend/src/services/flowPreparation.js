@@ -79,7 +79,12 @@ function settingManager() {
             signalSender('Uploading and processing water data.\nPlease wait...');
             const response = await fetch('/water_upload', { method: 'POST', body: formData });
             const data = await response.json(); signalSender('hideOverlay');
-            alert(data.message); if (data.status === 'error') { return; }
+            if (data.status === 'error') { return; }
+            const content = { 
+                key: 'mapPlotter', layerKey: 'lakeLayer_Vector', 
+                data: data.content.water_area, type: 'river', reset: true
+            };
+            await sendRequest('flowOptions', content); alert(data.content.message);
             obj.waterInputText.value = file.name; e.target.value = '';
         } catch (error) { alert(`Uploading water layer failed: ${error.message}`); }
     });
@@ -93,6 +98,7 @@ function topographyManager() {
         if (name === '') { alert('Please define scenario name (in tab "Settings").'); return; }
         const file = e.target.files[0]; if (!file) return; 
         const formData = new FormData(); formData.append('file', file);
+        formData.append('flowName', name); formData.append('projectName', currentProject);
         try {
             signalSender('showOverlay', 'Uploading catchment data. Please wait...');
             const response = await fetch('/geojson_upload', { method: 'POST', body: formData });
@@ -321,8 +327,8 @@ function soilManager() {
         obj.soilAttributeContainer.style.display = 'none'; obj.soilDownloadContainer.style.display = 'flex';
         obj.soilLog.value = ''; lastOffset = 0;
         const content = { 
-            projectName: currentProject, key: 'soil', data: data.data, flowName: name, 
-            terrainName: terrain, waterArea: obj.waterInputText.value
+            projectName: currentProject, key: 'soil', data: data.data, 
+            flowName: name, waterArea: obj.waterInputText.value
         };
         const request = await jsonLoader('start_download_soil', content);
         if (request.status === 'error') { alert(request.message); return; }
@@ -358,7 +364,7 @@ function landManager() {
         if (data.data === null) { alert('Please check/upload a catchment first.'); return; }
         signalSender('showOverlay', 'Getting and processing land cover layers.\nPlease wait...');
         const content = { 
-            projectName: currentProject, key: 'land', flowName: name
+            projectName: currentProject, key: 'land', flowName: name, data: data.data
         };
         const request = await jsonLoader('data_upload', content); signalSender('hideOverlay');
         if (request.status === 'error') { alert(request.message); return; }
@@ -432,6 +438,7 @@ function riverManager() {
         if (name === '') { alert('Please select a scenario from the tab "Settings" first.'); return; }
         const file = event.target.files[0]; if (!file) return; 
         const formData = new FormData(); formData.append('file', file);
+        formData.append('flowName', name); formData.append('projectName', currentProject);
         try {
             signalSender('showOverlay', 'Uploading lake boundary. Please wait...');
             const response = await fetch('/geojson_upload', { method: 'POST', body: formData });
@@ -668,7 +675,7 @@ function windowListener() {
                 content.data.forEach(row => {
                     fillTable([row], table, false);
                 });
-            }
+            };
             signalSender('hideOverlay');
         }
     });

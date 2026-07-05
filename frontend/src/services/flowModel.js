@@ -3,19 +3,17 @@ import { getUser, signalSender, getProjectList, jsonLoader, updateLog } from "./
 import { projectRender } from "./projectManager.js";
 
 
-
-
 const $ = (id) => document.getElementById(id);
 const obj = {
     projectList: $('project-list'), projectName: $('project-name'), projectCreator: $('create-btn'),
     modelSteps: $('model-step'), modelStart: $('model-start'), modelEnd: $('model-end'),
     modelPourpointBtn: $('model-pourpoint-btn'), modelLat: $('model-lat'), modelLon: $('model-lon'),
-    pourpointFile: $('model-pourpoint-file'),
-    modelCheckBtn: $('model-check-btn'), modelRunBtn: $('model-run-btn'), modelLog: $('model-text')
+    pourpointFile: $('model-pourpoint-file'), modelArea: $('model-area'), modelCheckBtn: $('model-check-btn'), 
+    modelPrepareBtn: $('model-prepare-btn'), modelRunBtn: $('model-run-btn'), modelLog: $('model-text')
 }
 
 
-let currentProject, lastOffset = 0;
+let currentProject;
 
 
 setupTabs(document); await getProject(); modelManager();
@@ -41,8 +39,10 @@ function modelManager() {
         if (name === '') { alert('Please select a scenario from the tab "Settings" first.'); return; }
         const statusRes = await jsonLoader('check_download_status', {projectName: currentProject});
         if (statusRes.status === "running") { alert("Check model is running."); return; }
-        obj.modelLog.value = ''; lastOffset = 0;
-        const content = { projectName: currentProject, flowName: name, key: 'check' };
+        const upArea = obj.modelArea.value;
+        if (upArea === '') { alert('Please specify area of upstream.'); return;}
+        obj.modelLog.value = '';
+        const content = { projectName: currentProject, flowName: name, key: 'check', upArea: upArea };
         const request = await jsonLoader('wflow_model', content);
         if (request.status === 'error') { alert(request.message); return; }
         updateLog(currentProject, name, obj.modelLog, 2, 'wflow_check');
@@ -53,6 +53,9 @@ function modelManager() {
     obj.pourpointFile.addEventListener('change', async (e) => {
         const file = e.target.files[0]; if (!file) return; 
         const formData = new FormData(); formData.append('file', file);
+        const name = obj.projectName.value;
+        if (name === '') { alert('Please select a scenario from the tab "Settings" first.'); return; }
+        formData.append('flowName', name); formData.append('projectName', currentProject);
         try {
             signalSender('showOverlay', 'Uploading pourpoint data. Please wait...');
             const response = await fetch('/geojson_upload', { method: 'POST', body: formData });
@@ -63,21 +66,39 @@ function modelManager() {
         } catch (error) { alert(`Uploading pourpoint failed: ${error.message}`); }
         finally { e.target.value = ''; }
     });
-    obj.modelRunBtn.addEventListener('click', async () => {
+    obj.modelPrepareBtn.addEventListener('click', async () => {
+        const name = obj.projectName.value;
+        if (name === '') { alert('Please select a scenario from the tab "Settings" first.'); return; }
         const startTime = obj.modelStart.value, endTime = obj.modelEnd.value;
         if (startTime === '') { alert('Please select a start date first.'); return; }
         if (endTime === '') { alert('Please select an end date first.'); return; }
-
-
-        
-        const params = Object.fromEntries(
-            [...document.querySelectorAll(".initial-conditions-tile input")]
+        const lat = obj.modelLat.value, lon = obj.modelLon.value;
+        if (lat === '' || lon === '') { alert('Please add pourpoint first.'); return; }
+        const params_in = Object.fromEntries(
+            [...document.querySelectorAll(".input-parameters input")]
                 .map(input => [input.id, Number(input.value)])
         );
-
-
-
+        const params_out = Object.fromEntries(
+            [...document.querySelectorAll(".output-parameters input")]
+                .map(input => [input.id, input.checked])
+        );
+        obj.modelLog.value = '';
+        const content = { 
+            projectName: currentProject, flowName: name, key: 'prepare', 
+            start: startTime, end: endTime, step: obj.modelSteps.value,
+            lat: lat, lon: lon, params_input: params_in, params_output: params_out
+        };
+        const request = await jsonLoader('wflow_model', content);
+        if (request.status === 'error') { alert(request.message); return; }
+        updateLog(currentProject, name, obj.modelLog, 2, 'wflow_prepare');
+    });
+    obj.modelRunBtn.addEventListener('click', async() => {
+        const name = obj.projectName.value;
+        if (name === '') { alert('Please select a scenario from the tab "Settings" first.'); return; }
+        obj.modelLog.value = '';
+        const content = { projectName: currentProject, flowName: obj.projectName.value, key: 'run' };
+        const request = await jsonLoader('wflow_model', content);
+        if (request.status === 'error') { alert(request.message); return; }
+        updateLog(currentProject, obj.projectName.value, obj.modelLog, 2, 'wflow_run');
     });
 }
-
-
