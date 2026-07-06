@@ -7,13 +7,12 @@ from netCDF4 import Dataset, date2num
 from rasterio.io import MemoryFile
 from rasterio.enums import Resampling
 from rasterio.features import rasterize
-from services import functions
+from services import functions, flow_functions
 from pathlib import Path
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from hydromt_wflow import WflowSbmModel
 from pyflwdir import dem
-from services import flow_functions
 from config import WFLOW_PATH
 
 if "bool" not in np.__dict__: np.bool = np.bool_
@@ -21,7 +20,7 @@ if "bool" not in np.__dict__: np.bool = np.bool_
 dotenv.load_dotenv()
 MET_url, MET_client_id = os.getenv('MET_ProstAPI_URL'), os.getenv('MET_ProstAPI_CLIENT_ID')
 NVE_url, NVE_client_id = os.getenv('NVE_URL'), os.getenv('NVE_API_KEY')
-NODATA_DEM, NODATA_INT = -9999.0, 0
+NODATA_DEM, NODATA_INT, BUFFER = -9999.0, 0, 0.001
 
 soils = [
     ['Clay', 'Sand', 'Silt', 'Bulk density', 'Soil organic carbon', 'Soil pH'],
@@ -93,7 +92,7 @@ def remove_holes(geom):
         return MultiPolygon([Polygon(p.exterior) for p in geom.geoms])
     else: return geom
 
-def write_geotif(array, profile, output_path, nodata=-9999.0):
+def write_geotif(array, profile, output_path, nodata=NODATA_DEM):
     array[np.isnan(array)] = nodata
     array = array.astype(profile["dtype"])
     profile.update(nodata=nodata)
@@ -188,7 +187,7 @@ def setup_logger(name, log_path: str):
     logger.addHandler(file_handler)
     return logger
 
-def weather_downloader(project_name, processes, flow_dir, start, end, catchment, buffer=0.1):
+def weather_downloader(project_name, processes, flow_dir, start, end, catchment, buffer=BUFFER):
     # Prepare forcing data from the global model ARE5
     # Source: https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels?tab=download
     # Remove old log
@@ -401,7 +400,7 @@ def weather_downloader(project_name, processes, flow_dir, start, end, catchment,
             h.close()
             logger.removeHandler(h)
 
-def soil_downloader(project_name, processes, flow_dir, catchment, water, dtm_path, buffer=0.001):
+def soil_downloader(project_name, processes, flow_dir, catchment, water, dtm_path, buffer=BUFFER):
     try:
         # Work with log
         log_path = os.path.join(flow_dir, "log.txt")
