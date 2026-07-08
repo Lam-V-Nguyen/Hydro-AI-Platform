@@ -15,7 +15,7 @@ from shapely import force_2d
 from PIL import Image
 from pyflwdir import dem
 from skimage.morphology import skeletonize
-from services import functions, flow_functions
+from services import functions, flow_functions, hyd_download
 from whitebox.whitebox_tools import WhiteboxTools
 from rasterio.io import MemoryFile
 
@@ -331,8 +331,7 @@ async def start_download_soil(request: Request, user=Depends(functions.basic_aut
     body = await request.json()
     project_name, project_id = functions.project_definer(body.get('projectName'), user)
     flow_name, data, water_area = body.get('flowName'), body.get('data'), body.get('waterArea')
-    flow_dir = os.path.join(PROJECT_ROOT, project_name, "flows", flow_name)
-    terrain_path = os.path.join(flow_dir, 'raw', 'dtm_raw.tif')
+    terrain_path = os.path.join(PROJECT_ROOT, project_name, "flows", flow_name, 'raw', 'dtm_raw.tif')
     if not os.path.exists(terrain_path):
         return JSONResponse({'status': 'error', 'message': "Cannot find terrain data. Process terrain data in the tab 'Topography' first."})
     redis = request.app.state.redis
@@ -345,7 +344,7 @@ async def start_download_soil(request: Request, user=Depends(functions.basic_aut
         processes[project_name] = {"status": "running", "message": "Preparing download..."}
         threading.Thread(
             target=flow_functions.soil_downloader, 
-            args=(project_name, processes, flow_dir, catchment_WGS84, water_area, terrain_path), daemon=True
+            args=(project_name, processes, flow_name, catchment_WGS84, water_area, terrain_path), daemon=True
         ).start()
     return JSONResponse({'status': 'ok', 'message': "Soil downloading started"})
 
@@ -590,10 +589,10 @@ async def check_download_status(request: Request, user=Depends(functions.basic_a
     return JSONResponse({"status": status, "message": message})
 
 @router.get("/log_tail_download/{project_name}")
-async def log_tail_download(project_name: str, offset: int = Query(0), flow_name: str = Query(""),
+async def log_tail_download(project_name: str, offset: int = Query(0),
     log_file: str = Query(""), user=Depends(functions.basic_auth)):
     project_name, _ = functions.project_definer(project_name, user)
-    log_path, lines = os.path.join(PROJECT_ROOT, project_name, "flows", flow_name, log_file), []
+    log_path, lines = os.path.join(PROJECT_ROOT, project_name, log_file), []
     log_path = os.path.normpath(log_path)
     if not os.path.exists(log_path): return {"lines": lines, "offset": offset}
     with open(log_path, "r", encoding=functions.encoding_detect(log_path), errors="replace") as f:
@@ -607,9 +606,7 @@ async def log_tail_download(project_name: str, offset: int = Query(0), flow_name
 async def start_download_weather(request: Request, user=Depends(functions.basic_auth)):
     body = await request.json()
     project_name, project_id = functions.project_definer(body.get('projectName'), user)
-    flow_name, data = body.get('flowName'), body.get('data')
-    redis = request.app.state.redis
-    flow_dir = os.path.join(PROJECT_ROOT, project_name, "flows", flow_name)
+    redis, flow_name, data = request.app.state.redis, body.get('flowName'), body.get('data')
     lock = redis.lock(f"{project_id}:weather", timeout=1000, blocking_timeout=10)
     async with lock:
         # Check if process already running
@@ -620,7 +617,7 @@ async def start_download_weather(request: Request, user=Depends(functions.basic_
         processes[project_name] = {"status": "running", "message": "Preparing download..."}
         threading.Thread(
             target=flow_functions.weather_downloader, 
-            args=(project_name, processes, flow_dir, start, end, catchment_WGS84), daemon=True
+            args=(project_name, processes, flow_name, start, end, catchment_WGS84), daemon=True
         ).start()
     return JSONResponse({"status": "ok", "message": "Weather downloading started"})
 
@@ -694,7 +691,7 @@ async def wflow_model(request: Request, user=Depends(functions.basic_auth)):
                 processes[project_name] = {"status": "running", "message": "Checking inputs for Wflow..."}
                 threading.Thread(
                     target=flow_functions.wflow_check, 
-                    args=(project_name, processes, flow_dir, float(body.get('upArea'))), daemon=True
+                    args=(project_name, processes, flow_name, float(body.get('upArea'))), daemon=True
                 ).start()
             outlet_path = os.path.join(flow_dir, "outlet", "outlet.shp")
             if os.path.exists(outlet_path):
@@ -740,7 +737,7 @@ async def wflow_model(request: Request, user=Depends(functions.basic_auth)):
                 threading.Thread(
                     target=flow_functions.prepare_hydromt, 
                     args=(
-                        project_name, processes, flow_dir, model_name, start, end, step, data_lib,
+                        project_name, processes, flow_name, model_name, start, end, step, data_lib,
                         region, resolution, soil_layers, params_input, params_output, lulc_fn, lulc_mapping, lai_fn
                     ), daemon=False).start()
             return JSONResponse({"status": "ok", 'message': 'Preparing Wflow model started.'})
@@ -772,3 +769,30 @@ async def wflow_model(request: Request, user=Depends(functions.basic_auth)):
         print('/wflow_model:\n==============')
         traceback.print_exc()
         return JSONResponse({'status': 'error', 'message': f"Error: {e}"})
+
+@router.post("/start_meteo")
+async def start_meteo(request: Request, user=Depends(functions.basic_auth)):
+    try:
+        body = await request.json()
+        project_name, project_id = functions.project_definer(body.get('projectName'), user)
+        redis, start, end = request.app.state.redis, body.get('start'), body.get('end')
+        lat, lon, key = body.get('lat'), body.get('lon'), body.get('key')
+        lock = redis.lock(f"{project_id}:meteo", timeout=1000, blocking_timeout=10)
+        async with lock:
+            # Check if process already running
+            if project_name in processes and processes[project_name]["status"] == "running":
+                return JSONResponse({"status": "running", "message": 'Data downloading in progress.'})
+            processes[project_name] = {"status": "running", "message": "Preparing download meteo.."}
+            if key == 'meteo': target = hyd_download.meteo_downloader
+            elif key == 'wind': target = hyd_download.wind_downloader
+            threading.Thread(
+                target=target, args=(project_name, processes, lat, lon, start, end, key), daemon=True
+            ).start()
+        return JSONResponse({"status": "ok", "message": "Meteo downloading started", 'content': body})
+    except Exception as e:
+        print('/start_download_meteo:\n==============')
+        traceback.print_exc()
+        return JSONResponse({"status": 'error', "message": f"Error: {str(e)}"})
+
+
+

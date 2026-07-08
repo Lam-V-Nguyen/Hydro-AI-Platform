@@ -371,7 +371,6 @@ async function hydManager(){
         const titleChart = obj.meteoName.value.slice(0, -4);
         plotTimeSeries(obj.plotContainer, title, data, titleChart);
     });
-
     // Working on hydrological option
     const hydrologicalOption = (e) => {
         sourceChange(

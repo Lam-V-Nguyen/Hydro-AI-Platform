@@ -45,9 +45,11 @@ function modelManager() {
         const content = { projectName: currentProject, flowName: name, key: 'check', upArea: upArea };
         const request = await jsonLoader('wflow_model', content);
         if (request.status === 'error') { alert(request.message); return; }
-        updateLog(currentProject, name, obj.modelLog, 2, 'wflow_check');
-        obj.modelLat.value = request.content[0];
-        obj.modelLon.value = request.content[1];
+        console.log('check');
+        updateLog(currentProject, obj.modelLog, 2, 'wflow_check', async () => {
+            alert('Checking Wflow model completed.');
+        });
+        obj.modelLat.value = request.content[0]; obj.modelLon.value = request.content[1];
     });
     obj.modelPourpointBtn.addEventListener('click', () => obj.pourpointFile.click());
     obj.pourpointFile.addEventListener('change', async (e) => {
@@ -90,15 +92,19 @@ function modelManager() {
         };
         const request = await jsonLoader('wflow_model', content);
         if (request.status === 'error') { alert(request.message); return; }
-        updateLog(currentProject, name, obj.modelLog, 2, 'wflow_prepare');
+        updateLog(currentProject, obj.modelLog, 2, 'wflow_prepare', async () => {
+            alert('Preparing Wflow model completed.');
+        });
     });
     obj.modelRunBtn.addEventListener('click', async() => {
         const name = obj.projectName.value;
         if (name === '') { alert('Please select a scenario from the tab "Settings" first.'); return; }
         obj.modelLog.value = '';
-        const content = { projectName: currentProject, flowName: obj.projectName.value, key: 'run' };
+        const content = { projectName: currentProject, flowName: name, key: 'run' };
         const request = await jsonLoader('wflow_model', content);
         if (request.status === 'error') { alert(request.message); return; }
-        updateLog(currentProject, obj.projectName.value, obj.modelLog, 2, 'wflow_run');
+        updateLog(currentProject, obj.modelLog, 2, 'wflow_run', async () => {
+            alert('Running Wflow model completed.');
+        });
     });
 }

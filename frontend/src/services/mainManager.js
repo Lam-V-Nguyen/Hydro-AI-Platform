@@ -78,9 +78,9 @@ function widgetMenuManager() {
         else if (id === 'visualization') { w = 12; h = 9; }
         else if (id === 'flow-data-preparation') { 
             w = 11; h = 8; title = 'Data Preparation for Flow Estimation';
-        } else if (id === 'preparation-hyd') { title = 'Data Preparation for HYD Scenario'; }
-        else if (id === 'preparation-waq') { title = 'Data Preparation for WAQ Scenario'; }
-        else if (id === 'run-flow-model') { w = 16; h = 8; }
+        } else if (id === 'preparation-hyd') { 
+            w = 11; h = 9; title = 'Data Preparation for HYD Scenario'; 
+        } else if (id === 'run-flow-model') { w = 16; h = 8; }
         else if (id === 'about') { w = 8; h = 5; }
         addWidget(w, h, title, id, url); closeMenu();
     });

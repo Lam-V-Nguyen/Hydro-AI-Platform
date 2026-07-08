@@ -1203,8 +1203,4 @@ def meshProcess(is_hyd: bool, arr: np.ndarray, cache: dict) -> np.ndarray:
     max_row = np.max(np.where(mask_valid.T)[0])
     frame[~mask_valid] = np.nan
     smoothed_transpose = frame.T[:max_row + 2, :]
-    return smoothed_transpose    
-
-
-
-
+    return smoothed_transpose

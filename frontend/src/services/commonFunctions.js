@@ -116,7 +116,7 @@ export function iframeConnector(objBtn, objtarget, type, content = null, lineTyp
             }
         } else if (type === 'waqPoint' || type === 'loadsPoint') {
             const lat = Number(result.lat).toFixed(12);
-            const lon = Number(result.lng).toFixed(12);            
+            const lon = Number(result.lng).toFixed(12);
             const table = objtarget[1];
             if (freshData.rows.length === 0) { deleteTable(table); } 
             let name = objtarget[0].value.trim();
@@ -128,9 +128,10 @@ export function iframeConnector(objBtn, objtarget, type, content = null, lineTyp
                 }
             }
             addRowToTable(table, [name, lat, lon], true);
-        // } else if (type === 'waqUpdate' || type === 'loadsUpdate') {
-
-
+        } else if (type === 'pickLatLon') {
+            const lat = objtarget[0], lon = objtarget[1];
+            lat.value = Number(result.lat).toFixed(1);
+            lon.value = Number(result.lng).toFixed(1);
 
 
 
@@ -318,12 +319,8 @@ export async function fileUploader(targetFile, targetText, projectName, gridName
     if (targetText !== null) {targetText.value = file?.name || "";}
     const response = await fetch('/upload_data', { method: 'POST', body: formData });
     const data = await response.json();
-    signalSender('hideOverlay');
-    if (data.status === "error") {
-        if (targetText !== null) {targetText.value = '';}
-        alert(data.message); targetFile.value = ''; return;
-    }
-    alert(data.message);
+    signalSender('hideOverlay'); alert(data.message);
+    if (data.status === "error") { targetText.value = ''; targetFile.value = ''; return; }
 }
 
 export function copyPaste(table, nCols){
@@ -600,30 +597,43 @@ export function formatDate(date) {
     return `${Y}-${M}-${D} ${h}:${m}:${s}`;
 }
 
-export function updateLog(currentProject, flowName, info, seconds, key){
+export function updateLog(currentProject, info, seconds, key, onFinish){
     const new_key = `${currentProject}_${key}`;
     activeProject = new_key; lastOffset = 0;
     async function loop() {
         if (activeProject !== new_key) return;
         try {
-            const statusRes = await jsonLoader('check_download_status', {projectName: currentProject});
             const res = await fetch(
-                `/log_tail_download/${currentProject}?offset=${lastOffset}&flow_name=${flowName}&log_file=log.txt`
+                `/log_tail_download/${currentProject}?offset=${lastOffset}&log_file=log.txt`
             );
+            const statusRes = await jsonLoader('check_download_status', {projectName: currentProject});
             if (res.ok) {
                 const data = await res.json();
                 if (Array.isArray(data.lines)) {
-                    for (const line of data.lines) {
-                        info.value += line + "\n";
-                    }
+                    for (const line of data.lines) { info.value += line + "\n"; }
                 }
                 lastOffset = data.offset;
             }
             if (statusRes.status !== "running") {
-                info.value += (statusRes.message || "") + "\n"; lastOffset = 0; return;
+                info.value += (statusRes.message || "") + "\n"; lastOffset = 0; 
+                if (statusRes.status === 'finished' && onFinish) { await onFinish(); }
+                return;
             }
         } catch (error) { alert(error); return; }
         setTimeout(loop, seconds * 1000);
     }
     loop();
+}
+
+export async function saveCSV(filename, headers, rows) {
+    const csv = [
+        headers.join(","), ...rows.map(r =>
+            r.map(v => `${String(v).replace(/"/g, '""')}`).join(",")
+        )].join("\n");
+    const handle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [{description: "CSV file", accept: {"text/csv": [".csv"]}}]
+    });
+    const writable = await handle.createWritable();
+    await writable.write(csv); await writable.close();
 }

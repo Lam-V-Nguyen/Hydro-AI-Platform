@@ -66,7 +66,7 @@
                                     <div class="tile"><h3>Location</h3>
                                         <div class="row">
                                             <label for="latitude">Avg. latitude (°):</label>
-                                            <input type="text" id="latitude" placeholder="Enter latitude">
+                                            <input type="text" id="latitude" placeholder="Latitude">
                                             <button id="location">Pick from map</button>
                                         </div>
                                     </div>
@@ -74,7 +74,7 @@
                                     <div class="tile"><h3>Layers</h3>
                                         <div class="row">
                                         <label for="n-layer">Nr. sigma layers:</label>
-                                        <input type="number" id="n-layer" placeholder="Enter number of layers" value=10 min=1>
+                                        <input type="number" id="n-layer" placeholder="Number of layers" value=10 min=1>
                                         </div>
                                     </div>
                                     <!-- Unstructured grid -->
@@ -136,11 +136,11 @@
                                             </div>
                                             <div class="row">
                                                 <label for="obs-latitude">Latitude (°):</label>
-                                                <input type="text" id="obs-latitude" placeholder="Enter latitude">
+                                                <input type="text" id="obs-latitude" placeholder="Latitude">
                                             </div>
                                             <div class="row">
                                                 <label for="obs-longitude">Longitude (°):</label>
-                                                <input type="text" id="obs-longitude" placeholder="Enter longitude">
+                                                <input type="text" id="obs-longitude" placeholder="Longitude">
                                             </div>
                                             <div class="row">
                                                 <button type="button" id="obs-picker">Pick on map</button>
@@ -476,7 +476,11 @@
                                             <thead>
                                                 <tr><th>Time</th><th>Magnitude (m/s)</th><th>Direction (°)</th></tr>
                                             </thead>
-                                            <tbody></tbody>
+                                            <tbody>
+                                                <td><input type="text" placeholder="YYYY-MM-DD HH:MM:SS"></td>
+                                                <td><input type="text" placeholder="Magnitude"></td>
+                                                <td><input type="text" placeholder="Direction"></td>
+                                            </tbody>
                                         </table>
                                         <div class="row">
                                             <button type="button" id="weather-update" style="display: none;">Create/Update Weather data</button>

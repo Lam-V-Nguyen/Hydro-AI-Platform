@@ -3,17 +3,14 @@ export const CENTER = [62.476969, 6.471598];
 export const ZOOM = 13, L = window.L, n_decimals = 2;
 
 export const gridId = 'grid-generation-map', flowId = 'flow-map',
-    hydMapId = 'new-hyd-map', waqMapId = 'new-waq-map';
+    hydMapId = 'new-hyd-map', waqMapId = 'new-waq-map',
+    hydPrepareMapId = 'preparation-hyd-map';
 
 let state = {}, currentProjectId = null, pendingRequest = null, mapInstance = null;
 
-export function setMap(map) {
-    mapInstance = map;
-}
+export function setMap(map) { mapInstance = map; }
 
-export function getMap() {
-    return mapInstance;
-}
+export function getMap() { return mapInstance; }
 
 export const superscriptMap = {
     '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³',

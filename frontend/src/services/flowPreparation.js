@@ -43,7 +43,7 @@ const obj = {
 }
 
 let currentProject, minTerrain = null, maxTerrain = null, minFill = null, 
-    maxFill = null, lastRadio = null, isTerrain = false, isStream = false, lastOffset = 0;
+    maxFill = null, lastRadio = null, isTerrain = false, isStream = false;
 
 initRequestListener(); setupTabs(document); await getProject();
 settingManager(); windowListener(); topographyManager();
@@ -319,20 +319,22 @@ function soilManager() {
         const name = obj.projectName.value;
         if (name === '') { alert('Please select a scenario from the tab "Settings" first.'); return; }
         const data = await sendRequest('flowOptions', { key: 'getLayer', layerKey: 'catchmentLayer_Vector' });
-        if (data.data === null) { alert('Please check/upload a catchment first.'); return; }        
+        if (data.data === null) { alert('Please check/upload a catchment first.'); return; }
         const value = obj.soilSource.value;
         if (value === '') { alert('Please select a source first.'); return; }
         const terrain = obj.terrainInputText.value;
         if (terrain === '') { alert('Please upload terrain data first.'); return; }
         obj.soilAttributeContainer.style.display = 'none'; obj.soilDownloadContainer.style.display = 'flex';
-        obj.soilLog.value = ''; lastOffset = 0;
+        obj.soilLog.value = '';
         const content = { 
             projectName: currentProject, key: 'soil', data: data.data, 
             flowName: name, waterArea: obj.waterInputText.value
         };
         const request = await jsonLoader('start_download_soil', content);
         if (request.status === 'error') { alert(request.message); return; }
-        updateLog(currentProject, name, obj.soilLog, 2, 'soil');
+        updateLog(currentProject, obj.soilLog, 2, 'soil', async () => {
+            alert('Downloading soil data completed.');
+        });
     });
     obj.soilLayer.addEventListener('change', async (e) => { 
         const value = e.target.value; if (value === '') return;
@@ -627,14 +629,16 @@ function weatherManager() {
             if (endTime === '') { alert('Please select an end date first.'); return; }
             const statusRes = await jsonLoader('check_download_status', {projectName: currentProject});
             if (statusRes.status === "running") { alert("Weather download is already running."); return; }
-            obj.weatherLog.value = ''; lastOffset = 0;
+            obj.weatherLog.value = '';
             const content = { 
                 projectName: currentProject, flowName: name,
                 data: data.data, start: startTime, end: endTime
             };
             const start = await jsonLoader('start_download_weather', content);
             if (start.status === "error") { alert(start.message); return; }
-            updateLog(currentProject, name, obj.weatherLog, 2, 'weather');
+            updateLog(currentProject, obj.weatherLog, 2, 'weather', async () => {
+                alert('Downloading weather completed.');
+            });
         }
     });
     obj.saveWeatherBtn.addEventListener('click', async () => {

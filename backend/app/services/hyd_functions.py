@@ -3,7 +3,7 @@ from fastapi import APIRouter, Request, Depends
 from fastapi.responses import JSONResponse
 from services import functions
 from config import PROJECT_ROOT, SOURCE_BACKEND
-import numpy as np
+import numpy as np, pandas as pd
 
 router = APIRouter()
 
@@ -509,7 +509,7 @@ async def generate_mdu(request: Request, user=Depends(functions.basic_auth)):
     try:
         body = await request.json()
         params = dict(body.get('params'))
-        project_name, _ = functions.project_definer(params['project_name'], user)      
+        project_name, _ = functions.project_definer(params['project_name'], user)
         status, message = 'ok', f"Scenario '{project_name}' is created/modified successfully!"
         # Create MDU file
         project_path = os.path.normpath(os.path.join(PROJECT_ROOT, project_name, 'input'))
@@ -524,3 +524,20 @@ async def generate_mdu(request: Request, user=Depends(functions.basic_auth)):
         traceback.print_exc()
         status, message = 'error', f"Error: {str(e)}"
     return JSONResponse({"status": status, "message": message})
+
+@router.post("/get_result")
+async def get_result(request: Request, user=Depends(functions.basic_auth)):
+    try:
+        body = await request.json()
+        project_name, _ = functions.project_definer(body.get('projectName'), user)
+        project_dir = os.path.join(PROJECT_ROOT, project_name)
+        csv_path = os.path.join(project_dir, body.get('fileName'))
+        if not os.path.exists(csv_path):
+            return JSONResponse({"status": 'error', "message": 'Data path not found.'})
+        meteo = pd.read_csv(csv_path)
+        functions.safe_remove(csv_path)
+        return JSONResponse({"content": meteo.values.tolist()})
+    except Exception as e:
+        print('/get_result:\n==============')
+        traceback.print_exc()
+        return JSONResponse({"status": 'error', "message": f"Error: {str(e)}"})

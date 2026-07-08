@@ -55,7 +55,7 @@ async def upload_data(file: UploadFile = File(...), projectName: str = Form(...)
             functions.safe_remove(file_path); shutil.rmtree(temp_dir)
             temp_dir = os.path.normpath(os.path.join(save_dir, 'temp'))
             if os.path.exists(temp_dir): shutil.rmtree(temp_dir)
-        return JSONResponse({"status": "ok", "message": f"File {file.filename} uploaded successfully."})
+        return JSONResponse({"status": "ok", "message": f"File '{file.filename}' uploaded successfully."})
     except Exception as e:
         print('/upload_data:\n==============')
         traceback.print_exc()

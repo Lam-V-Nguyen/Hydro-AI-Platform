@@ -13,14 +13,14 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 from hydromt_wflow import WflowSbmModel
 from pyflwdir import dem
-from config import WFLOW_PATH
+from config import PROJECT_ROOT, WFLOW_PATH
 
 if "bool" not in np.__dict__: np.bool = np.bool_
 
 dotenv.load_dotenv()
 MET_url, MET_client_id = os.getenv('MET_ProstAPI_URL'), os.getenv('MET_ProstAPI_CLIENT_ID')
 NVE_url, NVE_client_id = os.getenv('NVE_URL'), os.getenv('NVE_API_KEY')
-NODATA_DEM, NODATA_INT, BUFFER = -9999.0, 0, 0.001
+NODATA_DEM, NODATA_INT, BUFFER = -9999.0, 0, 0.01
 
 soils = [
     ['Clay', 'Sand', 'Silt', 'Bulk density', 'Soil organic carbon', 'Soil pH'],
@@ -187,11 +187,13 @@ def setup_logger(name, log_path: str):
     logger.addHandler(file_handler)
     return logger
 
-def weather_downloader(project_name, processes, flow_dir, start, end, catchment, buffer=BUFFER):
+def weather_downloader(project_name, processes, flow_name, start, end, catchment, buffer=BUFFER):
     # Prepare forcing data from the global model ARE5
     # Source: https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels?tab=download
     # Remove old log
-    log_path = os.path.join(flow_dir, "log.txt")
+    project_dir = os.path.join(PROJECT_ROOT, project_name)
+    flow_dir = os.path.join(project_dir, "flows", flow_name)
+    log_path = os.path.join(project_dir, "log.txt")
     if os.path.exists(log_path): os.remove(log_path)
     logger = setup_logger("cdsapi", log_path)
     CDS_url, CDS_key = os.getenv('CDS_URL'), os.getenv('CDS_API_KEY')
@@ -274,7 +276,7 @@ def weather_downloader(project_name, processes, flow_dir, start, end, catchment,
             )
             nc_vars[var].units, nc_vars[var].grid_mapping = unit, "crs"
         # Download ERA5 data
-        logger.info("Downloading ERA5...")
+        logger.info("Downloading ERA5 data...")
         client = cdsapi.Client(quiet=False, debug=False)
         current = start_time.replace(day=1)
         while current <= end_time:
@@ -387,6 +389,7 @@ def weather_downloader(project_name, processes, flow_dir, start, end, catchment,
         logger.info(f"Saved forcing file successfully: {forcing_path}")
         if os.path.exists(download_dir): shutil.rmtree(download_dir)
         logger.info("Temporary monthly files removed")
+        logger.handlers[0].flush()
         processes[project_name] = {"status": "finished", "message": "Weather download completed successfully.\n\n\n"}
     except Exception as e:
         print('/weather_downloader:\n==============')
@@ -396,15 +399,17 @@ def weather_downloader(project_name, processes, flow_dir, start, end, catchment,
     finally:
         sys.stdout, sys.stderr = old_stdout, old_stderr
         for h in logger.handlers[:]:
-            h.flush()
             h.close()
             logger.removeHandler(h)
+        if os.path.exists(log_path): functions.safe_remove(log_path)
 
-def soil_downloader(project_name, processes, flow_dir, catchment, water, dtm_path, buffer=BUFFER):
+def soil_downloader(project_name, processes, flow_name, catchment, water, dtm_path, buffer=BUFFER):
+    project_dir = os.path.join(PROJECT_ROOT, project_name)
+    flow_dir = os.path.join(project_dir, "flows", flow_name)
+    # Work with log
+    log_path = os.path.join(project_dir, "log.txt")
+    if os.path.exists(log_path): os.remove(log_path)
     try:
-        # Work with log
-        log_path = os.path.join(flow_dir, "log.txt")
-        if os.path.exists(log_path): os.remove(log_path)
         logger = setup_logger("soil", log_path)
         # Download soil data 2017 from ISRIC: https://files.isric.org/soilgrids/former/2017-03-10/
         logger.info("Preparing data download...")
@@ -479,6 +484,7 @@ def soil_downloader(project_name, processes, flow_dir, catchment, water, dtm_pat
                 profile_writer.update(dtype=dtype)
                 flow_functions.write_geotif(soil_values, profile_writer, path, nodata_soil)
                 logger.info(f"Saved downloaded data to: {path}")
+        logger.handlers[0].flush()
         processes[project_name] = {"status": "finished", "message": "\nSoil data downloaded successfully.\n\n"}
     except Exception as e:
         print('/soil_downloader:\n==============')
@@ -487,15 +493,17 @@ def soil_downloader(project_name, processes, flow_dir, catchment, water, dtm_pat
         processes[project_name] = {"status": "failed", "message": str(e)}
     finally:
         for h in logger.handlers[:]:
-            h.flush()
             h.close()
             logger.removeHandler(h)
+        if os.path.exists(log_path): functions.safe_remove(log_path)
 
-def wflow_check(project_name, processes, flow_dir, uparea_km=10):
+def wflow_check(project_name, processes, flow_name, uparea_km=10):
+    project_dir = os.path.join(PROJECT_ROOT, project_name)
+    flow_dir = os.path.join(project_dir, "flows", flow_name)
+    # Work with log
+    log_path = os.path.join(project_dir, "log.txt")
+    if os.path.exists(log_path): os.remove(log_path)    
     try:
-        # Work with log
-        log_path = os.path.join(flow_dir, "log.txt")
-        if os.path.exists(log_path): os.remove(log_path)
         logger = setup_logger("wflow", log_path)
         logger.info("Checking wflow inputs...")
         logger.info("===============================")
@@ -613,6 +621,7 @@ def wflow_check(project_name, processes, flow_dir, uparea_km=10):
             processes[project_name] = {"status": "failed", "message": "Please download soil data."}
         logger.info(f"Found soil data at: {soil_dir}")
         logger.info("===============================")
+        logger.handlers[0].flush()
         processes[project_name] = {"status": "finished", "message": "\nChecking Wflow inputs completed.\n\n"}
     except Exception as e:
         print('/wflow_check:\n==============')
@@ -621,17 +630,19 @@ def wflow_check(project_name, processes, flow_dir, uparea_km=10):
         processes[project_name] = {"status": "failed", "message": str(e)}
     finally:
         for h in logger.handlers[:]:
-            h.flush()
             h.close()
             logger.removeHandler(h)
+        if os.path.exists(log_path): functions.safe_remove(log_path)
 
-def prepare_hydromt(project_name, processes, flow_dir, model_name, start, end, step, data_lib, region, resolution,
+def prepare_hydromt(project_name, processes, flow_name, model_name, start, end, step, data_lib, region, resolution,
     soil_layers, params_input, params_output, lulc_function='corine', lulc_mapping_fn='corine_mapping', lai_fn='lai_corine'):
+    project_dir = os.path.join(PROJECT_ROOT, project_name)
+    flow_dir = os.path.join(project_dir, "flows", flow_name)
     mod_path = os.path.join(flow_dir, model_name)
     if os.path.exists(mod_path): shutil.rmtree(mod_path)
     os.makedirs(mod_path)
     # Set up logger
-    log_path = os.path.join(flow_dir, "log.txt")
+    log_path = os.path.join(project_dir, "log.txt")
     if os.path.exists(log_path): os.remove(log_path)
     logger = setup_logger("hydromt", log_path)
     old_stdout, old_stderr = sys.stdout, sys.stderr
@@ -850,6 +861,7 @@ def prepare_hydromt(project_name, processes, flow_dir, model_name, start, end, s
             forcing_filename='weather_forcing.nc', states_filename='output_state.nc'
         )
         logger.info(f"Prepare HydroMT completed.\n")
+        logger.handlers[0].flush()
         processes[project_name] = {"status": "finished", "message": "\nPrepare HydroMT completed."}
     except Exception as e:
         print('/prepare_hydromt:\n==============')
@@ -859,9 +871,9 @@ def prepare_hydromt(project_name, processes, flow_dir, model_name, start, end, s
     finally:
         sys.stdout, sys.stderr = old_stdout, old_stderr
         for h in logger.handlers[:]:
-            h.flush()
             h.close()
             logger.removeHandler(h)
+        if os.path.exists(log_path): functions.safe_remove(log_path)
 
 def run_hydromt(project_name, processes, flow_dir, model_name):
     model_dir = os.path.join(flow_dir, model_name)
@@ -896,6 +908,7 @@ def run_hydromt(project_name, processes, flow_dir, model_name):
             h.flush()
             h.close()
             logger.removeHandler(h)
+        if os.path.exists(log_path): functions.safe_remove(log_path)
 
 # def weather_init(id:str) -> gpd.GeoDataFrame:
 #     if id == 'ntnu':
