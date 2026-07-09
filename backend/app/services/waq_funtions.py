@@ -142,6 +142,13 @@ async def wq_time_from_waq(request: Request):
             'S', 'ZNREDT', 'ZNSTOT', 'ZNSUBT']
         elif key == 'Conservative_Tracers': from_ = ['cTR1', 'cTR2', 'cTR3', 'dTR1', 'dTR2', 'dTR3']
         elif key == 'Suspend_Sediment': from_ = ['IM1', 'IM2', 'IM3', 'IM1S1', 'IM2S1', 'IM3S1']
+        elif key == 'Metals_Tire_Road': from_ = ['Continuity', 'cTR1', 'dTR1', 'ModTemp', 'IM1', 
+            'Cd', 'Cr', 'Cu', 'Ni', 'Pb', 'Zn', 'dTR1', 'Tyre1', 'Tyre2', 'Tyre3', 'Tyre4',
+            'TyreAgg11', 'TyreAgg12', 'TyreAgg13', 'TyreAgg21', 'TyreAgg22', 'TyreAgg23',
+            'TyreAgg31', 'TyreAgg32', 'TyreAgg33', 'TyreAgg41', 'TyreAgg42', 'TyreAgg43', 'IM1S1',
+            'IM1S2', 'CdS1', 'CdS2', 'CrS1', 'CrS2', 'CuS1', 'CuS2', 'NiS1', 'NiS2', 'PbS1', 
+            'PbS2', 'ZnS1', 'ZnS2', 'TAggSed11', 'TAggSed12', 'TAggSed13', 'TAggSed21', 'TAggSed22',
+            'TAggSed23', 'TAggSed31', 'TAggSed32', 'TAggSed33', 'TAggSed41', 'TAggSed42', 'TAggSed43']
         elif key == 'Coliform': from_ = ['Salinity', 'EColi']
         return JSONResponse({"status": 'ok', "froms": from_})
     except Exception as e:

@@ -511,6 +511,7 @@ function substanceChanger(waqModel, target, name, type){
         else if (key === 'trace-metals') { subKey = 'Trace_Metals'; }
         else if (key === 'conservative-tracers') { subKey = 'Conservative_Tracers'; }
         else if (key === 'suspend-sediment') { subKey = 'Suspend_Sediment'; }
+        else if (key === 'trwp-metals') { subKey = 'Metals_Tire_Road'; }
         else if (key === 'coliform') { subKey = 'Coliform'; }
         else { 
             obj.timePreviewContainer.style.display = 'none'; 
