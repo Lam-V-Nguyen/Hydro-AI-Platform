@@ -333,7 +333,9 @@ def wqPreparation(parameters:dict, key:str, output_folder:str, includes_folder:s
             for i in range(len(content1)):
                 params_INC['B7_segfunctions'].append(f"SEG_FUNCTIONS\n'{content1[i]}'\nALL\nBINARY_FILE '{content2[i]}'")
             # Prepare for the config file B9
-            pr = ['SaturOXY', 'SatPercOXY', 'BOD5']
+            pr = ['Depth', 'Temp', 'Velocity', 'VWind', 'SWRear', 'KLRear', 'TCRear', 'SaturOXY', 'Salinity', 'RCREAR',
+                'SatPercOXY', 'SwOXYDem', 'RcBOD', 'TcBOD', 'BOD5', 'BODu', 'fSOD', 'RcSOD', 'TcSOD', 'TotalDepth', 'COXSOD',
+                'OOXSOD', 'VSedBOD5', 'Tau', 'TaucSBOD', 'MinDepth', 'PSedBOD5', 'fSedBOD5', 'fSedSOD', 'Cl', 'SWSatOXY', 'CHEZY']
             temp = ["2 ; perform default output and extra parameters listed below", f"{len(pr)} ; number of parameters listed"]
             params_INC['B9_Hisvar'], params_INC['B9_Mapvar'] = temp.copy(), temp.copy()
             for item in pr:
@@ -431,6 +433,127 @@ def wqPreparation(parameters:dict, key:str, output_folder:str, includes_folder:s
             params_INC['B7_segfunctions'] = ''
             # Prepare for the config file B9
             pr = []
+            temp = ["2 ; perform default output and extra parameters listed below", f"{len(pr)} ; number of parameters listed"]
+            params_INC['B9_Hisvar'], params_INC['B9_Mapvar'] = temp.copy(), temp.copy()
+            for item in pr:
+                params_INC['B9_Hisvar'].append(f"'{item}' 'volume'")
+                params_INC['B9_Mapvar'].append(f"'{item}'")
+        elif key == 'trwp-metals':
+            b1_path = os.path.normpath(os.path.join(sample_path, 'B1_trwp_metals.inc'))
+            with open(b1_path, 'r', encoding=functions.encoding_detect(b1_path)) as f:
+                params_INC['B1_sublist'] = f.read()
+            # Prepare for the config file B7_processes
+            params_INC['B7_processes'], processes = [], ['Emersion', 'ResTim', 'HDisperVel', 'HDisperAdd', 'Evap_Conti',
+                'Age1', 'Decay1', 'Temperatur', 'MakOOC', 'Compos', 'Res_Buffer', 'S12TraIM1', 'Sed_IM1', 'AtmDep_IM1'
+                'Dfwast_IM1', 'Secchi', 'Dredge', 'IM_Floceq', 'TraSe2_IM1', 'MakOOCS1', 'S1_Comp', 'S2_Comp', 'Sed_Cd',
+                'S12TraCd', 'AtmDep_Cd', 'Dfwast_Cd', 'Sed_Cr', 'S12TraCr', 'AtmDep_Cr', 'Dfwast_Cr', 'Sed_Cu', 'S12TraCu',
+                'AtmDep_Cu', 'Dfwast_Cu', 'Sed_Ni', 'S12TraNi', 'AtmDep_Ni', 'Dfwast_Ni', 'Sed_Pb', 'S12TraPb', 'AtmDep_Pb',
+                'Dfwast_Pb', 'Sed_Zn', 'S12TraZn', 'AtmDep_Zn', 'Dfwast_Zn', 'DynDepth', 'TotDepth', 'Meteo', 'CalTau',
+                'S12TraIM2', 'S12TraIM3', 'Res_DM', 'Extinc_VLG', 'PartWK_Cd', 'PartS1_Cd', 'PartWK_Cr', 'PartS1_Cr',
+                'PartWK_Cu', 'PartS1_Cu', 'PartWK_Ni', 'PartS1_Ni', 'PartWK_Pb', 'PartS1_Pb', 'PartWK_Zn', 'PartS1_Zn',
+                'Veloc', 'Chezy', 'PROPSING', 'PROPTAGG', 'HTRAGG', 'SEDTYRE', 'SEDTAGG', 'SUMTRWP']
+            for item in processes:
+                params_INC['B7_processes'].append(f"CONSTANTS 'ACTIVE_{item}' DATA 0")
+            # Prepare for the config file B7_constants
+            params_INC['B7_constants'], constants = [], ['ZThreshold', 'Dfact_a', 'Dfact_b', 'Dfact_c', 'Dback', 
+                'Dmin', 'Dmax', 'AddDispH', 'fEvapConti', 'sw1AtmDCon', 'sw2AtmDCon', 'RcDecTR1', 'dDecdTR1', 'NatTemp',
+                'CP', 'SwitchTemp', 'FactRcHeat', 'ZHeatExch', 'SwTempDF', 'IM2', 'IM3', 'FCSEDIM1', 'FCSEDIM2', 'FCSEDIM3',
+                'DMCFOOC', 'DOC', 'Phyt', 'IM2S1', 'IM3S1', 'IM2S2', 'IM3S2', 'TauShields', 'GRAIN50', 'GRAV', 'KinViscos',
+                'RHOSAND', 'RhoWater', 'PORS2', 'ThickS2', 'MinDepth', 'MaxResPup', 'TaucRS1IM3', 'DMS2', 'FrTIMS2', 'FrIM1S2',
+                'FrIM1S3', 'fBurS1DM', 'fBurS2DM', 'fDigS1DM', 'fDigS2DM', 'SWDigS1', 'ZSedIM1', 'VSedIM1', 'TaucSIM1', 
+                'FrIM1SedS2', 'fAtmDepIM1', 'sw1AtmDIM1', 'sw2AtmDIM1', 'fDfwastIM1', 'sw1DfwaIM1', 'sw2DfwaIM1', 'PAConstant',
+                'basin_no', 'no_basin', '*IM1', '*IM2', '*IM3', '*IM1S1', '*IM2S1', '*IM3S1', '*IM1S2', '*IM2S2', '*IM3S2',
+                'start_dr01', 'start_dr02', 'freq__dr04', 'freq__dr05', 'freq__dr06', 'freq__dr07', 'freq__dr08', 'freq__dr09',
+                'crit__dr01', 'crit__dr02', 'crit__dr03', 'crit__dr04', 'crit__dr05', 'crit__dr06', 'crit__dr07', 'crit__dr08',
+                'crit__dr09', 'sws1s2dr01', 'sws1s2dr02', 'sws1s2dr03', 'sws1s2dr04', 'sws1s2dr05', 'sws1s2dr06', 'sws1s2dr07',
+                'sws1s2dr08', 'sws1s2dr09', 'seg___dr01', 'seg___dr02', 'seg___dr03', 'seg___dr04', 'seg___dr05', 'seg___dr06',
+                'seg___dr07', 'seg___dr08', 'seg___dr09', 'speed_dr01', 'speed_dr02', 'speed_dr03', 'speed_dr04', 'speed_dr05',
+                'speed_dr06', 'speed_dr07', 'speed_dr08', 'speed_dr09', 'relab_dr01', 'relab_dr02', 'relab_dr03', 'relab_dr04',
+                'relab_dr05', 'relab_dr06', 'relab_dr07', 'relab_dr08', 'relab_dr09', 'SwFloceq', 'RcFloc', 'RcBreakup', 'VxRes0',
+                'VxSedDum', 'VxBur0', 'VxTur0', 'VxDif0', 'VxSep0', 'FCSEDIM1S1', 'FCSEDIM2S1', 'FCSEDIM3S1', 'DMCFOOCS', 'OOCS1',
+                'DetCS1', 'AAPS1', 'DetNS1', 'DetPS1', 'DetSiS1', 'OONS1', 'PHYTS1', 'fSedIM2', 'fSedIM3', 'fSedPOCnoa', 'fSedPHYT',
+                'fAtmDepCd', 'sw1AtmDCd', 'sw2AtmDCd', 'fDfwastCd', 'sw1DfwaCd', 'sw2DfwaCd', 'QCrIM2', 'QCrIM3', 'QCrPOC', 'QCrPHYT',
+                'QCrDMS2', 'QCrDMS3', 'fAtmDepCr', 'sw1AtmDCr', 'sw2AtmDCr', 'fDfwastCr', 'sw1DfwaCr', 'sw2DfwaCr', 'QCuIM2', 'QCuIM3',
+                'QCuPOC', 'QCuPHYT', 'fAtmDepCu', 'sw1AtmDCu', 'sw2AtmDCu', 'fDfwastCu', 'sw1DfwaCu', 'sw2DfwaCu', 'fAtmDepNi', 'sw1AtmDNi',
+                'sw2AtmDNi', 'fDfwastNi', 'sw1DfwaNi', 'sw2DfwaNi', 'QPbIM2', 'QPbIM3', 'QPbPOC', 'QPbPHYT', 'QPbDMS2', 'QPbDMS3',
+                'fAtmDepPb', 'sw1AtmDPb', 'sw2AtmDPb', 'fDfwastPb', 'sw1DfwaPb', 'sw2DfwaPb', 'fAtmDepZn', 'sw1AtmDZn', 'sw2AtmDZn', 'fDfwastZn',
+                'sw1DfwaZn', 'sw2DfwaZn', 'Rad_1', 'VWind_1', 'WinDir_1', 'RelHum_1', 'AirTemp_1', 'AirPres_1', 'Cloud_1', 'Rad_2', 'VWind_2',
+                'WinDir_2', 'RelHum_2', 'AirTemp_2', 'AirPres_2', 'Cloud_2', 'Rad_3', 'VWind_3', 'WinDir_3', 'RelHum_3', 'AirTemp_3', 'AirPres_3',
+                'Cloud_3', 'Rad_4', 'VWind_4', 'WinDir_4', 'RelHum_4', 'AirTemp_4', 'AirPres_4', 'Cloud_4', 'Rad_5', 'VWind_5', 'WinDir_5',
+                'RelHum_5', 'AirTemp_5', 'AirPres_5', 'Cloud_5', 'Rad_6', 'VWind_6', 'WinDir_6', 'RelHum_6', 'AirTemp_6', 'AirPres_6',
+                'Cloud_6', 'Rad_7', 'VWind_7', 'WinDir_7', 'RelHum_7', 'AirTemp_7', 'AirPres_7', 'Cloud_7', 'Rad_8', 'VWind_8', 'WinDir_8',
+                'RelHum_8', 'AirTemp_8', 'AirPres_8', 'Cloud_8', 'Rad_9', 'VWind_9', 'WinDir_9', 'RelHum_9', 'AirTemp_9', 'AirPres_9',
+                'Cloud_9', 'Rad_10', 'VWind_10', 'WinDir_10', 'RelHum_10', 'AirTemp_10', 'AirPres_10', 'Cloud_10', 'XMeteo1', 'YMeteo1',
+                'XMeteo2', 'YMeteo2', 'XMeteo3', 'YMeteo3', 'XMeteo4', 'YMeteo4', 'XMeteo5', 'YMeteo5', 'XMeteo6', 'YMeteo6', 'XMeteo7',
+                'YMeteo7', 'XMeteo8', 'YMeteo8', 'XMeteo9', 'YMeteo9', 'XMeteo10', 'YMeteo10', 'XYScaleFac', 'NoMeteoSta', 'MeteoClcSW',
+                'XSeg', 'YSeg', 'XDOCCd', 'KdCdIM1', 'KdCdIM2', 'DOCS1', 'KdCdIM1S1', 'KdCdIM2S1', 'XDOCCr', 'KdCrIM1', 'KdCrIM2',
+                'KdCrIM1S1', 'KdCrIM2S1', 'XDOCCu', 'KdCuIM1', 'KdCuIM2', 'XDOCPb', 'KdPbIM1', 'KdPbIM2', 'KdPbIM1S1', 'KdPbIM2S1',
+                'XDOCZn', 'KdZnIM1', 'KdZnIM2', 'DiamTyre1', 'Dens_Tyre1', 'ShapeFac1', 'DiamTyre2', 'Dens_Tyre2', 'ShapeFac2',
+                'DiamTyre3', 'Dens_Tyre3', 'ShapeFac3', 'DiamTyre4', 'Dens_Tyre4', 'ShapeFac4', 'Diam_Susp1', 'Dens_Susp1', 'Diam_Susp2',
+                'Dens_Susp2', 'Diam_Susp3', 'Dens_Susp3', 'ShapeFacSu', 'BioFilmThk', 'BioFilmDen', 'Efficiency', 'SafeFactor', 'VSedIM2', 'VSedIM3']
+            values = ['0.01', '10', '0.8', '1.2', '10', '0', '1000', '10', '-999', '1', '0', '0.01', '0.01', '15', '4183', '1', '1', '0',
+                '0', '0', '0', '-999', '0', '0', '2.5', '0', '0', '0', '0', '0', '0', '0.2', '0.0003', '9.8', '0.000001', '2600000',
+                '-999', '0', '0.5', '0.1', '100000000000000000000', '0.2', '0.000001', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+                '0.1', '0.1', '0','-999', '1', '0', '-999', '1', '0', '1.7', '0', '-999', '1', '1', '1', '1', '1', '1', '1', '1', '1',
+                '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1', '1', '1', '1', '1', '1',
+                '1', '1', '1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+                '0', '0', '0', '0', '0', '0', '0', '0', '2.31', '2.31', '0', '0', '0', '0', '0', '0', '-999', '0', '0', '1.7',
+                '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '-999', '1', '0', '-999', '1', '0', '0', '0', '0',
+                '0', '0', '0', '-999', '1', '0', '-999', '1', '0', '0', '0', '0', '0', '-999', '1', '0', '-999', '1', '0', '-999',
+                '1', '0', '-999', '1', '0', '0', '0', '0', '0', '0', '0', '-999', '1', '0', '-999', '1', '0', '-999', '1', '0',
+                '-999', '1', '0', '-999', '-999', '-999', '-999', '-999', '-999', '-999', '0', '0', '0', '0', '0', '0', '0.5', 
+                '0', '0', '0', '0', '0', '0', '0.5', '0', '0', '0', '0', '0', '0', '0.5', '0', '0', '0', '0', '0', '0', '0.5',
+                '0', '0', '-999', '0', '0', '0', '0', '0', '0', '-999', '0', '0', '0', '0.5', '0', '0', '-999', '0', '0', '0',
+                '0.5', '0', '0', '0', '0', '0', '0', '0.5', '0', '0', '0', '0', '0', '0', '0.5', '0', '0', '0', '0', '0', '0',
+                '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1', '1', '1', '-999', '-999', '0.1',
+                '130', '130', '0', '130', '130', '0.18', '290', '290', '290', '290', '0.18', '50', '50', '0.18', '640', '640',
+                '640', '640', '0.18', '110', '110', '30', '1800', '0.8', '75', '1800', '0.8', '125', '1800', '0.8', '200', '1800',
+                '0.8', '2', '2650', '16', '2650', '63', '2650', '0.7', '0', '1100', '0.001', '0.05', '0', '0']
+            for i in range(len(constants)):
+                params_INC['B7_constants'].append(f"CONSTANTS '{constants[i]}' DATA {values[i]}")
+            # Prepare for the config file B7_segfunctions
+            params_INC['B7_segfunctions'] = ''
+            # Prepare for the config file B9
+            pr = ['Depth', 'ZThreshold', 'SwEmersion', 'ResTim', 'Dfact_a', 'Dfact_b', 'Dfact_c', 'Dback',
+                'Dmin', 'Dmax', 'TotalDepth', 'Ddir1', 'AddDispH', 'HorzDispA', 'fEvapConti', 'sw1AtmDCon',
+                'sw2AtmDCon', 'RcDecTR1', 'AgeTR1', 'dDecdTR1', 'NatTemp', 'VWind', 'CP', 'SwitchTemp', 'FactRcHeat',
+                'ZHeatExch', 'SwTempDF', 'LocSedDept', 'IM2', 'IM3', 'FCSEDIM1', 'FCSEDIM2', 'FCSEDIM3', 'DMCFOOC',
+                'POCnoa', 'DOC', 'Phyt', 'TPM', 'IM2S1', 'IM3S1', 'IM2S2', 'IM3S2', 'Tau', 'TauShields', 'GRAIN50',
+                'GRAV', 'KinViscos', 'RHOSAND', 'RhoWater', 'PORS2', 'ThickS2', 'MinDepth', 'MaxResPup', 'FactResPup',
+                'SWResusp', 'ZResIM1', 'VResIM1', 'TaucRS1IM1', 'ZResIM2', 'VResIM2', 'TaucRS1IM2', 'ZResIM3', 'VResIM3',
+                'TaucRS1IM3', 'DMS1', 'DMS2', 'fRIM1S2Pup', 'fRIM2S2Pup', 'fRIM3S2Pup', 'fRTIMS2Pup', 'Pshields', 'FrTIMS2',
+                'FrPOMS2', 'fResS1IM1', 'fResS1IM2', 'fResS1IM3', 'fResS1DM', 'fResS2DM', 'dResS1IM2', 'FrIM1S1', 'FrIM1S2',
+                'FrIM1S3', 'fBurS1DM', 'fBurS2DM', 'fDigS1DM', 'fDigS2DM', 'SWDigS1', 'ZSedIM1', 'VSedIM1', 'TaucSIM1', 'FrIM1SedS2',
+                'fSedIM1', 'fAtmDepIM1', 'sw1AtmDIM1', 'sw2AtmDIM1', 'fDfwastIM1', 'sw1DfwaIM1', 'sw2DfwaIM1', 'ExtVl', 'PAConstant',
+                'SecchiDept', 'basin_no', 'no_basin', 'ActThS1', 'ActThS2', 'start_dr01', 'start_dr02', 'start_dr03', 'start_dr04',
+                'start_dr05', 'start_dr06', 'start_dr07', 'start_dr08', 'start_dr09', 'freq__dr01', 'freq__dr02', 'freq__dr03',
+                'freq__dr04', 'freq__dr05', 'freq__dr06', 'freq__dr07', 'freq__dr08', 'freq__dr09', 'crit__dr01', 'crit__dr02',
+                'crit__dr03', 'crit__dr04', 'crit__dr05', 'crit__dr06', 'crit__dr07', 'crit__dr08', 'crit__dr09', 'sws1s2dr01',
+                'sws1s2dr02', 'sws1s2dr03', 'sws1s2dr04', 'sws1s2dr05', 'sws1s2dr06', 'sws1s2dr07', 'sws1s2dr08', 'sws1s2dr09',
+                'seg___dr01', 'seg___dr02', 'seg___dr03', 'seg___dr04', 'seg___dr05', 'seg___dr06', 'seg___dr07', 'seg___dr08',
+                'seg___dr09', 'speed_dr01', 'speed_dr02', 'speed_dr03', 'speed_dr04', 'speed_dr05', 'speed_dr06', 'speed_dr07',
+                'speed_dr08', 'speed_dr09', 'relab_dr01', 'relab_dr02', 'relab_dr03', 'relab_dr04', 'relab_dr05', 'relab_dr06',
+                'relab_dr07', 'relab_dr08', 'relab_dr09', 'SwFloceq', 'RcFloc', 'RcBreakup', 'SPMratioem', 'VxRes0', 'VxSedDum',
+                'VxBur0', 'VxTur0', 'VxDif0', 'VxSep0', 'FCSEDIM1S1', 'FCSEDIM2S1', 'FCSEDIM3S1', 'DMCFOOCS', 'POCS1', 'dDumS1Mak',
+                'OOCS1', 'DetCS1', 'AAPS1', 'DetNS1', 'DetPS1', 'DetSiS1', 'OONS1', 'PHYTS1', 'fSedIM2', 'fSedIM3', 'fSedPOCnoa',
+                'fSedPHYT', 'fAtmDepCd', 'sw1AtmDCd', 'sw2AtmDCd', 'dAtmDepCd', 'fDfwastCd', 'sw1DfwaCd', 'sw2DfwaCd', 'QCrIM1',
+                'QCrIM2', 'QCrIM3', 'QCrPOC', 'QCrPHYT', 'QCrDMS1', 'QCrDMS2', 'QCrDMS3', 'fAtmDepCr', 'sw1AtmDCr', 'sw2AtmDCr',
+                'fDfwastCr', 'sw1DfwaCr', 'sw2DfwaCr', 'QCuIM1', 'QCuIM2', 'QCuIM3', 'QCuPOC', 'QCuPHYT', 'fAtmDepCu', 'sw1AtmDCu',
+                'sw2AtmDCu', 'fDfwastCu', 'sw1DfwaCu', 'sw2DfwaCu', 'fAtmDepNi', 'sw1AtmDNi', 'sw2AtmDNi', 'fDfwastNi', 'sw1DfwaNi',
+                'sw2DfwaNi', 'QPbIM1', 'QPbIM2', 'QPbIM3', 'QPbPOC', 'QPbPHYT', 'QPbDMS1', 'QPbDMS2', 'QPbDMS3', 'fAtmDepPb',
+                'sw1AtmDPb', 'sw2AtmDPb', 'fDfwastPb', 'sw1DfwaPb', 'sw2DfwaPb', 'fAtmDepZn', 'sw1AtmDZn', 'sw2AtmDZn', 'fDfwastZn',
+                'sw1DfwaZn', 'sw2DfwaZn', 'LocalDepth', 'Rad_1', 'VWind_1', 'WinDir_1', 'RelHum_1', 'AirTemp_1', 'AirPres_1','Cloud_1',
+                'Rad_2', 'VWind_2', 'WinDir_2', 'RelHum_2', 'AirTemp_2', 'AirPres_2', 'Cloud_2', 'Rad_3', 'VWind_3', 'WinDir_3',
+                'RelHum_3', 'AirTemp_3', 'AirPres_3', 'Cloud_3', 'Rad_4', 'VWind_4', 'WinDir_4', 'RelHum_4', 'AirTemp_4', 'AirPres_4',
+                'Cloud_4', 'Rad_5', 'VWind_5', 'WinDir_5', 'RelHum_5', 'AirTemp_5', 'AirPres_5', 'Cloud_5', 'Rad_6', 'VWind_6', 'WinDir_6',
+                'RelHum_6', 'AirTemp_6', 'AirPres_6', 'Cloud_6', 'Rad_7', 'VWind_7', 'WinDir_7', 'RelHum_7', 'AirTemp_7', 'AirPres_7',
+                'Cloud_7', 'Rad_8', 'VWind_8', 'WinDir_8', 'RelHum_8', 'AirTemp_8', 'AirPres_8', 'Cloud_8', 'Rad_9', 'VWind_9', 'WinDir_9',
+                'RelHum_9', 'AirTemp_9', 'AirPres_9', 'Cloud_9', 'Rad_10', 'VWind_10', 'WinDir_10', 'RelHum_10', 'AirTemp_10', 'AirPres_10',
+                'Cloud_10', 'XMeteo1', 'YMeteo1', 'XMeteo2', 'YMeteo2', 'XMeteo3', 'YMeteo3', 'XMeteo4', 'YMeteo4', 'XMeteo5', 'YMeteo5',
+                'XMeteo6', 'YMeteo6', 'XMeteo7', 'YMeteo7', 'XMeteo8', 'YMeteo8', 'XMeteo9', 'YMeteo9', 'XMeteo10', 'YMeteo10', 'XYScaleFac',
+                'NoMeteoSta', 'MeteoClcSW', 'XSeg', 'YSeg', 'RadSW', 'WinDir', 'RelHumAir', 'TempAir', 'PAtm', 'Cloud', 'XDOCCd', 'KdCdIM1',
+                'KdCdIM2', 'DOCS1', 'KdCdIM1S1', 'KdCdIM2S1', 'XDOCCr', 'KdCrIM1', 'KdCrIM2', 'KdCrIM1S1', 'KdCrIM2S1', 'XDOCCu', 'KdCuIM1',
+                'KdCuIM2', 'XDOCPb', 'KdPbIM1', 'KdPbIM2', 'KdPbIM1S1', 'KdPbIM2S1', 'XDOCZn', 'KdZnIM1', 'KdZnIM2']
             temp = ["2 ; perform default output and extra parameters listed below", f"{len(pr)} ; number of parameters listed"]
             params_INC['B9_Hisvar'], params_INC['B9_Mapvar'] = temp.copy(), temp.copy()
             for item in pr:
