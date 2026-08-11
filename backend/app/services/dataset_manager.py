@@ -16,14 +16,14 @@ class DatasetManager:
             if path not in self._cache:
                 print(f"Opening: {path}")
                 # self._cache[path] = xr.open_dataset(path, chunks='auto')
-                self._cache[path] = xr.open_zarr(path, consolidated=True)
+                self._cache[path] = xr.open_zarr(path, consolidated=True, chunks='auto')
                 self._timestamp[path] = mtime
             elif self._timestamp[path] != mtime:
                 print(f"Reload dataset: {path}")
                 self._cache[path].close()
                 del self._cache[path]
                 # self._cache[path] = xr.open_dataset(path, chunks='auto')
-                self._cache[path] = xr.open_zarr(path, consolidated=True)
+                self._cache[path] = xr.open_zarr(path, consolidated=True, chunks='auto')
                 self._timestamp[path] = mtime
             else: print(f"Using cached dataset: {path}")
             return self._cache[path]

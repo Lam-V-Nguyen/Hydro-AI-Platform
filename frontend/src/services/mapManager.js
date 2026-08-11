@@ -369,7 +369,7 @@ function colorbarReset(colorBar, vmin, vmax, title, colorKey) {
 
 export function initMap(mapId='map') { 
     currentMap = L.map(`leaflet-${mapId}`, {
-        center:CENTER, zoom: ZOOM, zoomControl: false, attributionControl: true
+        center:CENTER, zoom: ZOOM, zoomControl: false, attributionControl: true, preferCanvas: true
     }); 
     currentTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(currentMap); 
     // Add scale bar 
