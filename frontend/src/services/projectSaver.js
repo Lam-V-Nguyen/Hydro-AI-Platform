@@ -17,7 +17,7 @@ export async function saveProject(elements) {
     signalSender('showOverlay', 'Saving project.\nPlease wait...');
     const { projectName, latitude, nLayers, gridPathText, startDate, stopDate,
         userTimeSec, nodalTimeSec, obsPointTable, crossSectionName, crossSectionTable, salinity, 
-        temperature, initWaterLevel, initSalinity, initTemperature , outputHis, hisInterval, hisStart, 
+        temperature, initWaterLevel, initSalinity, initTemperature, outputHis, hisInterval, hisStart, 
         hisStop, outputMap, mapInterval, mapStart, mapStop, outputWQ, wqInterval, wqStart, wqStop, 
         outputRestart, rtsInterval, rtsStart, rtsStop, sttInterval, timingInterval } = elements;
     // Get project name

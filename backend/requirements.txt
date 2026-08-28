@@ -15,6 +15,7 @@ whitebox==2.3.6
 terracatalogueclient==0.1.19
 scikit-image==0.26.0
 numpy==1.26.4 # Important
+seaborn==0.13.2
 # psycopg2-binary==2.9.11
 # sqlmodel==0.0.38
 # Create a virtual environment: python -m venv C:\Envs\hyd_ai

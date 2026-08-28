@@ -488,7 +488,7 @@ async def save_meteo(request: Request, user=Depends(functions.basic_auth)):
     body = await request.json()
     project_name, _ = functions.project_definer(body.get('projectName'), user)
     content = 'QUANTITY=humidity_airtemperature_cloudiness_solarradiation\n' + \
-            'FILENAME=FlowFM_meteo.tim\n' + 'FILETYPE=1\n' + 'METHOD=1\n' + 'OPERAND=O'
+        'FILENAME=FlowFM_meteo.tim\n' + 'FILETYPE=1\n' + 'METHOD=1\n' + 'OPERAND=O'
     # Time difference in minutes
     status, message = functions.contentWriter(project_name, "FlowFM_meteo.tim", body.get('data'), content, 'min')
     return JSONResponse({"status": status, "message": message})
